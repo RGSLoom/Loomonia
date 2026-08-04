@@ -1,0 +1,71 @@
+<svg viewBox="0 0 600 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a2c1a"/>
+      <stop offset="100%" stop-color="#6b4a25"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="1000" fill="url(#fk)"/>
+  <g>
+    <rect x="0" y="120" width="600" height="18" fill="#4a3620"/>
+    <rect x="0" y="380" width="600" height="18" fill="#4a3620"/>
+    <rect x="0" y="640" width="600" height="18" fill="#4a3620"/>
+    <rect x="0" y="900" width="600" height="18" fill="#4a3620"/>
+  </g>
+  <g>
+    <!-- row 1 cans/jars -->
+    <g transform="translate(40,160)">
+      <rect width="70" height="90" rx="8" fill="#d94e3a"/>
+      <rect width="70" height="90" rx="8" fill="#eab308" opacity="0.15"/>
+    </g>
+    <g transform="translate(130,150)">
+      <rect width="60" height="100" rx="10" fill="#e0a72e"/>
+    </g>
+    <g transform="translate(210,165)">
+      <rect width="65" height="85" rx="8" fill="#5fa85a"/>
+    </g>
+    <g transform="translate(295,155)">
+      <rect width="60" height="95" rx="10" fill="#d94e3a"/>
+    </g>
+    <g transform="translate(375,160)">
+      <rect width="70" height="90" rx="8" fill="#4d8fd6"/>
+    </g>
+    <g transform="translate(465,150)">
+      <rect width="60" height="100" rx="10" fill="#e0a72e"/>
+    </g>
+  </g>
+  <g>
+    <!-- row 2 boxes -->
+    <g transform="translate(50,420)">
+      <rect width="90" height="70" rx="6" fill="#eab308"/>
+    </g>
+    <g transform="translate(160,410)">
+      <rect width="80" height="80" rx="6" fill="#5fa85a"/>
+    </g>
+    <g transform="translate(260,420)">
+      <rect width="90" height="70" rx="6" fill="#d94e3a"/>
+    </g>
+    <g transform="translate(370,415)">
+      <rect width="85" height="75" rx="6" fill="#4d8fd6"/>
+    </g>
+    <g transform="translate(475,420)">
+      <rect width="80" height="70" rx="6" fill="#eab308"/>
+    </g>
+  </g>
+  <g>
+    <!-- row 3 fruit crates -->
+    <g transform="translate(60,680)">
+      <rect width="480" height="60" rx="4" fill="#8a5a2e"/>
+      <circle cx="30" cy="30" r="22" fill="#e14b3d"/>
+      <circle cx="80" cy="30" r="22" fill="#e14b3d"/>
+      <circle cx="130" cy="30" r="22" fill="#f2b134"/>
+      <circle cx="180" cy="30" r="22" fill="#f2b134"/>
+      <circle cx="230" cy="30" r="22" fill="#7cb342"/>
+      <circle cx="280" cy="30" r="22" fill="#7cb342"/>
+      <circle cx="330" cy="30" r="22" fill="#e14b3d"/>
+      <circle cx="380" cy="30" r="22" fill="#f2b134"/>
+      <circle cx="430" cy="30" r="22" fill="#7cb342"/>
+    </g>
+  </g>
+  <rect width="600" height="1000" fill="#2a1c10" opacity="0.35"/>
+</svg>

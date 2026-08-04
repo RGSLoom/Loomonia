@@ -1,0 +1,32 @@
+<svg viewBox="0 0 600 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="watersky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7dd3e8"/>
+      <stop offset="40%" stop-color="#4fb8d6"/>
+      <stop offset="55%" stop-color="#2e9fc4"/>
+      <stop offset="100%" stop-color="#0e6ea8"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="1000" fill="url(#watersky)"/>
+  <g fill="#ffffff" opacity="0.18">
+    <ellipse cx="140" cy="150" rx="70" ry="22"/>
+    <ellipse cx="440" cy="110" rx="90" ry="26"/>
+  </g>
+  <g stroke="#eaffff" stroke-width="6" fill="none" opacity="0.55" stroke-linecap="round">
+    <path d="M-20 560 Q80 530 180 560 T380 560 T580 560 T780 560"/>
+    <path d="M-20 620 Q80 590 180 620 T380 620 T580 620 T780 620"/>
+    <path d="M-20 690 Q80 660 180 690 T380 690 T580 690 T780 690"/>
+  </g>
+  <g stroke="#d8fbff" stroke-width="5" fill="none" opacity="0.4" stroke-linecap="round">
+    <path d="M-20 780 Q80 750 180 780 T380 780 T580 780 T780 780"/>
+    <path d="M-20 860 Q80 830 180 860 T380 860 T580 860 T780 860"/>
+    <path d="M-20 940 Q80 910 180 940 T380 940 T580 940 T780 940"/>
+  </g>
+  <rect y="540" width="600" height="460" fill="#0b5f8f" opacity="0.25"/>
+  <g fill="#ffffff" opacity="0.5">
+    <circle cx="500" cy="640" r="4"/>
+    <circle cx="120" cy="720" r="5"/>
+    <circle cx="330" cy="800" r="3"/>
+    <circle cx="220" cy="880" r="4"/>
+  </g>
+</svg>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+<title>Store Walk</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ MAP SCREEN ============ -->
+  <section id="screen-map" class="screen active">
+    <div id="map"></div>
+
+    <div class="hud-top">
+      <button id="btn-avatar" class="hud-icon-btn" title="Profil öffnen">🧑</button>
+      <div class="hud-title">Store Walk</div>
+      <button id="btn-backpack" class="hud-icon-btn hud-icon-decorative" title="Rucksack (bald verfügbar)">🎒</button>
+    </div>
+
+    <div class="hud-counter">🐾 <span id="caught-count">0</span></div>
+
+    <div id="gps-banner" class="gps-banner hidden"></div>
+
+    <div class="hud-bottom">
+      <div id="status-line" class="status-line">Suche GPS-Signal…</div>
+      <button id="main-action-btn" class="primary-btn" disabled>Warte auf Standort…</button>
+    </div>
+
+    <div class="dev-panel">
+      <span class="dev-label">Dev</span>
+      <button id="btn-test-catch" class="dev-btn">🧪 Testfang</button>
+      <button id="btn-test-item" class="dev-btn">🧪 Testitem</button>
+    </div>
+  </section>
+
+  <!-- ============ FANGSZENE ============ -->
+  <section id="screen-catch" class="screen fullscreen-scene">
+    <img id="catch-bg" class="scene-bg" alt="" />
+    <div class="scene-veil"></div>
+    <div class="scene-top">
+      <button class="btn-close" data-close="screen-map">✕</button>
+      <div id="catch-attempt-label" class="attempt-label"></div>
+    </div>
+    <div class="ring-stage">
+      <img id="catch-creature-img" class="catch-creature-img" alt="" />
+      <svg id="catch-ring-svg" viewBox="0 0 220 220" class="ring-svg">
+        <circle cx="110" cy="110" r="100" class="ring-zone ring-red" />
+        <circle cx="110" cy="110" r="55" class="ring-zone ring-yellow" />
+        <circle cx="110" cy="110" r="22" class="ring-zone ring-green" />
+        <circle id="shrink-ring" cx="110" cy="110" r="100" class="shrink-ring" />
+      </svg>
+    </div>
+    <div class="scene-bottom">
+      <button id="btn-fangen" class="primary-btn catch-btn">Fangen!</button>
+    </div>
+  </section>
+
+  <!-- ============ FANG-ERFOLGSMELDUNG ============ -->
+  <section id="screen-catch-success" class="screen fullscreen-scene success-scene">
+    <div class="success-card">
+      <div class="success-banner">✅ Gefangen!</div>
+      <img id="success-creature-img" class="success-img" alt="" />
+      <div id="success-creature-name" class="success-name"></div>
+      <div id="success-creature-meta" class="success-meta"></div>
+      <div id="success-xp" class="success-xp"></div>
+      <p class="hint-text">Dieses Wesen wurde deiner Loomas-Sammlung hinzugefügt.</p>
+      <button id="btn-catch-continue" class="primary-btn">Weiter</button>
+    </div>
+  </section>
+
+  <!-- ============ NACHMAL-MINIGAME ============ -->
+  <section id="screen-draw" class="screen fullscreen-scene">
+    <img id="draw-bg" class="scene-bg" alt="" />
+    <div class="scene-veil"></div>
+    <div class="scene-top">
+      <button class="btn-close" data-close="screen-map">✕</button>
+      <div id="draw-store-label" class="attempt-label"></div>
+    </div>
+    <div class="draw-stage">
+      <svg id="draw-svg" viewBox="0 0 220 220" class="draw-svg">
+        <path id="draw-guide-path" class="draw-guide" />
+        <path id="draw-user-path" class="draw-user" />
+      </svg>
+    </div>
+    <div id="draw-feedback" class="draw-feedback"></div>
+    <div class="scene-bottom draw-bottom">
+      <label class="opt-out-label">
+        <input type="checkbox" id="chk-skip-minigame" />
+        Minigame künftig überspringen
+      </label>
+    </div>
+  </section>
+
+  <!-- ============ ITEM-ERFOLGSMELDUNG ============ -->
+  <section id="screen-item-success" class="screen fullscreen-scene success-scene">
+    <div class="success-card">
+      <div class="success-banner">✅ Item erhalten!</div>
+      <img id="item-success-img" class="success-img item-img" alt="" />
+      <div id="item-success-name" class="success-name"></div>
+      <div id="item-success-rarity" class="success-meta"></div>
+      <div id="item-success-store" class="success-store"></div>
+      <div id="item-success-effect" class="success-effect"></div>
+      <div id="item-success-xp" class="success-xp"></div>
+      <button id="btn-item-continue" class="primary-btn">Weiter</button>
+    </div>
+  </section>
+
+  <!-- ============ PROFIL-HUB ============ -->
+  <section id="screen-profile" class="screen profile-screen">
+    <div class="profile-topbar">
+      <button id="btn-profile-back" class="back-btn">← Zurück</button>
+    </div>
+    <div class="profile-header">
+      <div class="avatar-circle">🧑</div>
+      <div class="profile-name">LunaPwns</div>
+      <div class="profile-level" id="profile-level">Level 1</div>
+      <div class="xp-bar"><div id="xp-bar-fill" class="xp-bar-fill"></div></div>
+      <div id="xp-text" class="xp-text">0 XP</div>
+    </div>
+    <div class="profile-tiles">
+      <button class="tile" data-tile="outfit"><span class="tile-icon">👕</span><span class="tile-label">Outfit</span></button>
+      <button class="tile" data-tile="items"><span class="tile-icon">🎒</span><span class="tile-label">Items</span></button>
+      <button class="tile" data-tile="trophies"><span class="tile-icon">🏆</span><span class="tile-label">Trophäen</span></button>
+      <button class="tile" data-tile="loomas"><span class="tile-icon">🐾</span><span class="tile-label">Loomas</span></button>
+      <button class="tile" data-tile="habitat"><span class="tile-icon">🏞️</span><span class="tile-label">Habitat</span></button>
+      <button class="tile" data-tile="settings"><span class="tile-icon">⚙️</span><span class="tile-label">Einstellungen</span></button>
+    </div>
+    <div class="qr-row">📷 Aktiviere mich im Store</div>
+    <div id="profile-detail" class="profile-detail hidden"></div>
+  </section>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/data.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/state.js"></script>
+<script src="js/map.js"></script>
+<script src="js/catchgame.js"></script>
+<script src="js/drawgame.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
