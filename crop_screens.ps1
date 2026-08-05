@@ -60,8 +60,10 @@ Crop-Fraction -Img $outfitImg -X1 0.672 -Y1 0.375 -X2 0.983 -Y2 0.572 -OutPath (
 Crop-Fraction -Img $outfitImg -X1 0.0 -Y1 0.65 -X2 1.0 -Y2 1.0 -OutPath (Join-Path $outDir "bg_outfit_stage.png")
 
 # --- Startbildschirm: Avatar- + Rucksack-Icon fuers Karten-HUD ---
-Crop-Fraction -Img $startImg -X1 0.01 -Y1 0.005 -X2 0.21 -Y2 0.14 -OutPath (Join-Path $outDir "hud_avatar.png")
-Crop-Fraction -Img $startImg -X1 0.79 -Y1 0.005 -X2 0.99 -Y2 0.14 -OutPath (Join-Path $outDir "hud_backpack.png")
+# Quadratische Ausschnitte (Breite/Hoehe gleich, an Bildseitenverhaeltnis
+# angepasst), damit die runde Maske im HUD nicht schief/verschoben wirkt.
+Crop-Fraction -Img $startImg -X1 0.035 -Y1 0.019 -X2 0.294 -Y2 0.160 -OutPath (Join-Path $outDir "hud_avatar.png")
+Crop-Fraction -Img $startImg -X1 0.724 -Y1 0.019 -X2 0.983 -Y2 0.160 -OutPath (Join-Path $outDir "hud_backpack.png")
 
 $avatarImg.Dispose()
 $outfitImg.Dispose()

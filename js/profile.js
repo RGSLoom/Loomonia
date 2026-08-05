@@ -78,9 +78,21 @@ function attachItemGridHandlers() {
 function showItemDetail(key) {
   const item = ITEMS[key];
   const content = document.getElementById("items-content");
+  // Fuer die 8 Items mit echtem Referenzfoto zeigen wir die echte
+  // Detailkarte 1:1. Fuer neue Items ohne Foto (z.B. Lockduft-Flakon)
+  // bauen wir eine Karte im selben kosmischen Stil aus den Rohdaten.
+  const cardHtml = item.card
+    ? `<img class="detail-card-full" src="${item.card}" alt="${item.name}" />`
+    : `<div class="detail-card-synthetic">
+        <div class="detail-card-name">${item.name}</div>
+        <div class="detail-card-rarity" style="color:${RARITY_COLORS[item.rarity]}">${item.rarity}</div>
+        <img src="${item.icon}" alt="${item.name}" class="detail-card-icon" />
+        <div class="detail-card-effect">${item.effect}</div>
+        <div class="detail-card-hint">Dieses Item kann durch reale Käufe im Handel aktiviert werden.</div>
+      </div>`;
   content.innerHTML = `
     <button class="back-btn" id="btn-item-detail-back" style="margin-bottom:12px;">← Übersicht</button>
-    <img class="detail-card-full" src="${item.card}" alt="${item.name}" />`;
+    ${cardHtml}`;
   document.getElementById("btn-item-detail-back").addEventListener("click", () => {
     content.innerHTML = renderItemsGrid();
     attachItemGridHandlers();

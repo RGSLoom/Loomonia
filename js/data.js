@@ -155,7 +155,27 @@ const ITEMS = {
     card: "assets/items/Armband.png",
     effect: "+50 % XP beim Anlegen",
   },
+  lockduftflakon: {
+    key: "lockduftflakon",
+    name: "Lockduft-Flakon",
+    rarity: "Episch",
+    xp: 120,
+    icon: "assets/generated/item_lockduftflakon.svg",
+    // Kein echtes Referenzfoto vorhanden (im Gegensatz zu den anderen 8
+    // Items) — showItemDetail() baut fuer dieses Item deshalb eine
+    // Detailkarte aus Name/Seltenheit/Effekt statt ein echtes Karten-Bild
+    // zu zeigen.
+    card: null,
+    effect: "Läuft 7 Tage lang, lockt mehr Loomas an",
+  },
 };
+
+// Episch/Legendaer sind laut Original-Kartentexten KEINE Zufalls-Drops aus
+// Stores, sondern Belohnungen fuer Trophaeen/seltene Quests (siehe
+// Abschnitt 7 der Spezifikation) — die Store-Item-Pools unten duerfen
+// daher nur Gewoehnlich/Ungewoehnlich/Selten enthalten. Der Trophaeen-
+// Belohnungsmechanismus selbst ist noch nicht gebaut (Trophaeen-Screen
+// ist weiterhin ein "folgt als Naechstes"-Platzhalter).
 
 // STORE_CATEGORIES = Branchen (Anzeigename, Szene-Hintergrund, Item-Pool).
 // Nirgends echte Marken-/Retailer-Namen (siehe Spielspezifikation Abschnitt 9)
@@ -165,19 +185,23 @@ const STORE_CATEGORIES = {
     key: "feinkost",
     name: "Feinkost & Snacks",
     scene: "assets/generated/store_feinkost_real.jpg",
-    itemPool: ["fruchtkorb", "energiesnack", "gesundheitspaket", "sprachbuch", "sneaker", "hoodie"],
+    itemPool: ["fruchtkorb", "energiesnack", "gesundheitspaket", "sprachbuch", "sneaker"],
   },
   sneaker: {
     key: "sneaker",
     name: "Sneaker & Streetwear",
     scene: "assets/generated/store_sneaker_real.jpg",
-    itemPool: ["sneaker", "hoodie", "rucksack"],
+    itemPool: ["sneaker", "rucksack"],
   },
   juwelier: {
     key: "juwelier",
     name: "Juwelier",
     scene: "assets/generated/store_juwelier_real.jpg",
-    itemPool: ["armband"],
+    // Noch kein juwelierspezifisches Item vorhanden — Uebergangszustand:
+    // vorerst derselbe allgemeine Gewoehnlich/Ungewoehnlich/Selten-Pool
+    // wie bei Feinkost & Snacks. Sobald es mehr Items gibt, hier
+    // exklusivere/hochwertigere Items eintragen.
+    itemPool: ["fruchtkorb", "energiesnack", "gesundheitspaket", "sprachbuch", "sneaker"],
   },
   cafe: {
     key: "cafe",
@@ -189,15 +213,15 @@ const STORE_CATEGORIES = {
     key: "fashion",
     name: "Mode & Accessoires",
     scene: "assets/generated/store_fashion_real.jpg",
-    itemPool: ["sneaker", "hoodie", "rucksack"],
+    itemPool: ["sneaker", "rucksack"],
   },
   bank: {
     key: "bank",
     name: "Bank",
     scene: "assets/generated/store_bank_real.jpg",
-    // Branche/Item-Pool noch nicht final geklaert — bis dahin zufaellig
-    // aus der gesamten Item-Bibliothek.
-    itemPool: Object.keys(ITEMS),
+    // Branche/Item-Pool noch nicht final geklaert — bis dahin der
+    // allgemeine Gewoehnlich/Ungewoehnlich/Selten-Pool.
+    itemPool: ["fruchtkorb", "sprachbuch", "energiesnack", "gesundheitspaket", "sneaker", "rucksack"],
   },
   drogerie: {
     key: "drogerie",
