@@ -1,21 +1,14 @@
-// Profil-Hub: XP-Anzeige, sechs Icon-Kacheln und ihre Unterseiten.
-// Jede Kachel oeffnet einen eigenen Vollbild-Screen mit eigenem
-// Zurueck-Button (nicht eingeklappter Inhalt unter den Kacheln).
+// Profil-Hub: eine einzige unveraenderte Grafik (assets/generated/
+// profile_hub.png) mit unsichtbaren Hotspots fuer Zurueck und die sechs
+// Icon-Kacheln (siehe Spielspezifikation Abschnitt 6) — keine eigene
+// Rekonstruktion mit Live-Daten. Die sechs Kacheln oeffnen eigene
+// Vollbild-Unterseiten mit eigenem Zurueck-Button.
 
 function xpToLevel(xp) {
   return Math.floor(xp / 500) + 1;
 }
 
-function renderProfileHeader() {
-  const level = xpToLevel(gameState.xp);
-  const xpIntoLevel = gameState.xp % 500;
-  document.getElementById("profile-level").textContent = `Level ${level}`;
-  document.getElementById("xp-bar-fill").style.width = `${(xpIntoLevel / 500) * 100}%`;
-  document.getElementById("xp-text").textContent = `${gameState.xp} XP (${xpIntoLevel}/500 bis Level ${level + 1})`;
-}
-
 function openProfile() {
-  renderProfileHeader();
   showScreen("screen-profile");
 }
 

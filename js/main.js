@@ -36,9 +36,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("btn-item-continue").addEventListener("click", () => showScreen("screen-map"));
 
-  // Profil-Hub
-  document.getElementById("btn-profile-back").addEventListener("click", () => showScreen("screen-map"));
-  document.querySelectorAll(".profile-tiles .tile-img-btn").forEach((tile) => {
+  // Profil-Hub (eine Grafik + unsichtbare Hotspots, siehe profile.js)
+  document.getElementById("hotspot-profile-back").addEventListener("click", () => showScreen("screen-map"));
+  document.querySelectorAll(".profile-hotspot[data-tile]").forEach((tile) => {
     tile.addEventListener("click", () => openSubScreen(tile.dataset.tile));
   });
   // Profil-Unterseiten (Outfit/Items/Trophäen/Loomas/Habitat/Einstellungen)

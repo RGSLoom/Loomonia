@@ -109,35 +109,21 @@
   </section>
 
   <!-- ============ PROFIL-HUB ============ -->
+  <!-- Eine einzige, unveraenderte Original-Grafik (siehe Spielspezifikation
+       Abschnitt 6) — keine Rekonstruktion mit eigenen Elementen/Daten.
+       Navigation ausschliesslich ueber unsichtbare Hotspots exakt ueber
+       dem Zurueck-Pfeil und den sechs Icon-Kacheln im Bild. -->
   <section id="screen-profile" class="screen profile-screen">
-    <div class="profile-topbar">
-      <button id="btn-profile-back" class="back-btn">← Zurück</button>
+    <div class="profile-image-wrap">
+      <img src="assets/generated/profile_hub.png" alt="Profil" class="profile-full-image" />
+      <button class="profile-hotspot" id="hotspot-profile-back" style="left:0%; top:0.9%; width:15%; height:7.5%;" aria-label="Zurück"></button>
+      <button class="profile-hotspot" data-tile="outfit" style="left:3.4%; top:53.4%; width:30.5%; height:15.8%;" aria-label="Outfit"></button>
+      <button class="profile-hotspot" data-tile="items" style="left:35.6%; top:53.4%; width:30.5%; height:15.8%;" aria-label="Items"></button>
+      <button class="profile-hotspot" data-tile="trophies" style="left:67.8%; top:53.4%; width:30.5%; height:15.8%;" aria-label="Trophäen"></button>
+      <button class="profile-hotspot" data-tile="loomas" style="left:3.4%; top:71%; width:30.5%; height:15.8%;" aria-label="Loomas"></button>
+      <button class="profile-hotspot" data-tile="habitat" style="left:35.6%; top:71%; width:30.5%; height:15.8%;" aria-label="Habitat"></button>
+      <button class="profile-hotspot" data-tile="settings" style="left:67.8%; top:71%; width:30.5%; height:15.8%;" aria-label="Einstellungen"></button>
     </div>
-    <div class="profile-header">
-      <div class="profile-header-row">
-        <img class="avatar-photo" src="assets/generated/hud_avatar.png" alt="Avatar" />
-        <div class="profile-name-block">
-          <div class="profile-name">LunaPwns</div>
-          <div class="profile-level" id="profile-level">Level 1</div>
-        </div>
-        <div class="profile-currency">
-          <span class="currency-pill">🪙 <span id="coins-text">0</span></span>
-          <span class="currency-pill">💎 <span id="gems-text">0</span></span>
-        </div>
-      </div>
-      <div class="xp-bar"><div id="xp-bar-fill" class="xp-bar-fill"></div></div>
-      <div id="xp-text" class="xp-text">0 XP</div>
-      <img class="profile-portrait" src="assets/generated/portrait_luna.png" alt="LunaPwns" />
-    </div>
-    <div class="profile-tiles">
-      <button class="tile-img-btn" data-tile="outfit"><img src="assets/generated/tile_outfit.png" alt="Outfit" /></button>
-      <button class="tile-img-btn" data-tile="items"><img src="assets/generated/tile_items.png" alt="Items" /></button>
-      <button class="tile-img-btn" data-tile="trophies"><img src="assets/generated/tile_trophies.png" alt="Trophäen" /></button>
-      <button class="tile-img-btn" data-tile="loomas"><img src="assets/generated/tile_loomas.png" alt="Loomas" /></button>
-      <button class="tile-img-btn" data-tile="habitat"><img src="assets/generated/tile_habitat.png" alt="Habitat" /></button>
-      <button class="tile-img-btn" data-tile="settings"><img src="assets/generated/tile_settings.png" alt="Einstellungen" /></button>
-    </div>
-    <div class="qr-row">📷 Aktiviere mich im Store</div>
   </section>
 
   <!-- ============ PROFIL-UNTERSEITEN (eigene Vollbild-Screens) ============ -->
