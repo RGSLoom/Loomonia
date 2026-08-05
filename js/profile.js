@@ -1,4 +1,6 @@
-// Profil-Hub: XP-Anzeige, sechs Icon-Kacheln und ihre Unterseiten
+// Profil-Hub: XP-Anzeige, sechs Icon-Kacheln und ihre Unterseiten.
+// Jede Kachel oeffnet einen eigenen Vollbild-Screen mit eigenem
+// Zurueck-Button (nicht eingeklappter Inhalt unter den Kacheln).
 
 function xpToLevel(xp) {
   return Math.floor(xp / 500) + 1;
@@ -14,37 +16,36 @@ function renderProfileHeader() {
 
 function openProfile() {
   renderProfileHeader();
-  document.getElementById("profile-detail").classList.add("hidden");
-  document.getElementById("profile-detail").innerHTML = "";
   showScreen("screen-profile");
 }
 
-function renderProfileTile(tileKey) {
-  const detail = document.getElementById("profile-detail");
-  detail.classList.remove("hidden");
-
+function openSubScreen(tileKey) {
   switch (tileKey) {
     case "items":
-      detail.innerHTML = renderItemsGrid();
+      document.getElementById("items-content").innerHTML = renderItemsGrid();
       attachItemGridHandlers();
-      break;
-    case "loomas":
-      detail.innerHTML = renderLoomasGrid();
-      break;
-    case "settings":
-      detail.innerHTML = renderSettings();
-      attachSettingsHandlers();
+      showScreen("screen-items");
       break;
     case "outfit":
-      detail.innerHTML = renderOutfitGrid();
+      document.getElementById("outfit-content").innerHTML = renderOutfitGrid();
       attachOutfitGridHandlers();
+      showScreen("screen-outfit");
+      break;
+    case "loomas":
+      document.getElementById("loomas-content").innerHTML = renderLoomasGrid();
+      showScreen("screen-loomas");
+      break;
+    case "settings":
+      document.getElementById("settings-content").innerHTML = renderSettings();
+      attachSettingsHandlers();
+      showScreen("screen-settings");
       break;
     case "trophies":
-    case "habitat":
-      detail.innerHTML = `<div class="placeholder-note">Screen folgt als Nächstes</div>`;
+      showScreen("screen-trophies");
       break;
-    default:
-      detail.innerHTML = "";
+    case "habitat":
+      showScreen("screen-habitat");
+      break;
   }
 }
 
@@ -76,12 +77,12 @@ function attachItemGridHandlers() {
 
 function showItemDetail(key) {
   const item = ITEMS[key];
-  const detail = document.getElementById("profile-detail");
-  detail.innerHTML = `
+  const content = document.getElementById("items-content");
+  content.innerHTML = `
     <button class="back-btn" id="btn-item-detail-back" style="margin-bottom:12px;">← Übersicht</button>
     <img class="detail-card-full" src="${item.card}" alt="${item.name}" />`;
   document.getElementById("btn-item-detail-back").addEventListener("click", () => {
-    detail.innerHTML = renderItemsGrid();
+    content.innerHTML = renderItemsGrid();
     attachItemGridHandlers();
   });
 }
@@ -123,12 +124,12 @@ function renderOutfitGrid() {
 function attachOutfitGridHandlers() {
   document.querySelectorAll(".outfit-cell").forEach((cell) => {
     cell.addEventListener("click", () => {
-      const detail = document.getElementById("profile-detail");
-      detail.innerHTML = `
+      const content = document.getElementById("outfit-content");
+      content.innerHTML = `
         <button class="back-btn" id="btn-outfit-back" style="margin-bottom:12px;">← Übersicht</button>
         <div class="placeholder-note">Screen folgt als Nächstes</div>`;
       document.getElementById("btn-outfit-back").addEventListener("click", () => {
-        detail.innerHTML = renderOutfitGrid();
+        content.innerHTML = renderOutfitGrid();
         attachOutfitGridHandlers();
       });
     });

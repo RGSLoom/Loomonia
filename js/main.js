@@ -39,7 +39,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // Profil-Hub
   document.getElementById("btn-profile-back").addEventListener("click", () => showScreen("screen-map"));
   document.querySelectorAll(".profile-tiles .tile-img-btn").forEach((tile) => {
-    tile.addEventListener("click", () => renderProfileTile(tile.dataset.tile));
+    tile.addEventListener("click", () => openSubScreen(tile.dataset.tile));
+  });
+  // Profil-Unterseiten (Outfit/Items/Trophäen/Loomas/Habitat/Einstellungen)
+  // — eigene Vollbild-Screens, Zurück fuehrt immer zum Profil-Hub.
+  document.querySelectorAll(".sub-back-btn").forEach((btn) => {
+    btn.addEventListener("click", () => showScreen("screen-profile"));
   });
 
   // Dev-Testknöpfe (siehe Spezifikation Abschnitt 8 — vor Kunden-Demo entfernen/verstecken)
