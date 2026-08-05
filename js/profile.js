@@ -36,6 +36,9 @@ function renderProfileTile(tileKey) {
       attachSettingsHandlers();
       break;
     case "outfit":
+      detail.innerHTML = renderOutfitGrid();
+      attachOutfitGridHandlers();
+      break;
     case "trophies":
     case "habitat":
       detail.innerHTML = `<div class="placeholder-note">Screen folgt als Nächstes</div>`;
@@ -50,9 +53,10 @@ function renderItemsGrid() {
     .map((item) => {
       const count = gameState.inventory[item.key] || 0;
       const owned = count > 0;
-      return `<div class="item-cell ${owned ? "" : "locked"}" data-item="${item.key}">
-        ${owned ? `<img src="${item.icon}" alt="${item.name}" /><span class="cell-count">${count}</span>` : `<span class="lock-icon">🔒</span>`}
-        <span class="cell-label">${owned ? item.name : "?"}</span>
+      if (!owned) return `<div class="item-cell locked" data-item="${item.key}"></div>`;
+      return `<div class="item-cell" data-item="${item.key}">
+        <img src="${item.icon}" alt="${item.name}" /><span class="cell-count">${count}</span>
+        <span class="cell-label">${item.name}</span>
       </div>`;
     })
     .join("");
@@ -87,13 +91,48 @@ function renderLoomasGrid() {
     .map((c) => {
       const count = gameState.caughtCreatures[c.key] || 0;
       const owned = count > 0;
-      return `<div class="looma-cell ${owned ? "" : "locked"}">
-        ${owned ? `<img src="${creatureIconCache[c.key] || c.icon}" alt="${c.name}" /><span class="cell-count">${count}</span>` : `<span class="lock-icon">🔒</span>`}
-        <span class="cell-label">${owned ? c.name : "?"}</span>
+      if (!owned) return `<div class="looma-cell locked"></div>`;
+      return `<div class="looma-cell">
+        <img src="${creatureIconCache[c.key] || c.icon}" alt="${c.name}" /><span class="cell-count">${count}</span>
+        <span class="cell-label">${c.name}</span>
       </div>`;
     })
     .join("");
   return `<div class="placeholder-note" style="margin-bottom:14px;">Gefangene Wesen: ${totalCaughtCount()}</div><div class="loomas-grid">${cells}</div>`;
+}
+
+function renderOutfitGrid() {
+  const slots = [
+    { key: "kopfteil", label: "Kopfteil", img: "assets/generated/tile_kopfteil.png" },
+    { key: "oberteil", label: "Oberteil", img: "assets/generated/tile_oberteil.png" },
+    { key: "hose", label: "Hose", img: "assets/generated/tile_hose.png" },
+    { key: "outfit", label: "Outfit", img: "assets/generated/tile_outfitfigur.png" },
+    { key: "sneaker", label: "Sneaker", img: "assets/generated/tile_outfitsneaker.png" },
+    { key: "accessoire", label: "Accessoire", img: "assets/generated/tile_accessoire.png" },
+  ];
+  const cells = slots
+    .map((s) => `<button class="outfit-cell" data-slot="${s.key}"><img src="${s.img}" alt="${s.label}" /></button>`)
+    .join("");
+  return `
+    <div class="outfit-grid">${cells}</div>
+    <div class="outfit-stage">
+      <img src="assets/generated/bg_outfit_stage.png" alt="" />
+    </div>`;
+}
+
+function attachOutfitGridHandlers() {
+  document.querySelectorAll(".outfit-cell").forEach((cell) => {
+    cell.addEventListener("click", () => {
+      const detail = document.getElementById("profile-detail");
+      detail.innerHTML = `
+        <button class="back-btn" id="btn-outfit-back" style="margin-bottom:12px;">← Übersicht</button>
+        <div class="placeholder-note">Screen folgt als Nächstes</div>`;
+      document.getElementById("btn-outfit-back").addEventListener("click", () => {
+        detail.innerHTML = renderOutfitGrid();
+        attachOutfitGridHandlers();
+      });
+    });
+  });
 }
 
 function renderSettings() {

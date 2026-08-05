@@ -15,9 +15,9 @@
     <div id="map"></div>
 
     <div class="hud-top">
-      <button id="btn-avatar" class="hud-icon-btn" title="Profil öffnen">🧑</button>
+      <button id="btn-avatar" class="hud-icon-btn hud-icon-img" title="Profil öffnen"><img src="assets/generated/hud_avatar.png" alt="Profil" /></button>
       <div class="hud-title">Store Walk</div>
-      <button id="btn-backpack" class="hud-icon-btn hud-icon-decorative" title="Rucksack (bald verfügbar)">🎒</button>
+      <button id="btn-backpack" class="hud-icon-btn hud-icon-img hud-icon-decorative" title="Rucksack (bald verfügbar)"><img src="assets/generated/hud_backpack.png" alt="Rucksack" /></button>
     </div>
 
     <div class="hud-counter">🐾 <span id="caught-count">0</span></div>
@@ -114,19 +114,28 @@
       <button id="btn-profile-back" class="back-btn">← Zurück</button>
     </div>
     <div class="profile-header">
-      <div class="avatar-circle">🧑</div>
-      <div class="profile-name">LunaPwns</div>
-      <div class="profile-level" id="profile-level">Level 1</div>
+      <div class="profile-header-row">
+        <img class="avatar-photo" src="assets/generated/hud_avatar.png" alt="Avatar" />
+        <div class="profile-name-block">
+          <div class="profile-name">LunaPwns</div>
+          <div class="profile-level" id="profile-level">Level 1</div>
+        </div>
+        <div class="profile-currency">
+          <span class="currency-pill">🪙 <span id="coins-text">0</span></span>
+          <span class="currency-pill">💎 <span id="gems-text">0</span></span>
+        </div>
+      </div>
       <div class="xp-bar"><div id="xp-bar-fill" class="xp-bar-fill"></div></div>
       <div id="xp-text" class="xp-text">0 XP</div>
+      <img class="profile-portrait" src="assets/generated/portrait_luna.png" alt="LunaPwns" />
     </div>
     <div class="profile-tiles">
-      <button class="tile" data-tile="outfit"><span class="tile-icon">👕</span><span class="tile-label">Outfit</span></button>
-      <button class="tile" data-tile="items"><span class="tile-icon">🎒</span><span class="tile-label">Items</span></button>
-      <button class="tile" data-tile="trophies"><span class="tile-icon">🏆</span><span class="tile-label">Trophäen</span></button>
-      <button class="tile" data-tile="loomas"><span class="tile-icon">🐾</span><span class="tile-label">Loomas</span></button>
-      <button class="tile" data-tile="habitat"><span class="tile-icon">🏞️</span><span class="tile-label">Habitat</span></button>
-      <button class="tile" data-tile="settings"><span class="tile-icon">⚙️</span><span class="tile-label">Einstellungen</span></button>
+      <button class="tile-img-btn" data-tile="outfit"><img src="assets/generated/tile_outfit.png" alt="Outfit" /></button>
+      <button class="tile-img-btn" data-tile="items"><img src="assets/generated/tile_items.png" alt="Items" /></button>
+      <button class="tile-img-btn" data-tile="trophies"><img src="assets/generated/tile_trophies.png" alt="Trophäen" /></button>
+      <button class="tile-img-btn" data-tile="loomas"><img src="assets/generated/tile_loomas.png" alt="Loomas" /></button>
+      <button class="tile-img-btn" data-tile="habitat"><img src="assets/generated/tile_habitat.png" alt="Habitat" /></button>
+      <button class="tile-img-btn" data-tile="settings"><img src="assets/generated/tile_settings.png" alt="Einstellungen" /></button>
     </div>
     <div class="qr-row">📷 Aktiviere mich im Store</div>
     <div id="profile-detail" class="profile-detail hidden"></div>

@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Profil-Hub
   document.getElementById("btn-profile-back").addEventListener("click", () => showScreen("screen-map"));
-  document.querySelectorAll(".profile-tiles .tile").forEach((tile) => {
+  document.querySelectorAll(".profile-tiles .tile-img-btn").forEach((tile) => {
     tile.addEventListener("click", () => renderProfileTile(tile.dataset.tile));
   });
 
