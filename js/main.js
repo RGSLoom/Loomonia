@@ -1,6 +1,13 @@
 // Verdrahtung aller Screens und Events
 
 function showScreen(id) {
+  const current = document.querySelector(".screen.active");
+  // Kamera beim Verlassen der Fangszene immer stoppen (egal ueber
+  // welchen Weg — Fang, Flucht, Schliessen-Button), damit sie nie im
+  // Hintergrund weiterlaeuft.
+  if (current && current.id === "screen-catch" && id !== "screen-catch") {
+    stopCameraBackground();
+  }
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 }
@@ -16,10 +23,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Button), das fuehlt sich beim echten Fangen natuerlicher an. Der
   // Schliessen-Button (X) ist davon ausgenommen.
   document.getElementById("screen-catch").addEventListener("click", (e) => {
-    if (e.target.closest(".btn-close")) return;
+    if (e.target.closest(".btn-close") || e.target.closest("#btn-ar-toggle")) return;
     handleFangenClick();
   });
   document.querySelector('#screen-catch [data-close]').addEventListener("click", closeCatchScene);
+  document.getElementById("btn-ar-toggle").addEventListener("click", toggleArCamera);
   document.getElementById("btn-catch-continue").addEventListener("click", () => showScreen("screen-map"));
 
   // Nachmal-Minigame

@@ -39,10 +39,14 @@
   <!-- ============ FANGSZENE ============ -->
   <section id="screen-catch" class="screen fullscreen-scene">
     <img id="catch-bg" class="scene-bg" alt="" />
+    <video id="catch-camera" class="scene-bg" autoplay playsinline muted style="display:none;"></video>
     <div class="scene-veil"></div>
     <div class="scene-top">
       <button class="btn-close" data-close="screen-map">✕</button>
-      <div id="catch-attempt-label" class="attempt-label"></div>
+      <div class="scene-top-right">
+        <button id="btn-ar-toggle" class="ar-toggle-btn">📷 Kamera: Aus</button>
+        <div id="catch-attempt-label" class="attempt-label"></div>
+      </div>
     </div>
     <div class="ring-stage">
       <img id="catch-creature-img" class="catch-creature-img" alt="" />

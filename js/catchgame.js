@@ -1,6 +1,7 @@
 // Ring-Fangmechanik (Fangszene)
 
 let catchState = null; // { creatureKey, entry, attempt, rafId, startTime, isTest }
+let cameraStream = null; // MediaStream der Fangszenen-Kamera (AR-Hintergrund)
 
 function openCatchSceneForCreature(entry) {
   const creatureKey = entry.key;
@@ -14,8 +15,23 @@ function openCatchSceneForCreature(entry) {
   };
   const creature = CREATURES[creatureKey];
 
-  document.getElementById("catch-bg").src = creature.scene;
   document.getElementById("catch-attempt-label").textContent = "Versuch 1 von 2";
+  setupCatchBackground(creature);
+
+  showScreen("screen-catch");
+  startRingLoop();
+}
+
+// ---------- AR-Kamera-Hintergrund ----------
+// Zeigt wahlweise das echte Live-Kamerabild (nur lokal im <video>-Element,
+// nirgendwo hochgeladen/gespeichert) oder faellt bei fehlender Erlaubnis/
+// Kamera automatisch und ohne Fehlermeldung auf das feste Foto zurueck.
+
+function showPhotoLayer(creature) {
+  document.getElementById("catch-camera").style.display = "none";
+  const img = document.getElementById("catch-bg");
+  img.style.display = "block";
+  img.src = creature.scene;
 
   // Bei Fauli ist das Wesen schon im echten Foto zu sehen — bei den
   // generischen Hintergruenden (Enari/Fifu/Nami) legen wir das
@@ -25,12 +41,96 @@ function openCatchSceneForCreature(entry) {
   if (creature.sceneIsRealPhoto) {
     creatureImgEl.style.display = "none";
   } else {
-    creatureImgEl.src = creatureIconCache[creatureKey] || creature.icon;
+    creatureImgEl.src = creatureIconCache[creature.key] || creature.icon;
     creatureImgEl.style.display = "block";
   }
+}
 
-  showScreen("screen-catch");
-  startRingLoop();
+function showCameraLayer(creature) {
+  document.getElementById("catch-bg").style.display = "none";
+  document.getElementById("catch-camera").style.display = "block";
+  // Im Kamera-Modus enthaelt das Live-Bild nie ein Wesen (anders als
+  // Faulis festes Foto) — das Icon muss also immer als Vordergrund drauf.
+  const creatureImgEl = document.getElementById("catch-creature-img");
+  creatureImgEl.src = creatureIconCache[creature.key] || creature.icon;
+  creatureImgEl.style.display = "block";
+}
+
+async function tryStartCamera() {
+  if (cameraStream) return true;
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("getUserMedia wird von diesem Browser nicht unterstuetzt");
+    }
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false,
+    });
+    document.getElementById("catch-camera").srcObject = cameraStream;
+    return true;
+  } catch (err) {
+    // Kein Fehler-Dialog, kein Absturz — einfach still auf das Foto
+    // zurueckfallen (z.B. Erlaubnis verweigert, keine Kamera vorhanden).
+    console.warn("Kamera nicht verfügbar, nutze Foto-Hintergrund:", err && err.message ? err.message : err);
+    cameraStream = null;
+    return false;
+  }
+}
+
+function stopCameraBackground() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach((t) => t.stop());
+    cameraStream = null;
+  }
+  document.getElementById("catch-camera").srcObject = null;
+}
+
+// Setzt sofort den Foto-Hintergrund (garantierter, synchroner Fallback)
+// und versucht danach asynchron die Kamera, falls sie in den
+// Einstellungen aktiviert ist.
+function setupCatchBackground(creature) {
+  showPhotoLayer(creature);
+  updateArToggleUI();
+
+  if (gameState.settings.arCameraEnabled) {
+    tryStartCamera().then((success) => {
+      if (success && catchState) showCameraLayer(creature);
+    });
+  } else {
+    stopCameraBackground();
+  }
+}
+
+// Umschalter direkt in der Fangszene — steuert denselben gespeicherten
+// Zustand wie der Schalter im Profil-Hub/Einstellungen (siehe profile.js).
+function toggleArCamera() {
+  const newValue = !gameState.settings.arCameraEnabled;
+  setArCameraEnabled(newValue);
+  updateArToggleUI();
+  syncSettingsArToggle();
+
+  if (!catchState) return;
+  const creature = CREATURES[catchState.creatureKey];
+  if (newValue) {
+    tryStartCamera().then((success) => {
+      if (success && catchState) showCameraLayer(creature);
+    });
+  } else {
+    stopCameraBackground();
+    showPhotoLayer(creature);
+  }
+}
+
+function updateArToggleUI() {
+  const btn = document.getElementById("btn-ar-toggle");
+  const on = gameState.settings.arCameraEnabled;
+  btn.classList.toggle("on", on);
+  btn.textContent = on ? "📷 Kamera: An" : "📷 Kamera: Aus";
+}
+
+function syncSettingsArToggle() {
+  const toggle = document.getElementById("settings-ar-toggle");
+  if (toggle) toggle.classList.toggle("on", gameState.settings.arCameraEnabled);
 }
 
 function startRingLoop() {

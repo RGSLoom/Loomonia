@@ -21,6 +21,9 @@ function defaultState() {
     inventory: {}, // itemKey -> count
     settings: {
       skipMinigame: false,
+      // AR-Kamera-Hintergrund in der Fangszene — Default aus (Privacy-
+      // freundlich, erfordert explizite Kamera-Erlaubnis vom Nutzer).
+      arCameraEnabled: false,
     },
     storePositions: null, // { [storeKey]: { lat, lon } } — einmalig gesetzt
   };
@@ -57,6 +60,11 @@ function addItem(key) {
 
 function setSkipMinigame(value) {
   gameState.settings.skipMinigame = value;
+  saveState();
+}
+
+function setArCameraEnabled(value) {
+  gameState.settings.arCameraEnabled = value;
   saveState();
 }
 

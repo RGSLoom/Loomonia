@@ -306,6 +306,27 @@ html, body {
   font-size: 14px;
   font-weight: 600;
 }
+.scene-top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ar-toggle-btn {
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: var(--text-light);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ar-toggle-btn.on {
+  background: rgba(56,189,248,0.28);
+  border-color: rgba(56,189,248,0.8);
+  box-shadow: 0 0 10px rgba(56,189,248,0.5);
+}
 
 .ring-stage {
   position: relative;

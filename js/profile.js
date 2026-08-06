@@ -149,6 +149,13 @@ function renderSettings() {
         <div style="font-size:12px; opacity:0.75;">Bei Store-Besuchen direkt das Item erhalten, ohne Nachmal-Minigame.</div>
       </div>
       <button id="settings-skip-toggle" class="toggle-switch ${gameState.settings.skipMinigame ? "on" : ""}"></button>
+    </div>
+    <div class="settings-row">
+      <div>
+        <div style="font-weight:600;">Kamera-Hintergrund in der Fangszene (AR)</div>
+        <div style="font-size:12px; opacity:0.75;">Zeigt beim Fangen dein echtes Kamerabild statt eines festen Fotos. Bild bleibt immer nur lokal auf dem Gerät. Ohne Kamera-Erlaubnis wird automatisch das feste Foto genutzt.</div>
+      </div>
+      <button id="settings-ar-toggle" class="toggle-switch ${gameState.settings.arCameraEnabled ? "on" : ""}"></button>
     </div>`;
 }
 
@@ -158,5 +165,15 @@ function attachSettingsHandlers() {
     const newValue = !gameState.settings.skipMinigame;
     setSkipMinigame(newValue);
     toggle.classList.toggle("on", newValue);
+  });
+
+  // Derselbe gespeicherte Zustand wie der Kamera-Umschalter direkt in der
+  // Fangszene (catchgame.js) — beide halten sich gegenseitig synchron.
+  const arToggle = document.getElementById("settings-ar-toggle");
+  arToggle.addEventListener("click", () => {
+    const newValue = !gameState.settings.arCameraEnabled;
+    setArCameraEnabled(newValue);
+    arToggle.classList.toggle("on", newValue);
+    updateArToggleUI();
   });
 }
