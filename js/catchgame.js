@@ -184,6 +184,18 @@ function onCatchSuccess() {
   }
 
   document.getElementById("success-creature-img").src = creature.scene;
+
+  // Wie in der Fangszene selbst: bei generischen Hintergruenden (kein
+  // Wesen im Foto) das Icon zusaetzlich vorne drauflegen, sonst ist auf
+  // der Erfolgsmeldung nur der leere Hintergrund zu sehen.
+  const successIconEl = document.getElementById("success-creature-icon");
+  if (creature.sceneIsRealPhoto) {
+    successIconEl.style.display = "none";
+  } else {
+    successIconEl.src = creatureIconCache[creature.key] || creature.icon;
+    successIconEl.style.display = "block";
+  }
+
   document.getElementById("success-creature-name").textContent = creature.name;
   document.getElementById("success-creature-meta").textContent =
     `${creature.elementIcon} ${creature.element} • ${creature.rarity}`;

@@ -441,12 +441,28 @@ html, body {
   font-weight: 800;
   margin-bottom: 14px;
 }
+.success-img-wrap {
+  position: relative;
+  width: 160px;
+  margin: 0 auto 14px;
+}
 .success-img {
   width: 160px;
   height: 160px;
   object-fit: contain;
-  margin: 0 auto 14px;
   filter: drop-shadow(0 6px 16px rgba(0,0,0,0.5));
+  display: block;
+}
+.success-creature-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 62%;
+  height: 62%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6));
+  display: none;
 }
 .item-img { width: 130px; height: 130px; border-radius: 20px; }
 .success-name { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
