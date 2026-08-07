@@ -19,6 +19,7 @@ function defaultState() {
     xp: 0,
     caughtCreatures: {}, // key -> count
     inventory: {}, // itemKey -> count
+    shadowEssence: 0,
     settings: {
       skipMinigame: false,
       // AR-Kamera-Hintergrund in der Fangszene — Default aus (Privacy-
@@ -51,6 +52,19 @@ function addCaughtCreature(key) {
 
 function totalCaughtCount() {
   return Object.values(gameState.caughtCreatures).reduce((a, b) => a + b, 0);
+}
+
+// Tauscht `qty` gefangene Exemplare von `key` gegen Schatten-Essenz
+// (SHADOW_ESSENCE_PER_CREATURE pro Stück, siehe data.js). Gibt false zurück
+// und aendert nichts, falls qty ungueltig ist oder mehr verlangt wird als
+// vorhanden — so bleibt der Aufrufer (Loomas-UI) einfach.
+function exchangeCreatureForEssence(key, qty) {
+  const owned = gameState.caughtCreatures[key] || 0;
+  if (!Number.isInteger(qty) || qty < 1 || qty > owned) return false;
+  gameState.caughtCreatures[key] = owned - qty;
+  gameState.shadowEssence += qty * SHADOW_ESSENCE_PER_CREATURE;
+  saveState();
+  return true;
 }
 
 function addItem(key) {

@@ -638,6 +638,31 @@ html, body {
 .detail-card-effect { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
 .detail-card-hint { font-size: 12px; opacity: 0.7; line-height: 1.4; }
 
+.essence-banner {
+  text-align: center;
+  padding: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #e9d5ff;
+  background: rgba(192,132,252,0.12);
+  border: 1px solid rgba(192,132,252,0.35);
+  border-radius: 12px;
+}
+.looma-exchange-owned { font-size: 13px; opacity: 0.85; margin-bottom: 4px; }
+.looma-exchange-rate { font-size: 12px; opacity: 0.7; margin-bottom: 18px; }
+.looma-exchange-slider-row { margin-bottom: 14px; }
+.looma-exchange-slider-row input[type="range"] {
+  width: 100%;
+  accent-color: #c084fc;
+}
+.looma-exchange-preview {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+.looma-exchange-preview #looma-exchange-result { color: #e9d5ff; }
+
 .detail-card-full {
   display: block;
   width: 100%;

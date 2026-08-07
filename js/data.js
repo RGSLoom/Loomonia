@@ -22,6 +22,9 @@ const DRAW_CONFIG = {
   shapes: ["kreis", "welle", "zickzack", "dreieck", "quadrat"],
 };
 
+// Eintausch-Kurs: gefangene Wesen -> Schatten-Essenz (Loomas-Screen).
+const SHADOW_ESSENCE_PER_CREATURE = 1000;
+
 const RARITY_COLORS = {
   "Gewöhnlich": "#5eead4",
   "Ungewöhnlich": "#4ade80",

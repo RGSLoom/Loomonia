@@ -26,6 +26,7 @@ function openSubScreen(tileKey) {
       break;
     case "loomas":
       document.getElementById("loomas-content").innerHTML = renderLoomasGrid();
+      attachLoomasGridHandlers();
       showScreen("screen-loomas");
       break;
     case "settings":
@@ -98,13 +99,69 @@ function renderLoomasGrid() {
       const count = gameState.caughtCreatures[c.key] || 0;
       const owned = count > 0;
       if (!owned) return `<div class="looma-cell locked"></div>`;
-      return `<div class="looma-cell">
+      return `<div class="looma-cell" data-creature="${c.key}">
         <img src="${creatureIconCache[c.key] || c.icon}" alt="${c.name}" /><span class="cell-count">${count}</span>
         <span class="cell-label">${c.name}</span>
       </div>`;
     })
     .join("");
-  return `<div class="placeholder-note" style="margin-bottom:14px;">Gefangene Wesen: ${totalCaughtCount()}</div><div class="loomas-grid">${cells}</div>`;
+  return `
+    <div class="essence-banner">🌑 Schatten-Essenz: <span id="essence-total">${gameState.shadowEssence}</span></div>
+    <div class="placeholder-note" style="margin-bottom:14px;">Gefangene Wesen: ${totalCaughtCount()}</div>
+    <div class="loomas-grid">${cells}</div>`;
+}
+
+function attachLoomasGridHandlers() {
+  document.querySelectorAll(".looma-cell[data-creature]").forEach((cell) => {
+    cell.addEventListener("click", () => {
+      showLoomaExchangeDetail(cell.dataset.creature);
+    });
+  });
+}
+
+function showLoomaExchangeDetail(key) {
+  const creature = CREATURES[key];
+  const content = document.getElementById("loomas-content");
+  const owned = gameState.caughtCreatures[key] || 0;
+  if (owned < 1) return;
+
+  content.innerHTML = `
+    <button class="back-btn" id="btn-looma-detail-back" style="margin-bottom:12px;">← Übersicht</button>
+    <div class="detail-card-synthetic looma-exchange-card">
+      <div class="detail-card-name">${creature.name}</div>
+      <div class="detail-card-rarity" style="color:${RARITY_COLORS[creature.rarity]}">${creature.rarity}</div>
+      <img src="${creatureIconCache[key] || creature.icon}" alt="${creature.name}" class="detail-card-icon" />
+      <div class="looma-exchange-owned">Gefangen: ${owned}</div>
+      <div class="looma-exchange-rate">1 Wesen = ${SHADOW_ESSENCE_PER_CREATURE} Schatten-Essenz</div>
+      <div class="looma-exchange-slider-row">
+        <input type="range" id="looma-exchange-slider" min="1" max="${owned}" value="1" step="1" ${owned === 1 ? "disabled" : ""} />
+      </div>
+      <div class="looma-exchange-preview">
+        <span id="looma-exchange-qty">1</span> Wesen → <span id="looma-exchange-result">${SHADOW_ESSENCE_PER_CREATURE}</span> Schatten-Essenz
+      </div>
+      <button id="btn-looma-exchange-confirm" class="primary-btn">Eintauschen</button>
+    </div>`;
+
+  const slider = document.getElementById("looma-exchange-slider");
+  const qtyLabel = document.getElementById("looma-exchange-qty");
+  const resultLabel = document.getElementById("looma-exchange-result");
+  slider.addEventListener("input", () => {
+    const qty = Number(slider.value);
+    qtyLabel.textContent = qty;
+    resultLabel.textContent = qty * SHADOW_ESSENCE_PER_CREATURE;
+  });
+
+  document.getElementById("btn-looma-exchange-confirm").addEventListener("click", () => {
+    const qty = Number(slider.value);
+    if (!exchangeCreatureForEssence(key, qty)) return;
+    content.innerHTML = renderLoomasGrid();
+    attachLoomasGridHandlers();
+  });
+
+  document.getElementById("btn-looma-detail-back").addEventListener("click", () => {
+    content.innerHTML = renderLoomasGrid();
+    attachLoomasGridHandlers();
+  });
 }
 
 function renderOutfitGrid() {
