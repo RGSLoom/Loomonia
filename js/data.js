@@ -80,6 +80,22 @@ const CREATURES = {
     scene: "assets/generated/bg_nami.svg",
     sceneIsRealPhoto: false,
   },
+  wollypig: {
+    key: "wollypig",
+    name: "Wolly Pig",
+    element: "Natur",
+    elementIcon: "🌿",
+    color: "#d4a574",
+    rarity: "Gewöhnlich",
+    xp: 150,
+    icon: "assets/generated/icon_wollypig.png",
+    // Im Gegensatz zu den anderen Icons bereits echt freigestellt
+    // (Alphakanal vorhanden) — Laufzeit-Weissabgleich (getCutoutImage)
+    // wuerde hier nur helle Fellstellen kaputt-loechern, siehe map.js.
+    iconAlreadyTransparent: true,
+    scene: "assets/generated/bg_wollypig.svg",
+    sceneIsRealPhoto: false,
+  },
 };
 
 const ITEMS = {

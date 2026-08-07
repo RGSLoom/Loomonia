@@ -29,6 +29,10 @@ function initMap() {
 
 function preloadCreatureIcons() {
   Object.values(CREATURES).forEach((c) => {
+    // Icons, die schon einen echten Alphakanal haben, brauchen (und
+    // vertragen) den Weissabgleich nicht — der wuerde helle Fellstellen
+    // faelschlich fuer Hintergrund halten und Loecher reinschneiden.
+    if (c.iconAlreadyTransparent) return;
     getCutoutImage(c.icon).then((dataUrl) => {
       creatureIconCache[c.key] = dataUrl;
       // Bereits platzierte Marker mit dem echten Ausschnitt aktualisieren

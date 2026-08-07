@@ -1,0 +1,47 @@
+<svg viewBox="0 0 600 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="meadowsky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bfe6a8"/>
+      <stop offset="35%" stop-color="#9ed97e"/>
+      <stop offset="60%" stop-color="#7cc363"/>
+      <stop offset="100%" stop-color="#5aa647"/>
+    </linearGradient>
+    <radialGradient id="sunglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fffbe0" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#fffbe0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="600" height="1000" fill="url(#meadowsky)"/>
+  <circle cx="460" cy="170" r="170" fill="url(#sunglow)"/>
+  <circle cx="460" cy="170" r="60" fill="#fff8d6"/>
+  <g fill="#ffffff" opacity="0.85">
+    <ellipse cx="110" cy="200" rx="80" ry="26"/>
+    <ellipse cx="170" cy="185" rx="50" ry="20"/>
+  </g>
+  <g fill="#4a8f3c" opacity="0.9">
+    <path d="M0 560 Q150 500 300 560 T600 560 V1000 H0 Z"/>
+  </g>
+  <g fill="#3d7a31" opacity="0.9">
+    <path d="M0 680 Q150 630 300 680 T600 680 V1000 H0 Z"/>
+  </g>
+  <g fill="#2f6326" opacity="0.9">
+    <path d="M0 820 Q150 780 300 820 T600 820 V1000 H0 Z"/>
+  </g>
+  <g>
+    <circle cx="90" cy="640" r="14" fill="#f4d35e"/>
+    <circle cx="90" cy="640" r="6" fill="#e8a33d"/>
+    <circle cx="500" cy="600" r="12" fill="#f2789f"/>
+    <circle cx="500" cy="600" r="5" fill="#e8a33d"/>
+    <circle cx="200" cy="740" r="13" fill="#ffffff"/>
+    <circle cx="200" cy="740" r="5" fill="#e8a33d"/>
+    <circle cx="420" cy="780" r="11" fill="#f4d35e"/>
+    <circle cx="420" cy="780" r="4" fill="#e8a33d"/>
+    <circle cx="130" cy="880" r="12" fill="#f2789f"/>
+    <circle cx="130" cy="880" r="5" fill="#e8a33d"/>
+  </g>
+  <g fill="#ffffff" opacity="0.6">
+    <circle cx="80" cy="120" r="3"/>
+    <circle cx="520" cy="90" r="2.5"/>
+    <circle cx="550" cy="350" r="3"/>
+  </g>
+</svg>
