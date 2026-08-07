@@ -9,11 +9,10 @@ const CREATURE_RESPAWN_MIN_MS = 3500;
 const CREATURE_RESPAWN_MAX_MS = 6000;
 const MAX_ACTIVE_CREATURES = 4;
 
-const RING_CONFIG = {
+const BAR_CONFIG = {
   durationMs: 1050,
-  maxRadius: 100,
-  greenRadius: 22,
-  yellowRadius: 55,
+  greenHalfWidth: 10,
+  yellowHalfWidth: 25,
 };
 
 const DRAW_CONFIG = {

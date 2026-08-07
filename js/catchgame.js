@@ -19,7 +19,7 @@ function openCatchSceneForCreature(entry) {
   setupCatchBackground(creature);
 
   showScreen("screen-catch");
-  startRingLoop();
+  startBarLoop();
 }
 
 // ---------- AR-Kamera-Hintergrund ----------
@@ -133,22 +133,28 @@ function syncSettingsArToggle() {
   if (toggle) toggle.classList.toggle("on", gameState.settings.arCameraEnabled);
 }
 
-function startRingLoop() {
+// Die Markierung wandert wie ein Pendel von links nach rechts und zurueck
+// ueber die Leiste. Die Zonen sind von aussen nach innen rot, gelb, gruen
+// (gruen = Mitte = beste Fangchance).
+function startBarLoop() {
   catchState.startTime = performance.now();
-  const shrinkRing = document.getElementById("shrink-ring");
+  const marker = document.getElementById("catch-bar-marker");
+  const cycleMs = BAR_CONFIG.durationMs * 2;
 
   function frame(now) {
-    const elapsed = (now - catchState.startTime) % RING_CONFIG.durationMs;
-    const progress = elapsed / RING_CONFIG.durationMs;
-    const radius = RING_CONFIG.maxRadius * (1 - progress);
-    shrinkRing.setAttribute("r", radius.toFixed(2));
-    catchState.currentRadius = radius;
+    const elapsed = (now - catchState.startTime) % cycleMs;
+    const position =
+      elapsed < BAR_CONFIG.durationMs
+        ? (elapsed / BAR_CONFIG.durationMs) * 100
+        : 100 - ((elapsed - BAR_CONFIG.durationMs) / BAR_CONFIG.durationMs) * 100;
+    marker.style.left = position.toFixed(2) + "%";
+    catchState.currentPosition = position;
     catchState.rafId = requestAnimationFrame(frame);
   }
   catchState.rafId = requestAnimationFrame(frame);
 }
 
-function stopRingLoop() {
+function stopBarLoop() {
   if (catchState && catchState.rafId) {
     cancelAnimationFrame(catchState.rafId);
     catchState.rafId = null;
@@ -157,18 +163,18 @@ function stopRingLoop() {
 
 function handleFangenClick() {
   if (!catchState) return;
-  const radius = catchState.currentRadius;
+  const distanceFromCenter = Math.abs(catchState.currentPosition - 50);
 
-  if (radius <= RING_CONFIG.greenRadius) {
-    stopRingLoop();
+  if (distanceFromCenter <= BAR_CONFIG.greenHalfWidth) {
+    stopBarLoop();
     onCatchSuccess();
   } else if (catchState.attempt === 1) {
-    stopRingLoop();
+    stopBarLoop();
     catchState.attempt = 2;
     document.getElementById("catch-attempt-label").textContent = "Versuch 2 von 2";
-    startRingLoop();
+    startBarLoop();
   } else {
-    stopRingLoop();
+    stopBarLoop();
     onCatchFail();
   }
 }
@@ -214,7 +220,7 @@ function onCatchFail() {
 }
 
 function closeCatchScene() {
-  stopRingLoop();
+  stopBarLoop();
   catchState = null;
   showScreen("screen-map");
 }

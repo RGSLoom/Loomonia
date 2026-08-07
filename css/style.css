@@ -328,19 +328,18 @@ html, body {
   box-shadow: 0 0 10px rgba(56,189,248,0.5);
 }
 
-.ring-stage {
+.catch-stage {
   position: relative;
   z-index: 5;
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 20px;
+  padding: 0 24px calc(40px + env(safe-area-inset-bottom));
 }
 .catch-creature-img {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   width: min(46vw, 210px);
   height: min(46vw, 210px);
   object-fit: contain;
@@ -349,24 +348,42 @@ html, body {
   pointer-events: none;
   display: none;
 }
-.ring-svg { width: min(78vw, 340px); height: min(78vw, 340px); position: relative; z-index: 2; }
-.ring-zone { fill: none; }
-.ring-red { r: 100; fill: rgba(239,68,68,0.28); stroke: rgba(239,68,68,0.7); stroke-width: 1; }
-.ring-yellow { fill: rgba(234,179,8,0.32); stroke: rgba(234,179,8,0.8); stroke-width: 1; }
-.ring-green { fill: rgba(34,197,94,0.4); stroke: rgba(34,197,94,0.9); stroke-width: 1; }
-.shrink-ring {
-  fill: none;
-  stroke: #ffffff;
-  stroke-width: 4;
-  filter: drop-shadow(0 0 6px rgba(255,255,255,0.8));
-}
-
-.scene-bottom {
+.catch-bar-track {
   position: relative;
-  z-index: 10;
-  padding: 16px 20px calc(20px + env(safe-area-inset-bottom));
+  width: min(86vw, 420px);
+  height: 26px;
+  border-radius: 13px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.3);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+  background: linear-gradient(
+    to right,
+    #ef4444 0%, #ef4444 25%,
+    #eab308 25%, #eab308 40%,
+    #22c55e 40%, #22c55e 60%,
+    #eab308 60%, #eab308 75%,
+    #ef4444 75%, #ef4444 100%
+  );
 }
-.catch-btn { max-width: 320px; margin: 0 auto; }
+.catch-bar-marker {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  left: 0%;
+  width: 5px;
+  border-radius: 3px;
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(255,255,255,0.9), 0 0 2px rgba(0,0,0,0.6);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.catch-hint {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-light);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+  text-align: center;
+}
 
 /* ============ Draw / Nachmal-Minigame ============ */
 .draw-stage {
