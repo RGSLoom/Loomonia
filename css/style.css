@@ -336,7 +336,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 12vh;
   padding: 0 24px calc(40px + env(safe-area-inset-bottom));
 }
 .catch-creature-img {
