@@ -332,14 +332,12 @@ html, body {
   position: relative;
   z-index: 5;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12vh;
-  padding: 0 24px calc(40px + env(safe-area-inset-bottom));
 }
 .catch-creature-img {
+  position: absolute;
+  top: 32%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: min(46vw, 210px);
   height: min(46vw, 210px);
   object-fit: contain;
@@ -348,8 +346,13 @@ html, body {
   pointer-events: none;
   display: none;
 }
+/* Fest auf Hoehe der Fuesse im Fauli-Echtfoto positioniert (nicht an das
+   Wesen-Icon gekoppelt, da Faulis Foto kein Icon-Overlay nutzt). */
 .catch-bar-track {
-  position: relative;
+  position: absolute;
+  top: 74%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: min(86vw, 420px);
   height: 26px;
   border-radius: 13px;
@@ -378,11 +381,16 @@ html, body {
   pointer-events: none;
 }
 .catch-hint {
+  position: absolute;
+  top: calc(74% + 26px);
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 14px;
   font-weight: 600;
   color: var(--text-light);
   text-shadow: 0 1px 4px rgba(0,0,0,0.6);
   text-align: center;
+  white-space: nowrap;
 }
 
 /* ============ Draw / Nachmal-Minigame ============ */
