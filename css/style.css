@@ -335,7 +335,7 @@ html, body {
 }
 .catch-creature-img {
   position: absolute;
-  top: 32%;
+  top: 55%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(46vw, 210px);
