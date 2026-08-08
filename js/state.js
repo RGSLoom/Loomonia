@@ -27,6 +27,7 @@ function defaultState() {
       arCameraEnabled: false,
     },
     storePositions: null, // { [storeKey]: { lat, lon } } — einmalig gesetzt
+    playerId: null, // anonyme ID fuers Haendler-Dashboard (siehe tracking.js)
   };
 }
 
@@ -85,4 +86,17 @@ function setArCameraEnabled(value) {
 function setStorePositions(positions) {
   gameState.storePositions = positions;
   saveState();
+}
+
+// Anonyme, geraetelokale Spieler-ID fuers Haendler-Dashboard (Zaehlung
+// "wie viele unterschiedliche Spieler pro Tag") — keine echten Nutzerdaten.
+function getPlayerId() {
+  if (!gameState.playerId) {
+    gameState.playerId =
+      (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `p_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    saveState();
+  }
+  return gameState.playerId;
 }

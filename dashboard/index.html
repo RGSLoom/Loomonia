@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Loomonia · Händler-Dashboard</title>
+<link rel="stylesheet" href="css/style.css?v=1" />
+</head>
+<body>
+
+<!-- Store-Auswahl (kein Passwort, siehe Projekt-Entscheidung) -->
+<section id="screen-select" class="screen screen-select">
+  <div class="select-card">
+    <div class="select-logo">🏪 Loomonia</div>
+    <h1>Händler-Dashboard</h1>
+    <p class="select-sub">Für welchen Store möchtest du die Zahlen sehen?</p>
+    <div id="store-grid" class="store-grid"></div>
+  </div>
+</section>
+
+<!-- Haupt-Dashboard -->
+<section id="screen-dashboard" class="screen screen-dashboard" style="display:none">
+  <aside class="sidebar">
+    <div class="sidebar-logo">🏪 Loomonia</div>
+    <div class="sidebar-store">
+      <div class="sidebar-store-label">Store</div>
+      <div id="sidebar-store-name" class="sidebar-store-name">–</div>
+      <div id="sidebar-store-id" class="sidebar-store-id">–</div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-target="panel-dashboard">📊 Dashboard</button>
+      <button class="nav-item" data-target="panel-items">📦 Items</button>
+      <button class="nav-item nav-disabled" disabled>💶 Umsatz <span class="soon-tag">Phase 2</span></button>
+      <button class="nav-item nav-disabled" disabled>🧾 Abrechnungen <span class="soon-tag">Phase 2</span></button>
+      <button id="nav-switch-store" class="nav-item">↩ Store wechseln</button>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <header class="content-header">
+      <div>
+        <h1>Dashboard</h1>
+        <p class="content-sub">Kostenlose Minigame-Items · Übersicht der aktuellen Performance</p>
+      </div>
+      <div id="today-date" class="today-date">–</div>
+    </header>
+
+    <section id="panel-dashboard" class="panel">
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-blue">👥</div>
+          <div class="kpi-value" id="kpi-players">–</div>
+          <div class="kpi-label">Spieler heute (Store angewählt)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-green">🎁</div>
+          <div class="kpi-value" id="kpi-items">–</div>
+          <div class="kpi-label">Kostenlose Items heute</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-purple">📈</div>
+          <div class="kpi-value" id="kpi-growth">–</div>
+          <div class="kpi-label">Wachstum ggü. gestern</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-orange">🕒</div>
+          <div class="kpi-value" id="kpi-last">–</div>
+          <div class="kpi-label">Letztes Item vergeben</div>
+        </div>
+      </div>
+
+      <div class="main-row">
+        <div class="chart-card">
+          <div class="card-title">Aktivität Verlauf <span class="card-title-sub">Letzte 14 Tage</span></div>
+          <svg id="chart-svg" viewBox="0 0 640 260" class="chart-svg"></svg>
+          <div class="chart-legend">
+            <span><i class="dot dot-blue"></i> Spieler (Store angewählt)</span>
+            <span><i class="dot dot-green"></i> Kostenlose Items</span>
+          </div>
+        </div>
+
+        <div class="top-items-card" id="panel-items">
+          <div class="card-title">Top Items <span class="card-title-sub">Letzte 14 Tage</span></div>
+          <table class="top-items-table">
+            <thead><tr><th>#</th><th>Item</th><th>Rarität</th><th>Vergaben</th></tr></thead>
+            <tbody id="top-items-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bottom-row">
+        <div class="info-card">
+          <div class="info-card-icon">🕒</div>
+          <div>
+            <div class="info-card-title">Letztes Event</div>
+            <div class="info-card-value" id="info-last-event">–</div>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">🏬</div>
+          <div>
+            <div class="info-card-title">Beobachteter Store</div>
+            <div class="info-card-value" id="info-store">–</div>
+          </div>
+        </div>
+        <div class="info-card info-card-soon">
+          <div class="info-card-icon">🚧</div>
+          <div>
+            <div class="info-card-title">Phase 2 — folgt als Nächstes</div>
+            <div class="info-card-value">Kaufumsatz &amp; echte Store-Besuche</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</section>
+
+<script src="../js/supabase-config.js?v=1"></script>
+<script src="js/stores-config.js?v=1"></script>
+<script src="js/dashboard.js?v=1"></script>
+</body>
+</html>

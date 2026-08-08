@@ -1,6 +1,6 @@
 # Einfacher statischer HTTP-Server fuer lokale Tests (kein Node/Python noetig).
 # Start:  powershell -ExecutionPolicy Bypass -File server.ps1
-# Danach im Browser: http://localhost:8080
+# Danach im Browser: http://localhost:8080 (Spiel) bzw. http://localhost:8080/dashboard/
 #
 # Bewusst ein roher TcpListener statt System.Net.HttpListener: HttpListener
 # lehnt Requests ab, deren Host-Header nicht exakt zum registrierten Prefix
@@ -62,7 +62,9 @@ while ($true) {
     $parts = $requestLine.Split(" ")
     $rawPath = if ($parts.Length -gt 1) { $parts[1] } else { "/" }
     $urlPath = [System.Uri]::UnescapeDataString($rawPath.Split("?")[0])
-    if ($urlPath -eq "/") { $urlPath = "/index.html" }
+    # Verzeichnis-Aufrufe (z.B. "/" oder "/dashboard/") auf index.html
+    # aufloesen, analog zu GitHub Pages (wo /dashboard/ produktiv landet).
+    if ($urlPath.EndsWith("/")) { $urlPath += "index.html" }
 
     $filePath = Join-Path $root ($urlPath.TrimStart("/"))
     $resolvedPath = [System.IO.Path]::GetFullPath($filePath)

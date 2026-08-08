@@ -69,6 +69,9 @@ function sampleAlongSegments(verts, outPoints, closedAlready) {
 }
 
 function openDrawSceneForStore(locationId) {
+  const trackedLocation = STORE_LOCATIONS.find((l) => l.id === locationId);
+  trackEvent("store_selected", { storeId: locationId, category: trackedLocation.categoryKey });
+
   if (gameState.settings.skipMinigame) {
     grantRandomItemFromStore(locationId);
     return;
@@ -189,6 +192,13 @@ function grantRandomItemFromStore(locationId) {
 
   addItem(itemKey);
   addXp(item.xp);
+
+  trackEvent("item_free_received", {
+    storeId: locationId,
+    category: location.categoryKey,
+    itemKey,
+    rarity: item.rarity,
+  });
 
   document.getElementById("item-success-img").src = item.icon;
   document.getElementById("item-success-name").textContent = item.name;
