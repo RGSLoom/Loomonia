@@ -43,8 +43,12 @@ const CREATURES = {
     rarity: "Gewöhnlich",
     xp: 150,
     icon: "assets/wesen/Fauli_icon.png",
-    scene: "assets/wesen/Fauli_szene.png",
-    sceneIsRealPhoto: true,
+    // Vereinheitlicht mit den anderen Wesen: generischer (jetzt echter
+    // Foto-)Hintergrund statt Sonderfall mit eingebranntem Wesen — das
+    // freigestellte Icon liegt jetzt bei allen fuenf als Vordergrund
+    // drauf (sceneIsRealPhoto ueberall false).
+    scene: "assets/generated/bg_fauli_real.jpg",
+    sceneIsRealPhoto: false,
   },
   fifu: {
     key: "fifu",
@@ -55,7 +59,7 @@ const CREATURES = {
     rarity: "Gewöhnlich",
     xp: 150,
     icon: "assets/wesen/Fifu_icon.png",
-    scene: "assets/generated/bg_fifu.svg",
+    scene: "assets/generated/bg_fifu_real.jpg",
     sceneIsRealPhoto: false,
   },
   enari: {
@@ -67,7 +71,7 @@ const CREATURES = {
     rarity: "Gewöhnlich",
     xp: 150,
     icon: "assets/wesen/Enari_icon.png",
-    scene: "assets/generated/bg_enari.svg",
+    scene: "assets/generated/bg_enari_real.webp",
     sceneIsRealPhoto: false,
   },
   nami: {
@@ -79,7 +83,7 @@ const CREATURES = {
     rarity: "Gewöhnlich",
     xp: 150,
     icon: "assets/wesen/Nami_icon.png",
-    scene: "assets/generated/bg_nami.svg",
+    scene: "assets/generated/bg_nami_real.jpg",
     sceneIsRealPhoto: false,
   },
   wollypig: {
@@ -95,7 +99,7 @@ const CREATURES = {
     // (Alphakanal vorhanden) — Laufzeit-Weissabgleich (getCutoutImage)
     // wuerde hier nur helle Fellstellen kaputt-loechern, siehe map.js.
     iconAlreadyTransparent: true,
-    scene: "assets/generated/bg_wollypig.svg",
+    scene: "assets/generated/bg_wollypig_real.jpg",
     sceneIsRealPhoto: false,
   },
 };
