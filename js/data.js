@@ -286,6 +286,7 @@ const STORE_LOCATIONS = [
   { id: "dm", categoryKey: "drogerie", coords: { lat: 48.120860450673504, lon: 7.850241027354685 } },
   { id: "mcdonalds", categoryKey: "schnellrestaurant", coords: { lat: 48.113096001026086, lon: 7.852438811998206 } },
   { id: "cheers", categoryKey: "bar", coords: { lat: 48.10948560102508, lon: 7.854155425715709 } },
+  { id: "feinkost_custom", categoryKey: "feinkost", coords: { lat: 52.2581271, lon: 5.4698785 } },
   // Keine echte Koordinate hinterlegt -> zufaellig um den Spieler-Start
   { id: "sneaker_default", categoryKey: "sneaker", coords: null },
   { id: "juwelier_default", categoryKey: "juwelier", coords: null },
