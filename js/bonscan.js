@@ -109,38 +109,42 @@ function matchReceiptText(text) {
 
   // Jede Zeile kann maximal ein Item treffen (erstes passendes Item aus
   // dem Pool gewinnt); mehrere Zeilen koennen aber unterschiedliche Items
-  // treffen (z.B. Bon mit Schuhen UND Rucksack) — dann gibt es auch
-  // mehrere Items. Pro Item-Typ trotzdem nur einmal (mehrere Getraenke-
-  // Zeilen sollen nicht mehrfach denselben Energiesnack ausschuetten).
+  // treffen (z.B. Bon mit Schuhen UND Rucksack). Trifft eine Zeile
+  // denselben Item-Typ wie eine vorherige (z.B. drei verschiedene
+  // Getraenke -> alle "Energiesnack"), zaehlt das als mehrere Stueck
+  // desselben Items statt zu verschwinden — sonst wirkt ein Bon mit
+  // mehreren Artikeln so, als waere nur einer gescannt worden.
   const lines = text.split(/\r?\n/);
-  const matchedItemKeys = [];
+  const counts = {}; // itemKey -> Anzahl passender Zeilen
   for (const line of lines) {
     const hit = pool.find((itemKey) => {
       const patterns = RECEIPT_ITEM_KEYWORDS[itemKey] || [];
       return patterns.some((p) => p.test(line));
     });
-    if (hit && !matchedItemKeys.includes(hit)) matchedItemKeys.push(hit);
+    if (hit) counts[hit] = (counts[hit] || 0) + 1;
   }
-  if (matchedItemKeys.length === 0) matchedItemKeys.push(randomChoice(pool));
+  if (Object.keys(counts).length === 0) counts[randomChoice(pool)] = 1;
 
   setScanStatus("");
-  grantReceiptItems(matchedItemKeys, storeMatch.categoryKey);
+  grantReceiptItems(counts, storeMatch.categoryKey);
 }
 
-function grantReceiptItems(itemKeys, categoryKey) {
+function grantReceiptItems(counts, categoryKey) {
   const category = STORE_CATEGORIES[categoryKey];
 
-  const entries = itemKeys.map((itemKey) => {
+  const entries = Object.entries(counts).map(([itemKey, count]) => {
     const item = ITEMS[itemKey];
-    addItem(itemKey);
-    addXp(item.xp);
-    trackEvent("item_receipt_scanned", {
-      storeId: "receipt_scan",
-      category: categoryKey,
-      itemKey,
-      rarity: item.rarity,
-    });
-    return { itemKey, storeText: `Echter Kauf erkannt bei ${category.name} 🧾` };
+    addItem(itemKey, count);
+    addXp(item.xp * count);
+    for (let i = 0; i < count; i++) {
+      trackEvent("item_receipt_scanned", {
+        storeId: "receipt_scan",
+        category: categoryKey,
+        itemKey,
+        rarity: item.rarity,
+      });
+    }
+    return { itemKey, count, storeText: `Echter Kauf erkannt bei ${category.name} 🧾` };
   });
 
   showItemSuccessQueue(entries);

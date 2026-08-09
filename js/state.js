@@ -68,8 +68,8 @@ function exchangeCreatureForEssence(key, qty) {
   return true;
 }
 
-function addItem(key) {
-  gameState.inventory[key] = (gameState.inventory[key] || 0) + 1;
+function addItem(key, qty = 1) {
+  gameState.inventory[key] = (gameState.inventory[key] || 0) + qty;
   saveState();
 }
 

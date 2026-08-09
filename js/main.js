@@ -7,13 +7,14 @@ let itemSuccessQueue = [];
 
 function renderItemSuccess(entry, position, total) {
   const item = ITEMS[entry.itemKey];
+  const count = entry.count || 1;
   document.getElementById("item-success-img").src = item.icon;
-  document.getElementById("item-success-name").textContent = item.name;
+  document.getElementById("item-success-name").textContent = count > 1 ? `${item.name} ×${count}` : item.name;
   document.getElementById("item-success-rarity").innerHTML =
     `<span class="rarity-pill" style="background:${RARITY_COLORS[item.rarity]}">${item.rarity}</span>`;
   document.getElementById("item-success-store").textContent = entry.storeText;
   document.getElementById("item-success-effect").textContent = item.effect;
-  document.getElementById("item-success-xp").textContent = `+${item.xp} XP`;
+  document.getElementById("item-success-xp").textContent = `+${item.xp * count} XP`;
   const progressEl = document.getElementById("item-success-progress");
   progressEl.textContent = total > 1 ? `Artikel ${position} von ${total}` : "";
   progressEl.classList.toggle("hidden", total <= 1);
