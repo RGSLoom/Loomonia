@@ -200,15 +200,9 @@ function grantRandomItemFromStore(locationId) {
     rarity: item.rarity,
   });
 
-  document.getElementById("item-success-img").src = item.icon;
-  document.getElementById("item-success-name").textContent = item.name;
-  document.getElementById("item-success-rarity").innerHTML =
-    `<span class="rarity-pill" style="background:${RARITY_COLORS[item.rarity]}">${item.rarity}</span>`;
-  document.getElementById("item-success-store").textContent = `Ihr Produkt als In-Game Drop bei ${category.name}`;
-  document.getElementById("item-success-effect").textContent = item.effect;
-  document.getElementById("item-success-xp").textContent = `+${item.xp} XP`;
-
-  showScreen("screen-item-success");
+  showItemSuccessQueue([
+    { itemKey, storeText: `Ihr Produkt als In-Game Drop bei ${category.name}` },
+  ]);
 }
 
 function onSkipMinigameToggle(checked) {

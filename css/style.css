@@ -535,7 +535,20 @@ html, body {
   filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6));
   display: none;
 }
-.item-img { width: 130px; height: 130px; border-radius: 20px; }
+/* .success-img ist display:block mit fester Breite (160px) und sitzt in
+   einem gleich breiten Wrapper — bei Wesen (volle 160px) sieht das
+   zentriert aus, aber .item-img macht das Bild schmaler (130px), wodurch
+   ein Block-Element ohne eigenes margin:auto immer linksbuendig im
+   Wrapper haengenbleibt (text-align:center wirkt nur auf Inline-Inhalte).
+   Deshalb hier explizit zentrieren. */
+.item-img { width: 130px; height: 130px; border-radius: 20px; margin: 0 auto; }
+.success-progress {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-bottom: 10px;
+}
+.success-progress.hidden { display: none; }
 .success-name { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
 .success-meta { font-size: 14px; opacity: 0.9; margin-bottom: 6px; }
 .success-store { font-size: 13px; opacity: 0.8; margin-bottom: 6px; }

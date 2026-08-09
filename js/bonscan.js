@@ -107,45 +107,41 @@ function matchReceiptText(text) {
     return;
   }
 
+  // Jede Zeile kann maximal ein Item treffen (erstes passendes Item aus
+  // dem Pool gewinnt); mehrere Zeilen koennen aber unterschiedliche Items
+  // treffen (z.B. Bon mit Schuhen UND Rucksack) — dann gibt es auch
+  // mehrere Items. Pro Item-Typ trotzdem nur einmal (mehrere Getraenke-
+  // Zeilen sollen nicht mehrfach denselben Energiesnack ausschuetten).
   const lines = text.split(/\r?\n/);
-  let matchedItemKey = null;
+  const matchedItemKeys = [];
   for (const line of lines) {
     const hit = pool.find((itemKey) => {
       const patterns = RECEIPT_ITEM_KEYWORDS[itemKey] || [];
       return patterns.some((p) => p.test(line));
     });
-    if (hit) {
-      matchedItemKey = hit;
-      break;
-    }
+    if (hit && !matchedItemKeys.includes(hit)) matchedItemKeys.push(hit);
   }
-  if (!matchedItemKey) matchedItemKey = randomChoice(pool);
+  if (matchedItemKeys.length === 0) matchedItemKeys.push(randomChoice(pool));
 
   setScanStatus("");
-  grantReceiptItem(matchedItemKey, storeMatch.categoryKey);
+  grantReceiptItems(matchedItemKeys, storeMatch.categoryKey);
 }
 
-function grantReceiptItem(itemKey, categoryKey) {
+function grantReceiptItems(itemKeys, categoryKey) {
   const category = STORE_CATEGORIES[categoryKey];
-  const item = ITEMS[itemKey];
 
-  addItem(itemKey);
-  addXp(item.xp);
-
-  trackEvent("item_receipt_scanned", {
-    storeId: "receipt_scan",
-    category: categoryKey,
-    itemKey,
-    rarity: item.rarity,
+  const entries = itemKeys.map((itemKey) => {
+    const item = ITEMS[itemKey];
+    addItem(itemKey);
+    addXp(item.xp);
+    trackEvent("item_receipt_scanned", {
+      storeId: "receipt_scan",
+      category: categoryKey,
+      itemKey,
+      rarity: item.rarity,
+    });
+    return { itemKey, storeText: `Echter Kauf erkannt bei ${category.name} 🧾` };
   });
 
-  document.getElementById("item-success-img").src = item.icon;
-  document.getElementById("item-success-name").textContent = item.name;
-  document.getElementById("item-success-rarity").innerHTML =
-    `<span class="rarity-pill" style="background:${RARITY_COLORS[item.rarity]}">${item.rarity}</span>`;
-  document.getElementById("item-success-store").textContent = `Echter Kauf erkannt bei ${category.name} 🧾`;
-  document.getElementById("item-success-effect").textContent = item.effect;
-  document.getElementById("item-success-xp").textContent = `+${item.xp} XP`;
-
-  showScreen("screen-item-success");
+  showItemSuccessQueue(entries);
 }

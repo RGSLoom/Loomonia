@@ -1,5 +1,31 @@
 // Verdrahtung aller Screens und Events
 
+// Zeigt eine oder mehrere Item-Erfolgsmeldungen nacheinander auf demselben
+// Screen (z.B. wenn ein Bon-Scan mehrere unterschiedliche Artikel erkennt).
+// entries: [{ itemKey, storeText }]
+let itemSuccessQueue = [];
+
+function renderItemSuccess(entry, position, total) {
+  const item = ITEMS[entry.itemKey];
+  document.getElementById("item-success-img").src = item.icon;
+  document.getElementById("item-success-name").textContent = item.name;
+  document.getElementById("item-success-rarity").innerHTML =
+    `<span class="rarity-pill" style="background:${RARITY_COLORS[item.rarity]}">${item.rarity}</span>`;
+  document.getElementById("item-success-store").textContent = entry.storeText;
+  document.getElementById("item-success-effect").textContent = item.effect;
+  document.getElementById("item-success-xp").textContent = `+${item.xp} XP`;
+  const progressEl = document.getElementById("item-success-progress");
+  progressEl.textContent = total > 1 ? `Artikel ${position} von ${total}` : "";
+  progressEl.classList.toggle("hidden", total <= 1);
+}
+
+function showItemSuccessQueue(entries) {
+  const total = entries.length;
+  itemSuccessQueue = entries.slice(1).map((entry, i) => ({ entry, position: i + 2, total }));
+  renderItemSuccess(entries[0], 1, total);
+  showScreen("screen-item-success");
+}
+
 function showScreen(id) {
   const current = document.querySelector(".screen.active");
   // Kamera beim Verlassen der Fangszene immer stoppen (egal ueber
@@ -45,7 +71,14 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("chk-skip-minigame").addEventListener("change", (e) => {
     onSkipMinigameToggle(e.target.checked);
   });
-  document.getElementById("btn-item-continue").addEventListener("click", () => showScreen("screen-map"));
+  document.getElementById("btn-item-continue").addEventListener("click", () => {
+    if (itemSuccessQueue.length > 0) {
+      const next = itemSuccessQueue.shift();
+      renderItemSuccess(next.entry, next.position, next.total);
+    } else {
+      showScreen("screen-map");
+    }
+  });
 
   // Profil-Hub (eine Grafik + unsichtbare Hotspots, siehe profile.js)
   document.getElementById("hotspot-profile-back").addEventListener("click", () => showScreen("screen-map"));
