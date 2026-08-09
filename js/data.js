@@ -15,6 +15,16 @@ const BAR_CONFIG = {
   yellowHalfWidth: 25,
 };
 
+// Seltenere Wesen sind schwerer zu fangen: die Markierung laeuft schneller
+// ueber die Leiste (kuerzere durationMs = weniger Reaktionszeit pro
+// Durchlauf). Gewoehnlich bleibt beim bisherigen Tempo, Ungewoehnlich ist
+// etwas schneller, Selten deutlich schneller.
+const BAR_DURATION_MS_BY_RARITY = {
+  "Gewöhnlich": BAR_CONFIG.durationMs,
+  "Ungewöhnlich": 820,
+  "Selten": 620,
+};
+
 const DRAW_CONFIG = {
   viewBox: 220,
   toleranceRadius: 32,
@@ -100,6 +110,42 @@ const CREATURES = {
     // wuerde hier nur helle Fellstellen kaputt-loechern, siehe map.js.
     iconAlreadyTransparent: true,
     scene: "assets/generated/bg_wollypig_real.jpg",
+    sceneIsRealPhoto: false,
+  },
+  perlina: {
+    key: "perlina",
+    name: "Perlina",
+    element: "Wasser",
+    elementIcon: "💧",
+    color: "#38bdf8",
+    rarity: "Ungewöhnlich",
+    xp: 300,
+    icon: "assets/wesen/Perlina_icon.png",
+    scene: "assets/generated/bg_nami_real.jpg",
+    sceneIsRealPhoto: false,
+  },
+  duskan: {
+    key: "duskan",
+    name: "Duskan",
+    element: "Schatten",
+    elementIcon: "🌑",
+    color: "#7c3aed",
+    rarity: "Selten",
+    xp: 450,
+    icon: "assets/wesen/Duskan_icon.png",
+    scene: "assets/generated/bg_fauli_real.jpg",
+    sceneIsRealPhoto: false,
+  },
+  ashira: {
+    key: "ashira",
+    name: "Ashira",
+    element: "Licht",
+    elementIcon: "✨",
+    color: "#fbbf24",
+    rarity: "Selten",
+    xp: 450,
+    icon: "assets/wesen/Ashira.png",
+    scene: "assets/generated/bg_enari_real.webp",
     sceneIsRealPhoto: false,
   },
 };

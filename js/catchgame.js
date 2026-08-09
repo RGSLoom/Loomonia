@@ -139,14 +139,16 @@ function syncSettingsArToggle() {
 function startBarLoop() {
   catchState.startTime = performance.now();
   const marker = document.getElementById("catch-bar-marker");
-  const cycleMs = BAR_CONFIG.durationMs * 2;
+  const creature = CREATURES[catchState.creatureKey];
+  const durationMs = BAR_DURATION_MS_BY_RARITY[creature.rarity] || BAR_CONFIG.durationMs;
+  const cycleMs = durationMs * 2;
 
   function frame(now) {
     const elapsed = (now - catchState.startTime) % cycleMs;
     const position =
-      elapsed < BAR_CONFIG.durationMs
-        ? (elapsed / BAR_CONFIG.durationMs) * 100
-        : 100 - ((elapsed - BAR_CONFIG.durationMs) / BAR_CONFIG.durationMs) * 100;
+      elapsed < durationMs
+        ? (elapsed / durationMs) * 100
+        : 100 - ((elapsed - durationMs) / durationMs) * 100;
     marker.style.left = position.toFixed(2) + "%";
     catchState.currentPosition = position;
     catchState.rafId = requestAnimationFrame(frame);
