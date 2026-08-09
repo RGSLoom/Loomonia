@@ -245,6 +245,13 @@ const ITEMS = {
 // Belohnungsmechanismus selbst ist noch nicht gebaut (Trophaeen-Screen
 // ist weiterhin ein "folgt als Naechstes"-Platzhalter).
 
+// Seltene Items (Sneaker, Abenteuerrucksack) sind bewusst NICHT mehr Teil
+// der Minigame-itemPools unten — sie sind seit dem Bon-Scan-Feature
+// (siehe js/bonscan.js) nur noch durch einen echten, erkannten Kassenbon
+// erhaeltlich (receiptItemPool). Ohne echten Kauf gibt es dafuer nur noch
+// den generischen Gewoehnlich/Ungewoehnlich-Pool als Minigame-Drop.
+const COMMON_ITEM_POOL = ["fruchtkorb", "energiesnack", "gesundheitspaket", "sprachbuch"];
+
 // STORE_CATEGORIES = Branchen (Anzeigename, Szene-Hintergrund, Item-Pool).
 // Nirgends echte Marken-/Retailer-Namen (siehe Spielspezifikation Abschnitt 9)
 // — nur Branchenbezeichnungen, das gilt auch fuer alles, was hier steht.
@@ -253,23 +260,29 @@ const STORE_CATEGORIES = {
     key: "feinkost",
     name: "Feinkost & Snacks",
     scene: "assets/generated/store_feinkost_real.jpg",
-    itemPool: ["fruchtkorb", "energiesnack", "gesundheitspaket", "sprachbuch", "sneaker"],
+    itemPool: COMMON_ITEM_POOL,
+    // Items, die bei dieser Branche per echtem Bon-Scan erhaeltlich sind
+    // (siehe RECEIPT_STORE_PATTERNS/RECEIPT_ITEM_KEYWORDS unten).
+    receiptItemPool: COMMON_ITEM_POOL,
   },
   sneaker: {
     key: "sneaker",
     name: "Sneaker & Streetwear",
     scene: "assets/generated/store_sneaker_real.jpg",
-    itemPool: ["sneaker", "rucksack"],
+    // Sneaker/Rucksack gibt es hier nur noch per echtem Bon-Scan, nicht
+    // mehr im Minigame — daher derselbe generische Fallback-Pool.
+    itemPool: COMMON_ITEM_POOL,
+    receiptItemPool: ["sneaker", "rucksack"],
   },
   juwelier: {
     key: "juwelier",
     name: "Juwelier",
     scene: "assets/generated/store_juwelier_real.jpg",
     // Noch kein juwelierspezifisches Item vorhanden — Uebergangszustand:
-    // vorerst derselbe allgemeine Gewoehnlich/Ungewoehnlich/Selten-Pool
-    // wie bei Feinkost & Snacks. Sobald es mehr Items gibt, hier
+    // vorerst derselbe allgemeine Gewoehnlich/Ungewoehnlich-Pool wie bei
+    // Feinkost & Snacks. Sobald es mehr Items gibt, hier
     // exklusivere/hochwertigere Items eintragen.
-    itemPool: ["fruchtkorb", "energiesnack", "gesundheitspaket", "sprachbuch", "sneaker"],
+    itemPool: COMMON_ITEM_POOL,
   },
   cafe: {
     key: "cafe",
@@ -281,15 +294,15 @@ const STORE_CATEGORIES = {
     key: "fashion",
     name: "Mode & Accessoires",
     scene: "assets/generated/store_fashion_real.jpg",
-    itemPool: ["sneaker", "rucksack"],
+    itemPool: COMMON_ITEM_POOL,
   },
   bank: {
     key: "bank",
     name: "Bank",
     scene: "assets/generated/store_bank_real.jpg",
     // Branche/Item-Pool noch nicht final geklaert — bis dahin der
-    // allgemeine Gewoehnlich/Ungewoehnlich/Selten-Pool.
-    itemPool: ["fruchtkorb", "sprachbuch", "energiesnack", "gesundheitspaket", "sneaker", "rucksack"],
+    // allgemeine Gewoehnlich/Ungewoehnlich-Pool.
+    itemPool: COMMON_ITEM_POOL,
   },
   drogerie: {
     key: "drogerie",
@@ -309,6 +322,33 @@ const STORE_CATEGORIES = {
     scene: "assets/generated/bg_store_bar.svg",
     itemPool: ["fruchtkorb", "energiesnack"],
   },
+};
+
+// ============ Bon-Scan (echter Kauf -> Item-Drop, siehe js/bonscan.js) ============
+// Ordnet den im OCR-Text des gescannten Kassenbons gefundenen Store-Namen
+// einer Store-Kategorie zu. Es werden bewusst KEINE echten Retailer-Namen
+// im UI angezeigt (siehe Spielspezifikation Abschnitt 9) — die Patterns
+// hier dienen nur der internen Zuordnung, sichtbar ist dem Spieler nur der
+// Kategorie-Anzeigename.
+const RECEIPT_STORE_PATTERNS = [
+  { pattern: /deichmann/i, categoryKey: "sneaker" },
+  { pattern: /edeka/i, categoryKey: "feinkost" },
+  { pattern: /lidl/i, categoryKey: "feinkost" },
+  { pattern: /rewe/i, categoryKey: "feinkost" },
+];
+
+// Stichwortliste pro Item, gegen die einzelne Artikelzeilen des OCR-Texts
+// geprueft werden. Echte Kassenzettel enthalten so gut wie nie das exakte
+// Fantasie-Item-Wort selbst (z.B. steht bei einem Deichmann-Bon nur die
+// Schuhmarke "Bench" auf der Artikelzeile) — die Listen sind daher bewusst
+// breiter gefasst als reine Item-Namen.
+const RECEIPT_ITEM_KEYWORDS = {
+  sneaker: [/sneaker/i, /schuh/i, /bench/i, /turnschuh/i, /nike/i, /adidas/i, /puma/i],
+  rucksack: [/rucksack/i, /tasche/i, /koffer/i, /trolley/i],
+  fruchtkorb: [/obst/i, /frucht/i, /apfel/i, /salat/i, /gemüse/i],
+  energiesnack: [/getränk/i, /drink/i, /kaffee/i, /krön/i, /wasser/i, /mate/i, /snack/i, /riegel/i, /cola/i],
+  gesundheitspaket: [/vitamin/i, /apotheke/i, /bio/i, /gesund/i],
+  sprachbuch: [/buch/i, /magazin/i, /zeitschrift/i, /roman/i],
 };
 
 // STORE_LOCATIONS = einzelne physische Standorte. Mehrere Standorte koennen

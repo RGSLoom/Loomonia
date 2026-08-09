@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
 <title>Store Walk</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="css/style.css?v=11" />
+<link rel="stylesheet" href="css/style.css?v=12" />
 </head>
 <body>
 <div id="app">
@@ -110,6 +110,25 @@
     </div>
   </section>
 
+  <!-- ============ BON-SCAN ============ -->
+  <section id="screen-scan" class="screen fullscreen-scene">
+    <video id="scan-camera" class="scene-bg" autoplay playsinline muted style="display:none;"></video>
+    <canvas id="scan-canvas" style="display:none;"></canvas>
+    <div class="scene-veil"></div>
+    <div class="scene-top">
+      <button class="btn-close" data-close="screen-profile">✕</button>
+      <div class="attempt-label">Bon scannen</div>
+    </div>
+    <div class="scan-stage">
+      <div class="scan-hint">Scanne deinen Kassenbon oder lade ein Foto davon hoch – das System erkennt den Store und schaltet dein Item frei.</div>
+      <div id="scan-status" class="scan-status hidden"></div>
+      <div id="scan-error" class="scan-error hidden"></div>
+      <button id="btn-scan-capture" class="primary-btn scan-btn" style="display:none;">📷 Bon fotografieren</button>
+      <button id="btn-scan-upload" class="primary-btn scan-btn secondary">📁 Bon-Foto hochladen</button>
+      <input type="file" id="scan-file-input" accept="image/*" style="display:none;" />
+    </div>
+  </section>
+
   <!-- ============ PROFIL-HUB ============ -->
   <!-- Eine einzige, unveraenderte Original-Grafik (siehe Spielspezifikation
        Abschnitt 6) — keine Rekonstruktion mit eigenen Elementen/Daten.
@@ -125,6 +144,7 @@
       <button class="profile-hotspot" data-tile="loomas" style="left:3.4%; top:71%; width:30.5%; height:15.8%;" aria-label="Loomas"></button>
       <button class="profile-hotspot" data-tile="habitat" style="left:35.6%; top:71%; width:30.5%; height:15.8%;" aria-label="Habitat"></button>
       <button class="profile-hotspot" data-tile="settings" style="left:67.8%; top:71%; width:30.5%; height:15.8%;" aria-label="Einstellungen"></button>
+      <button class="profile-hotspot" id="hotspot-scan" style="left:2%; top:87%; width:96%; height:11%;" aria-label="Bon scannen"></button>
     </div>
   </section>
 
@@ -180,15 +200,17 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="js/data.js?v=11"></script>
-<script src="js/utils.js?v=11"></script>
-<script src="js/state.js?v=11"></script>
-<script src="js/supabase-config.js?v=11"></script>
-<script src="js/tracking.js?v=11"></script>
-<script src="js/map.js?v=11"></script>
-<script src="js/catchgame.js?v=11"></script>
-<script src="js/drawgame.js?v=11"></script>
-<script src="js/profile.js?v=11"></script>
-<script src="js/main.js?v=11"></script>
+<script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="js/data.js?v=12"></script>
+<script src="js/utils.js?v=12"></script>
+<script src="js/state.js?v=12"></script>
+<script src="js/supabase-config.js?v=12"></script>
+<script src="js/tracking.js?v=12"></script>
+<script src="js/map.js?v=12"></script>
+<script src="js/catchgame.js?v=12"></script>
+<script src="js/drawgame.js?v=12"></script>
+<script src="js/bonscan.js?v=12"></script>
+<script src="js/profile.js?v=12"></script>
+<script src="js/main.js?v=12"></script>
 </body>
 </html>

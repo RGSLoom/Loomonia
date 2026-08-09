@@ -8,6 +8,9 @@ function showScreen(id) {
   if (current && current.id === "screen-catch" && id !== "screen-catch") {
     stopCameraBackground();
   }
+  if (current && current.id === "screen-scan" && id !== "screen-scan") {
+    stopScanCamera();
+  }
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 }
@@ -49,6 +52,15 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".profile-hotspot[data-tile]").forEach((tile) => {
     tile.addEventListener("click", () => openSubScreen(tile.dataset.tile));
   });
+  document.getElementById("hotspot-scan").addEventListener("click", openScanScreen);
+
+  // Bon-Scan
+  document.querySelector('#screen-scan [data-close]').addEventListener("click", () => showScreen("screen-profile"));
+  document.getElementById("btn-scan-capture").addEventListener("click", captureFromScanCamera);
+  document.getElementById("btn-scan-upload").addEventListener("click", () => {
+    document.getElementById("scan-file-input").click();
+  });
+  document.getElementById("scan-file-input").addEventListener("change", handleScanFileInput);
   // Profil-Unterseiten (Outfit/Items/Trophäen/Loomas/Habitat/Einstellungen)
   // — eigene Vollbild-Screens, Zurück fuehrt immer zum Profil-Hub.
   document.querySelectorAll(".sub-back-btn").forEach((btn) => {
