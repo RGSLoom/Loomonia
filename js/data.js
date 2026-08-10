@@ -289,12 +289,16 @@ const STORE_CATEGORIES = {
     name: "Café",
     scene: "assets/generated/store_cafe_real.jpg",
     itemPool: ["fruchtkorb", "energiesnack"],
+    receiptItemPool: ["fruchtkorb", "energiesnack"],
   },
   fashion: {
     key: "fashion",
     name: "Mode & Accessoires",
     scene: "assets/generated/store_fashion_real.jpg",
     itemPool: COMMON_ITEM_POOL,
+    // Bekleidungsbranche verkauft plausibel auch Schuhe/Taschen -> gleicher
+    // Echtkauf-Pool wie die Sneaker&Streetwear-Kategorie.
+    receiptItemPool: ["sneaker", "rucksack"],
   },
   bank: {
     key: "bank",
@@ -309,12 +313,14 @@ const STORE_CATEGORIES = {
     name: "Drogerie",
     scene: "assets/generated/bg_store_drogerie.svg",
     itemPool: ["gesundheitspaket", "fruchtkorb", "sprachbuch"],
+    receiptItemPool: ["gesundheitspaket", "fruchtkorb", "sprachbuch"],
   },
   schnellrestaurant: {
     key: "schnellrestaurant",
     name: "Schnellrestaurant",
     scene: "assets/generated/bg_store_schnellrestaurant.svg",
     itemPool: ["energiesnack", "fruchtkorb"],
+    receiptItemPool: ["energiesnack", "fruchtkorb"],
   },
   bar: {
     key: "bar",
@@ -333,21 +339,60 @@ const STORE_CATEGORIES = {
 const RECEIPT_STORE_PATTERNS = [
   { pattern: /deichmann/i, categoryKey: "sneaker" },
   { pattern: /edeka/i, categoryKey: "feinkost" },
-  { pattern: /lidl/i, categoryKey: "feinkost" },
-  { pattern: /rewe/i, categoryKey: "feinkost" },
+  { pattern: /lidl/i, categoryKey: "feinkost" }, // deckt auch "Lidl International" ab
+  { pattern: /rewe/i, categoryKey: "feinkost" }, // deckt auch "ZooRoyal / REWE Group" ab, falls "REWE" im Text steht
+  { pattern: /zooroyal/i, categoryKey: "feinkost" },
+  { pattern: /kaufland/i, categoryKey: "feinkost" },
+  { pattern: /aldi/i, categoryKey: "feinkost" }, // deckt "ALDI SÜD" und "ALDI DX" ab
+  { pattern: /ferrero/i, categoryKey: "feinkost" },
+  { pattern: /bahlsen/i, categoryKey: "feinkost" },
+  { pattern: /fressnapf/i, categoryKey: "feinkost" }, // kein Tierbedarf-Item vorhanden, generischer Pool als Uebergang
+  { pattern: /douglas/i, categoryKey: "drogerie" },
+  { pattern: /rossmann/i, categoryKey: "drogerie" },
+  { pattern: /\bdm\b/i, categoryKey: "drogerie" },
+  { pattern: /budni/i, categoryKey: "drogerie" },
+  { pattern: /l.?or[ée]al/i, categoryKey: "drogerie" },
+  { pattern: /sante/i, categoryKey: "drogerie" },
+  { pattern: /beiersdorf/i, categoryKey: "drogerie" },
+  { pattern: /henkel/i, categoryKey: "drogerie" },
+  { pattern: /puma/i, categoryKey: "sneaker" },
+  { pattern: /nike/i, categoryKey: "sneaker" },
+  { pattern: /adidas/i, categoryKey: "sneaker" },
+  { pattern: /snipes/i, categoryKey: "sneaker" },
+  { pattern: /intersport/i, categoryKey: "sneaker" },
+  { pattern: /hugo boss/i, categoryKey: "fashion" },
+  { pattern: /\bc&a\b/i, categoryKey: "fashion" },
+  { pattern: /takko/i, categoryKey: "fashion" },
+  { pattern: /mammut/i, categoryKey: "fashion" },
+  { pattern: /mcdonald/i, categoryKey: "schnellrestaurant" },
+  { pattern: /burger king/i, categoryKey: "schnellrestaurant" },
+  { pattern: /wienerwald/i, categoryKey: "schnellrestaurant" },
+  { pattern: /hans im gl.ck/i, categoryKey: "schnellrestaurant" },
+  { pattern: /tchibo/i, categoryKey: "cafe" },
+  { pattern: /fritz.?kola/i, categoryKey: "cafe" },
+  { pattern: /true ?fruits/i, categoryKey: "cafe" },
+  { pattern: /red ?bull/i, categoryKey: "cafe" },
 ];
 
 // Stichwortliste pro Item, gegen die einzelne Artikelzeilen des OCR-Texts
 // geprueft werden. Echte Kassenzettel enthalten so gut wie nie das exakte
 // Fantasie-Item-Wort selbst (z.B. steht bei einem Deichmann-Bon nur die
 // Schuhmarke "Bench" auf der Artikelzeile) — die Listen sind daher bewusst
-// breiter gefasst als reine Item-Namen.
+// breiter gefasst als reine Item-Namen und enthalten auch Marken, die als
+// Artikelzeile auf dem Bon EINES ANDEREN Stores auftauchen koennen (z.B.
+// "Red Bull" auf einem Supermarkt-Bon).
 const RECEIPT_ITEM_KEYWORDS = {
   sneaker: [/sneaker/i, /schuh/i, /bench/i, /turnschuh/i, /nike/i, /adidas/i, /puma/i],
-  rucksack: [/rucksack/i, /tasche/i, /koffer/i, /trolley/i],
+  rucksack: [/rucksack/i, /tasche/i, /koffer/i, /trolley/i, /mammut/i],
   fruchtkorb: [/obst/i, /frucht/i, /apfel/i, /salat/i, /gemüse/i],
-  energiesnack: [/getränk/i, /drink/i, /kaffee/i, /krön/i, /wasser/i, /mate/i, /snack/i, /riegel/i, /cola/i],
-  gesundheitspaket: [/vitamin/i, /apotheke/i, /bio/i, /gesund/i],
+  energiesnack: [
+    /getränk/i, /drink/i, /kaffee/i, /krön/i, /wasser/i, /mate/i, /snack/i, /riegel/i, /cola/i,
+    /red ?bull/i, /fritz.?kola/i, /true ?fruits/i, /ferrero/i, /bahlsen/i, /tchibo/i,
+  ],
+  gesundheitspaket: [
+    /vitamin/i, /apotheke/i, /bio/i, /gesund/i,
+    /l.?or[ée]al/i, /nivea/i, /sante/i, /beiersdorf/i, /henkel/i,
+  ],
   sprachbuch: [/buch/i, /magazin/i, /zeitschrift/i, /roman/i],
 };
 
