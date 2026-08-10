@@ -91,29 +91,22 @@ async function processReceiptImage(imageSource) {
   }
 }
 
-// Erkennt die Bon-Gesamtsumme per OCR-Text (fuers Haendler-Dashboard, siehe
-// grantReceiptItems). Sucht die erste Zeile mit einem Summen-Schluesselwort
-// und nimmt darin die RECHTESTE Zahl — bei Bons mit MwSt-Aufschluesselung
-// (z.B. "Summe 0,88 9,66 10,54") steht der Bruttogesamtbetrag konventionell
-// in der letzten Spalte, das deckt sich mit allen vier Test-Bons in
-// assets/bons/. Rein heuristisch (OCR-Text, kein strukturiertes Bon-Format)
-// — kann bei ungewoehnlichen Bon-Layouts danebenliegen, deshalb im
-// Dashboard klar als "geschaetzt" gekennzeichnet.
-const RECEIPT_TOTAL_LINE_PATTERN = /^\s*(zu\s*zahlen|summe|gesamtbetrag|gesamt)\b/i;
+// Erkennt den Preis EINER Bon-Zeile per OCR-Text (fuers Haendler-Dashboard,
+// siehe grantReceiptItems) — nimmt die RECHTESTE Zahl auf der Zeile, da bei
+// allen vier Test-Bons in assets/bons/ der Zeilenpreis konventionell ganz
+// rechts steht (auch bei mehrspaltigen Zeilen wie MwSt-Aufschluesselungen).
+// Rein heuristisch (OCR-Text, kein strukturiertes Bon-Format) — kann bei
+// ungewoehnlichen Bon-Layouts danebenliegen oder ganz fehlen; dann lieber
+// kein Preis als ein falscher (Dashboard zeigt den Umsatz klar als
+// "geschaetzt").
 const RECEIPT_AMOUNT_PATTERN = /\d{1,4}[.,]\d{2}/g;
 
-function extractReceiptAmountCents(text) {
-  const lines = text.split(/\r?\n/);
-  for (const line of lines) {
-    if (!RECEIPT_TOTAL_LINE_PATTERN.test(line)) continue;
-    const matches = line.match(RECEIPT_AMOUNT_PATTERN);
-    if (!matches || matches.length === 0) continue;
-    const value = parseFloat(matches[matches.length - 1].replace(",", "."));
-    if (!isNaN(value) && value > 0 && value < 10000) {
-      return Math.round(value * 100);
-    }
-  }
-  return null; // Betrag nicht sicher erkannt -> lieber keiner als ein falscher
+function extractLineAmountCents(line) {
+  const matches = line.match(RECEIPT_AMOUNT_PATTERN);
+  if (!matches || matches.length === 0) return null;
+  const value = parseFloat(matches[matches.length - 1].replace(",", "."));
+  if (isNaN(value) || value <= 0 || value >= 10000) return null;
+  return Math.round(value * 100);
 }
 
 function matchReceiptText(text) {
@@ -138,32 +131,33 @@ function matchReceiptText(text) {
   // denselben Item-Typ wie eine vorherige (z.B. drei verschiedene
   // Getraenke -> alle "Energiesnack"), zaehlt das als mehrere Stueck
   // desselben Items statt zu verschwinden — sonst wirkt ein Bon mit
-  // mehreren Artikeln so, als waere nur einer gescannt worden.
+  // mehreren Artikeln so, als waere nur einer gescannt worden. Der Preis
+  // wird PRO ZEILE erkannt (nicht die Bon-Gesamtsumme), damit jedes Item
+  // seinen eigenen Wert traegt statt eines gemeinsamen Bon-Betrags.
   const lines = text.split(/\r?\n/);
-  const counts = {}; // itemKey -> Anzahl passender Zeilen
+  const matches = {}; // itemKey -> { count, amounts: [cents|null, ...] }
   for (const line of lines) {
     const hit = pool.find((itemKey) => {
       const patterns = RECEIPT_ITEM_KEYWORDS[itemKey] || [];
       return patterns.some((p) => p.test(line));
     });
-    if (hit) counts[hit] = (counts[hit] || 0) + 1;
+    if (!hit) continue;
+    if (!matches[hit]) matches[hit] = { count: 0, amounts: [] };
+    matches[hit].count++;
+    matches[hit].amounts.push(extractLineAmountCents(line));
   }
-  if (Object.keys(counts).length === 0) counts[randomChoice(pool)] = 1;
+  if (Object.keys(matches).length === 0) {
+    matches[randomChoice(pool)] = { count: 1, amounts: [null] };
+  }
 
   setScanStatus("");
-  grantReceiptItems(counts, storeMatch.categoryKey, extractReceiptAmountCents(text));
+  grantReceiptItems(matches, storeMatch.categoryKey);
 }
 
-// amountCents gehoert zum ganzen Bon, nicht zu einzelnen Items — wird
-// deshalb nur an das allererste getrackte Event dieses Scans gehaengt
-// (amountAttached-Flag), alle weiteren Item-Events desselben Bons bekommen
-// keinen Betrag. Sonst wuerde das Dashboard bei mehreren erkannten Items
-// denselben Bon-Betrag mehrfach aufsummieren.
-function grantReceiptItems(counts, categoryKey, amountCents) {
+function grantReceiptItems(matches, categoryKey) {
   const category = STORE_CATEGORIES[categoryKey];
-  let amountAttached = false;
 
-  const entries = Object.entries(counts).map(([itemKey, count]) => {
+  const entries = Object.entries(matches).map(([itemKey, { count, amounts }]) => {
     const item = ITEMS[itemKey];
     addItem(itemKey, count);
     addXp(item.xp * count);
@@ -173,9 +167,8 @@ function grantReceiptItems(counts, categoryKey, amountCents) {
         category: categoryKey,
         itemKey,
         rarity: item.rarity,
-        amountCents: amountAttached ? null : amountCents,
+        amountCents: amounts[i] ?? null,
       });
-      amountAttached = true;
     }
     return { itemKey, count, storeText: `Echter Kauf erkannt bei ${category.name} 🧾` };
   });

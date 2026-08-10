@@ -6,6 +6,7 @@
 const STORE_KEY = "loomonia_dashboard_store"; // sessionStorage
 const DAYS_WINDOW = 14;
 const REFRESH_MS = 30000;
+const COMMISSION_RATE = 0.01; // 1% Haendler-Provision auf den geschaetzten Umsatz
 
 let refreshTimer = null;
 
@@ -119,6 +120,7 @@ function aggregateEvents(events, daysWindow) {
     // js/bonscan.js grantReceiptItems) -> einfaches Aufsummieren ueber alle
     // Events des Tages zaehlt jeden Bon trotzdem nur einmal.
     const revenueCents = receiptEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
+    const provisionCents = Math.round(revenueCents * COMMISSION_RATE);
     return {
       date,
       playersSelected: distinctPlayers,
@@ -126,6 +128,7 @@ function aggregateEvents(events, daysWindow) {
       realBuyers: distinctBuyers,
       realItemsReceived: receiptEvents.length,
       revenueCents,
+      provisionCents,
     };
   });
 
@@ -174,6 +177,7 @@ function aggregateEvents(events, daysWindow) {
       buyersToday: todayStat.realBuyers,
       purchaseItemsToday: todayStat.realItemsReceived,
       revenueCentsToday: todayStat.revenueCents,
+      provisionCentsToday: todayStat.provisionCents,
       lastReceiptTs,
     },
   };
@@ -199,6 +203,7 @@ function renderStats(data) {
   document.getElementById("kpi-buyers").textContent = kpis.buyersToday ?? 0;
   document.getElementById("kpi-purchase-items").textContent = kpis.purchaseItemsToday ?? 0;
   document.getElementById("kpi-revenue").textContent = formatEuro(kpis.revenueCentsToday);
+  document.getElementById("kpi-provision").textContent = formatEuro(kpis.provisionCentsToday);
   document.getElementById("kpi-purchase-last").textContent = formatAgo(kpis.lastReceiptTs);
 
   renderChart(document.getElementById("chart-svg"), data.days || [], [

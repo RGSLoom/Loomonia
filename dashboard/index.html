@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Loomonia · Händler-Dashboard</title>
-<link rel="stylesheet" href="css/style.css?v=3" />
+<link rel="stylesheet" href="css/style.css?v=4" />
 </head>
 <body>
 
@@ -109,7 +109,7 @@
     <section id="panel-purchases" class="panel">
       <div class="section-heading">
         <h2>Echte Käufe (Bon-Scan)</h2>
-        <p class="content-sub">Verifizierte Käufe per Kassenbon-Foto. Der Umsatz wird per Texterkennung (OCR) aus der Bon-Summe geschätzt — keine exakte Kassendaten-Anbindung, kann bei ungewöhnlichen Bon-Layouts danebenliegen.</p>
+        <p class="content-sub">Verifizierte Käufe per Kassenbon-Foto. Der Umsatz wird per Texterkennung (OCR) aus dem Preis jeder einzeln erkannten Artikelzeile geschätzt — keine exakte Kassendaten-Anbindung, nicht erkannte Artikel/Preise fehlen im Umsatz.</p>
       </div>
 
       <div class="kpi-row">
@@ -127,6 +127,11 @@
           <div class="kpi-icon kpi-icon-green">💶</div>
           <div class="kpi-value" id="kpi-revenue">–</div>
           <div class="kpi-label">Umsatz heute (geschätzt)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-orange">🏦</div>
+          <div class="kpi-value" id="kpi-provision">–</div>
+          <div class="kpi-label">Provision heute (1 % vom Umsatz)</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-icon kpi-icon-blue">🕒</div>
@@ -157,8 +162,8 @@
   </main>
 </section>
 
-<script src="../js/supabase-config.js?v=3"></script>
-<script src="js/stores-config.js?v=3"></script>
-<script src="js/dashboard.js?v=3"></script>
+<script src="../js/supabase-config.js?v=4"></script>
+<script src="js/stores-config.js?v=4"></script>
+<script src="js/dashboard.js?v=4"></script>
 </body>
 </html>
