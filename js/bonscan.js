@@ -11,10 +11,17 @@ let scanCameraTrack = null; // fuer ImageCapture.takePhoto(), siehe captureFromS
 // herunterskaliert wird. Ein echtes Kamerafoto (ImageCapture.takePhoto())
 // kann 12+ Megapixel/mehrere MB gross sein — bleibt komplett im
 // Arbeitsspeicher (nie auf Platte/Server), wird aber ohne Verkleinerung
-// von Tesseract sehr langsam bis gar nicht verarbeitet. 2000px ist immer
-// noch deutlich schaerfer als der alte Video-Frame-Snapshot, aber schnell
-// genug fuer eine OCR im Browser.
-const RECEIPT_PHOTO_MAX_DIMENSION = 2000;
+// von Tesseract sehr langsam bis gar nicht verarbeitet.
+//
+// 2000px war schnell, hat aber die kleinen Preis-Ziffern zu stark
+// verwaschen: Store-/Item-Stichwoerter (mehrere Buchstaben, Substring-
+// Match) ueberleben einzelne OCR-Fehler locker, ein Preis wie "4,99"
+// dagegen nicht — ein einziges falsch gelesenes Zeichen macht den Betrag
+// komplett unbrauchbar. Bei Datei-Uploads (echte Fotos aus der Galerie,
+// nirgends verkleinert) hat das Erkennen der Betraege dagegen funktioniert
+// — das war der entscheidende Hinweis. Deshalb hoeher angesetzt, naeher an
+// der tatsaechlichen Foto-Aufloesung, auf Kosten etwas laengerer OCR-Zeit.
+const RECEIPT_PHOTO_MAX_DIMENSION = 3200;
 
 function withTimeout(promise, ms, label) {
   return Promise.race([
@@ -196,7 +203,9 @@ async function processReceiptImage(imageSource) {
     // als Absicherung, falls die OCR haengt (z.B. Sprachpaket-Download beim
     // allerersten Scan bricht ab) — sonst bleibt der Screen fuer immer auf
     // "Bon wird gelesen…" stehen, ohne dass der Nutzer etwas tun kann.
-    const result = await withTimeout(Tesseract.recognize(imageSource, "deu+eng+nld"), 30000, "OCR");
+    // Etwas grosszuegigerer Timeout, seit RECEIPT_PHOTO_MAX_DIMENSION fuer
+    // bessere Preis-Erkennung angehoben wurde (mehr Pixel = laengere OCR).
+    const result = await withTimeout(Tesseract.recognize(imageSource, "deu+eng+nld"), 45000, "OCR");
     matchReceiptText(result.data.text || "");
   } catch (err) {
     console.warn("OCR fehlgeschlagen:", err && err.message ? err.message : err);
