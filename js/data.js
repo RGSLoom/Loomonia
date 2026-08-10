@@ -133,7 +133,7 @@ const CREATURES = {
     rarity: "Selten",
     xp: 450,
     icon: "assets/wesen/Duskan_icon.png",
-    scene: "assets/generated/bg_fauli_real.jpg",
+    scene: "assets/hintergrund/Schattenreich.png",
     sceneIsRealPhoto: false,
   },
   ashira: {
@@ -145,7 +145,7 @@ const CREATURES = {
     rarity: "Selten",
     xp: 450,
     icon: "assets/wesen/Ashira.png",
-    scene: "assets/generated/bg_enari_real.webp",
+    scene: "assets/hintergrund/Lichtreich.png",
     sceneIsRealPhoto: false,
   },
 };
