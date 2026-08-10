@@ -35,9 +35,6 @@ function showScreen(id) {
   if (current && current.id === "screen-catch" && id !== "screen-catch") {
     stopCameraBackground();
   }
-  if (current && current.id === "screen-scan" && id !== "screen-scan") {
-    stopScanCamera();
-  }
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 }
@@ -88,12 +85,17 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("hotspot-scan").addEventListener("click", openScanScreen);
 
-  // Bon-Scan
+  // Bon-Scan — beide Buttons oeffnen nur ein <input type="file">, siehe
+  // js/bonscan.js. "Fotografieren" hat zusaetzlich capture="environment"
+  // und oeffnet damit auf dem Handy direkt die native Kamera-App.
   document.querySelector('#screen-scan [data-close]').addEventListener("click", () => showScreen("screen-profile"));
-  document.getElementById("btn-scan-capture").addEventListener("click", captureFromScanCamera);
+  document.getElementById("btn-scan-capture").addEventListener("click", () => {
+    document.getElementById("scan-camera-input").click();
+  });
   document.getElementById("btn-scan-upload").addEventListener("click", () => {
     document.getElementById("scan-file-input").click();
   });
+  document.getElementById("scan-camera-input").addEventListener("change", handleScanFileInput);
   document.getElementById("scan-file-input").addEventListener("change", handleScanFileInput);
   // Profil-Unterseiten (Outfit/Items/Trophäen/Loomas/Habitat/Einstellungen)
   // — eigene Vollbild-Screens, Zurück fuehrt immer zum Profil-Hub.

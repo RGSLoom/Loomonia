@@ -4,25 +4,6 @@
 // ein Item — spiegelt den Ablauf von grantRandomItemFromStore() in
 // js/drawgame.js, nur mit echtem Bon statt Minigame als Ausloeser.
 
-let scanCameraStream = null;
-let scanCameraTrack = null; // fuer ImageCapture.takePhoto(), siehe captureFromScanCamera()
-
-// Maximale Kantenlaenge (px), auf die ein aufgenommenes Foto vor der OCR
-// herunterskaliert wird. Ein echtes Kamerafoto (ImageCapture.takePhoto())
-// kann 12+ Megapixel/mehrere MB gross sein — bleibt komplett im
-// Arbeitsspeicher (nie auf Platte/Server), wird aber ohne Verkleinerung
-// von Tesseract sehr langsam bis gar nicht verarbeitet.
-//
-// 2000px war schnell, hat aber die kleinen Preis-Ziffern zu stark
-// verwaschen: Store-/Item-Stichwoerter (mehrere Buchstaben, Substring-
-// Match) ueberleben einzelne OCR-Fehler locker, ein Preis wie "4,99"
-// dagegen nicht — ein einziges falsch gelesenes Zeichen macht den Betrag
-// komplett unbrauchbar. Bei Datei-Uploads (echte Fotos aus der Galerie,
-// nirgends verkleinert) hat das Erkennen der Betraege dagegen funktioniert
-// — das war der entscheidende Hinweis. Deshalb hoeher angesetzt, naeher an
-// der tatsaechlichen Foto-Aufloesung, auf Kosten etwas laengerer OCR-Zeit.
-const RECEIPT_PHOTO_MAX_DIMENSION = 3200;
-
 function withTimeout(promise, ms, label) {
   return Promise.race([
     promise,
@@ -30,31 +11,9 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
-// Verkleinert ein Bild-Blob auf maximal RECEIPT_PHOTO_MAX_DIMENSION Kante
-// (Seitenverhaeltnis bleibt erhalten) und gibt es als neues JPEG-Blob
-// zurueck. Ist das Bild schon kleiner, bleibt es unveraendert. Laeuft rein
-// im Speicher (createImageBitmap + Canvas), landet nirgends persistent.
-async function downscaleImageBlob(blob, maxDim) {
-  try {
-    const bitmap = await createImageBitmap(blob);
-    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
-    if (scale >= 1) return blob;
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const resized = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.9));
-    return resized || blob;
-  } catch (err) {
-    console.warn("Verkleinern des Bon-Fotos fehlgeschlagen, nutze Original:", err && err.message ? err.message : err);
-    return blob;
-  }
-}
-
 function openScanScreen() {
   resetScanUI();
   showScreen("screen-scan");
-  tryStartScanCamera();
 }
 
 function resetScanUI() {
@@ -74,123 +33,18 @@ function setScanError(text) {
   el.classList.toggle("hidden", !text);
 }
 
-async function tryStartScanCamera() {
-  if (scanCameraStream) return true;
-  try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error("getUserMedia wird von diesem Browser nicht unterstuetzt");
-    }
-    // { ideal: "environment" } statt einer harten Anforderung — manche
-    // Android-Kameras/Browser bieten keine exakte "environment"-Uebereinstimmung
-    // an und wuerden getUserMedia sonst komplett ablehnen (gleiches Muster
-    // wie die bewaehrte AR-Kamera in der Fangszene, siehe catchgame.js).
-    // Hohe ideale Aufloesung angefragt, weil kleine Bon-Schrift auf einem
-    // Standard-Videostream (oft nur 640x480) fuer OCR kaum lesbar ist —
-    // bei Datei-Uploads (echte Fotos) tritt dieses Problem nicht auf, dort
-    // ist die volle Kamera-Aufloesung des Geraets im Bild.
-    scanCameraStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 3840 },
-        height: { ideal: 2160 },
-      },
-      audio: false,
-    });
-    scanCameraTrack = scanCameraStream.getVideoTracks()[0];
-    const video = document.getElementById("scan-camera");
-    video.srcObject = scanCameraStream;
-    video.style.display = "block";
-    // Erst wenn das Video wirklich Frames liefert (videoWidth > 0) den
-    // Aufnahme-Button freigeben — sonst wuerde ein Tap direkt nach dem
-    // Start ein leeres 0x0-Bild aufnehmen und stillschweigend nichts tun.
-    await new Promise((resolve) => {
-      if (video.readyState >= 2 && video.videoWidth > 0) return resolve();
-      video.addEventListener("loadedmetadata", () => resolve(), { once: true });
-    });
-    try {
-      await video.play();
-    } catch (playErr) {
-      // Manche Browser brauchen ein aktives play() trotz autoplay-Attribut;
-      // schlaegt es fehl, bleibt das Video ggf. schwarz, aber die Frames
-      // sind i.d.R. trotzdem lesbar -> nicht hart abbrechen.
-    }
-    document.getElementById("btn-scan-capture").style.display = "block";
-    return true;
-  } catch (err) {
-    // Keine Kamera vorhanden/erlaubt -> einfach nur den Upload-Weg
-    // anbieten, kein Fehler fuer den Spieler sichtbar.
-    console.warn("Bon-Scan-Kamera nicht verfügbar, nutze nur Upload:", err && err.message ? err.message : err);
-    scanCameraStream = null;
-    return false;
-  }
-}
-
-function stopScanCamera() {
-  if (scanCameraStream) {
-    scanCameraStream.getTracks().forEach((t) => t.stop());
-    scanCameraStream = null;
-  }
-  scanCameraTrack = null;
-  const video = document.getElementById("scan-camera");
-  video.srcObject = null;
-  video.style.display = "none";
-  document.getElementById("btn-scan-capture").style.display = "none";
-}
-
-// Zahlen (Preise) brauchen fuer die OCR viel schaerfere Bilder als Woerter
-// — ein falsch gelesener Buchstabe in "Energiesnack" stoert das Stichwort-
-// Matching kaum, ein falsch gelesenes Zeichen in "4,99" macht die Zahl
-// unbrauchbar. Der <video>-Livestream liefert selbst mit hoher angeforderter
-// Aufloesung oft weniger Bildpunkte als ein echtes Kamera-Foto. Deshalb
-// bevorzugt ueber ImageCapture.takePhoto() ein echtes Foto in Sensor-
-// Aufloesung aufnehmen (Chrome/Android); nur wenn das nicht unterstuetzt
-// wird oder fehlschlaegt (z.B. Safari/iOS), auf den bisherigen Video-Frame-
-// Snapshot zurueckfallen.
-async function captureFromScanCamera() {
-  if (window.ImageCapture && scanCameraTrack) {
-    try {
-      const imageCapture = new ImageCapture(scanCameraTrack);
-      // Timeout, falls takePhoto() auf manchen Geraeten haengen bleibt
-      // (z.B. wenn Foto- und Video-Aufloesung nicht gleichzeitig
-      // unterstuetzt werden) — sonst wirkt der Scan komplett tot, ohne
-      // dass der Fallback je zum Zug kommt.
-      const blob = await withTimeout(imageCapture.takePhoto(), 7000, "takePhoto");
-      const resized = await downscaleImageBlob(blob, RECEIPT_PHOTO_MAX_DIMENSION);
-      processReceiptImage(resized);
-      return;
-    } catch (err) {
-      console.warn("ImageCapture.takePhoto() fehlgeschlagen/zu langsam, nutze Video-Frame:", err && err.message ? err.message : err);
-    }
-  }
-  captureFromScanCameraFrame();
-}
-
-async function captureFromScanCameraFrame() {
-  const video = document.getElementById("scan-camera");
-  if (!video.videoWidth || !video.videoHeight) {
-    // Kamera hat noch keinen Frame geliefert (z.B. sehr kurz nach dem
-    // Oeffnen getappt) — vorher fiel das hier lautlos aus (0x0-Bild ohne
-    // jede Rueckmeldung). Jetzt sichtbarer Hinweis statt totem Button.
-    setScanError("Kamera ist noch nicht bereit. Bitte kurz warten und erneut auf \"Bon fotografieren\" tippen.");
-    return;
-  }
-  const canvas = document.getElementById("scan-canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-  canvas.toBlob(async (blob) => {
-    if (blob) {
-      const resized = await downscaleImageBlob(blob, RECEIPT_PHOTO_MAX_DIMENSION);
-      processReceiptImage(resized);
-    } else {
-      setScanError("Foto konnte nicht aufgenommen werden. Bitte erneut versuchen.");
-    }
-  }, "image/jpeg", 0.92);
-}
-
+// "Bon fotografieren" UND "Bon-Foto hochladen" sind beide simple
+// <input type="file">-Elemente (siehe index.html) — der einzige
+// Unterschied ist das capture="environment"-Attribut, das auf dem Handy
+// direkt die native Kamera-App statt der Galerie oeffnet. Dadurch nutzt
+// die Aufnahme dieselbe native Foto-Pipeline (Belichtung/Fokus) wie ein
+// manuell aufgenommenes und dann hochgeladenes Foto — genau der Weg, der
+// beim Testen zuverlaessig funktioniert hat. Keine eigene Kamera-Vorschau
+// (getUserMedia/ImageCapture) mehr noetig, beide Wege landen bei
+// derselben Funktion.
 function handleScanFileInput(event) {
   const file = event.target.files && event.target.files[0];
-  event.target.value = ""; // erlaubt erneutes Hochladen derselben Datei
+  event.target.value = ""; // erlaubt erneutes Aufnehmen/Hochladen derselben Datei
   if (file) processReceiptImage(file);
 }
 
@@ -201,10 +55,8 @@ async function processReceiptImage(imageSource) {
     // deu+eng+nld: Bon kann auch im Ausland fotografiert werden (DE/EN/NL) —
     // Tesseract erkennt damit alle drei gemeinsam statt nur Deutsch. Timeout
     // als Absicherung, falls die OCR haengt (z.B. Sprachpaket-Download beim
-    // allerersten Scan bricht ab) — sonst bleibt der Screen fuer immer auf
-    // "Bon wird gelesen…" stehen, ohne dass der Nutzer etwas tun kann.
-    // Etwas grosszuegigerer Timeout, seit RECEIPT_PHOTO_MAX_DIMENSION fuer
-    // bessere Preis-Erkennung angehoben wurde (mehr Pixel = laengere OCR).
+    // allerersten Scan bricht ab, oder ein sehr grosses Kamerafoto) — sonst
+    // bleibt der Screen fuer immer auf "Bon wird gelesen…" stehen.
     const result = await withTimeout(Tesseract.recognize(imageSource, "deu+eng+nld"), 45000, "OCR");
     matchReceiptText(result.data.text || "");
   } catch (err) {
