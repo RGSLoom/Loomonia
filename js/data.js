@@ -252,6 +252,13 @@ const ITEMS = {
 // den generischen Gewoehnlich/Ungewoehnlich-Pool als Minigame-Drop.
 const COMMON_ITEM_POOL = ["fruchtkorb", "energiesnack", "gesundheitspaket", "sprachbuch"];
 
+// Fallback-Pool fuers Bon-Scan, wenn der Store NICHT in RECEIPT_STORE_PATTERNS
+// hinterlegt ist (z.B. Retailer im Ausland/nicht gelistete Ketten) oder eine
+// erkannte Kategorie noch keinen eigenen receiptItemPool hat — dann wird ueber
+// ALLE Bon-tauglichen Items (ohne Episch/Legendaer, siehe oben) nach
+// Stichwort-Treffern gesucht, statt den Scan hart abzulehnen.
+const ANY_STORE_ITEM_POOL = [...COMMON_ITEM_POOL, "sneaker", "rucksack"];
+
 // STORE_CATEGORIES = Branchen (Anzeigename, Szene-Hintergrund, Item-Pool).
 // Nirgends echte Marken-/Retailer-Namen (siehe Spielspezifikation Abschnitt 9)
 // — nur Branchenbezeichnungen, das gilt auch fuer alles, was hier steht.
@@ -372,6 +379,15 @@ const RECEIPT_STORE_PATTERNS = [
   { pattern: /fritz.?kola/i, categoryKey: "cafe" },
   { pattern: /true ?fruits/i, categoryKey: "cafe" },
   { pattern: /red ?bull/i, categoryKey: "cafe" },
+  // Niederlaendische Ketten (Test-Faelle im Ausland, siehe js/bonscan.js —
+  // Store-Erkennung ist bewusst sprachunabhaengig vom OCR-Text).
+  { pattern: /albert heijn/i, categoryKey: "feinkost" },
+  { pattern: /\bjumbo\b/i, categoryKey: "feinkost" },
+  { pattern: /\bhema\b/i, categoryKey: "feinkost" },
+  { pattern: /\baction\b/i, categoryKey: "feinkost" },
+  { pattern: /kruidvat/i, categoryKey: "drogerie" },
+  { pattern: /\betos\b/i, categoryKey: "drogerie" },
+  { pattern: /\bzeeman\b/i, categoryKey: "fashion" },
 ];
 
 // Stichwortliste pro Item, gegen die einzelne Artikelzeilen des OCR-Texts
@@ -381,19 +397,36 @@ const RECEIPT_STORE_PATTERNS = [
 // breiter gefasst als reine Item-Namen und enthalten auch Marken, die als
 // Artikelzeile auf dem Bon EINES ANDEREN Stores auftauchen koennen (z.B.
 // "Red Bull" auf einem Supermarkt-Bon).
+// Mehrsprachig (DE/EN/NL), da Bons auch im Ausland gescannt werden sollen
+// (OCR laeuft auf "deu+eng+nld", siehe js/bonscan.js) — pro Item stehen
+// deshalb bewusst Begriffe aus allen drei Sprachen nebeneinander.
 const RECEIPT_ITEM_KEYWORDS = {
-  sneaker: [/sneaker/i, /schuh/i, /bench/i, /turnschuh/i, /nike/i, /adidas/i, /puma/i],
-  rucksack: [/rucksack/i, /tasche/i, /koffer/i, /trolley/i, /mammut/i],
-  fruchtkorb: [/obst/i, /frucht/i, /apfel/i, /salat/i, /gemüse/i],
+  sneaker: [
+    /sneaker/i, /schuh/i, /bench/i, /turnschuh/i, /nike/i, /adidas/i, /puma/i,
+    /shoe/i, /schoen(en)?/i, /footwear/i,
+  ],
+  rucksack: [
+    /rucksack/i, /tasche/i, /koffer/i, /trolley/i, /mammut/i,
+    /backpack/i, /rugzak/i, /\btas\b/i, /\bbag\b/i,
+  ],
+  fruchtkorb: [
+    /obst/i, /frucht/i, /apfel/i, /salat/i, /gemüse/i,
+    /\bfruit\b/i, /appel/i, /vegetable/i, /groente/i, /salade/i,
+  ],
   energiesnack: [
     /getränk/i, /drink/i, /kaffee/i, /krön/i, /wasser/i, /mate/i, /snack/i, /riegel/i, /cola/i,
     /red ?bull/i, /fritz.?kola/i, /true ?fruits/i, /ferrero/i, /bahlsen/i, /tchibo/i,
+    /coffee/i, /koffie/i, /\bdrank\b/i, /\bwater\b/i, /energy/i,
   ],
   gesundheitspaket: [
     /vitamin/i, /apotheke/i, /bio/i, /gesund/i,
     /l.?or[ée]al/i, /nivea/i, /sante/i, /beiersdorf/i, /henkel/i,
+    /\bhealth\b/i, /gezond/i, /apotheek/i, /medicine/i, /medicijn/i,
   ],
-  sprachbuch: [/buch/i, /magazin/i, /zeitschrift/i, /roman/i],
+  sprachbuch: [
+    /buch/i, /magazin/i, /zeitschrift/i, /roman/i,
+    /\bbook\b/i, /\bboek\b/i, /magazine/i, /tijdschrift/i,
+  ],
 };
 
 // STORE_LOCATIONS = einzelne physische Standorte. Mehrere Standorte koennen

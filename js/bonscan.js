@@ -82,7 +82,9 @@ async function processReceiptImage(imageSource) {
   resetScanUI();
   setScanStatus("Bon wird gelesen…");
   try {
-    const result = await Tesseract.recognize(imageSource, "deu");
+    // deu+eng+nld: Bon kann auch im Ausland fotografiert werden (DE/EN/NL) —
+    // Tesseract erkennt damit alle drei gemeinsam statt nur Deutsch.
+    const result = await Tesseract.recognize(imageSource, "deu+eng+nld");
     matchReceiptText(result.data.text || "");
   } catch (err) {
     console.warn("OCR fehlgeschlagen:", err && err.message ? err.message : err);
@@ -111,19 +113,15 @@ function extractLineAmountCents(line) {
 
 function matchReceiptText(text) {
   const storeMatch = RECEIPT_STORE_PATTERNS.find((entry) => entry.pattern.test(text));
-  if (!storeMatch) {
-    setScanStatus("");
-    setScanError("Store nicht erkannt. Bitte einen anderen Bon versuchen oder erneut scannen.");
-    return;
-  }
-
-  const category = STORE_CATEGORIES[storeMatch.categoryKey];
-  const pool = category.receiptItemPool || [];
-  if (pool.length === 0) {
-    setScanStatus("");
-    setScanError("Store erkannt, aber aktuell kein Item dafür verfügbar.");
-    return;
-  }
+  const categoryKey = storeMatch ? storeMatch.categoryKey : null;
+  const category = categoryKey ? STORE_CATEGORIES[categoryKey] : null;
+  // Store nicht hinterlegt (z.B. Retailer im Ausland/nicht gelistete Kette)
+  // oder erkannte Kategorie hat noch keinen eigenen receiptItemPool -> ueber
+  // ALLE Bon-tauglichen Items pruefen statt den Scan hart abzulehnen. So
+  // laesst sich jeder lesbare Bon testen, unabhaengig vom Retailer.
+  const pool = category && category.receiptItemPool && category.receiptItemPool.length > 0
+    ? category.receiptItemPool
+    : ANY_STORE_ITEM_POOL;
 
   // Jede Zeile kann maximal ein Item treffen (erstes passendes Item aus
   // dem Pool gewinnt); mehrere Zeilen koennen aber unterschiedliche Items
@@ -146,17 +144,30 @@ function matchReceiptText(text) {
     matches[hit].count++;
     matches[hit].amounts.push(extractLineAmountCents(line));
   }
+
   if (Object.keys(matches).length === 0) {
-    matches[randomChoice(pool)] = { count: 1, amounts: [null] };
+    if (category) {
+      // Store erkannt, aber keine Zeile hat auf ein Item gepasst ->
+      // zufaelliger Fallback aus dessen Pool (wie bisher).
+      matches[randomChoice(pool)] = { count: 1, amounts: [null] };
+    } else {
+      // Weder Store noch irgendein Artikel erkannt -> das ist der einzige
+      // echte Fehlerfall, der bleibt (z.B. unlesbares/leeres Foto).
+      setScanStatus("");
+      setScanError("Konnte weder Store noch Artikel auf dem Bon erkennen. Bitte ein schärferes/helleres Foto versuchen.");
+      return;
+    }
   }
 
+  const storeText = category
+    ? `Echter Kauf erkannt bei ${category.name} 🧾`
+    : `Echter Kauf erkannt (Retailer nicht gelistet) 🧾`;
+
   setScanStatus("");
-  grantReceiptItems(matches, storeMatch.categoryKey);
+  grantReceiptItems(matches, categoryKey, storeText);
 }
 
-function grantReceiptItems(matches, categoryKey) {
-  const category = STORE_CATEGORIES[categoryKey];
-
+function grantReceiptItems(matches, categoryKey, storeText) {
   const entries = Object.entries(matches).map(([itemKey, { count, amounts }]) => {
     const item = ITEMS[itemKey];
     addItem(itemKey, count);
@@ -170,7 +181,7 @@ function grantReceiptItems(matches, categoryKey) {
         amountCents: amounts[i] ?? null,
       });
     }
-    return { itemKey, count, storeText: `Echter Kauf erkannt bei ${category.name} 🧾` };
+    return { itemKey, count, storeText };
   });
 
   showItemSuccessQueue(entries);
