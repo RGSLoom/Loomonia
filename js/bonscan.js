@@ -5,6 +5,7 @@
 // js/drawgame.js, nur mit echtem Bon statt Minigame als Ausloeser.
 
 let scanCameraStream = null;
+let scanCameraTrack = null; // fuer ImageCapture.takePhoto(), siehe captureFromScanCamera()
 
 function openScanScreen() {
   resetScanUI();
@@ -46,11 +47,12 @@ async function tryStartScanCamera() {
     scanCameraStream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: "environment" },
-        width: { ideal: 1920 },
-        height: { ideal: 1920 },
+        width: { ideal: 3840 },
+        height: { ideal: 2160 },
       },
       audio: false,
     });
+    scanCameraTrack = scanCameraStream.getVideoTracks()[0];
     const video = document.getElementById("scan-camera");
     video.srcObject = scanCameraStream;
     video.style.display = "block";
@@ -84,13 +86,37 @@ function stopScanCamera() {
     scanCameraStream.getTracks().forEach((t) => t.stop());
     scanCameraStream = null;
   }
+  scanCameraTrack = null;
   const video = document.getElementById("scan-camera");
   video.srcObject = null;
   video.style.display = "none";
   document.getElementById("btn-scan-capture").style.display = "none";
 }
 
-function captureFromScanCamera() {
+// Zahlen (Preise) brauchen fuer die OCR viel schaerfere Bilder als Woerter
+// — ein falsch gelesener Buchstabe in "Energiesnack" stoert das Stichwort-
+// Matching kaum, ein falsch gelesenes Zeichen in "4,99" macht die Zahl
+// unbrauchbar. Der <video>-Livestream liefert selbst mit hoher angeforderter
+// Aufloesung oft weniger Bildpunkte als ein echtes Kamera-Foto. Deshalb
+// bevorzugt ueber ImageCapture.takePhoto() ein echtes Foto in Sensor-
+// Aufloesung aufnehmen (Chrome/Android); nur wenn das nicht unterstuetzt
+// wird oder fehlschlaegt (z.B. Safari/iOS), auf den bisherigen Video-Frame-
+// Snapshot zurueckfallen.
+async function captureFromScanCamera() {
+  if (window.ImageCapture && scanCameraTrack) {
+    try {
+      const imageCapture = new ImageCapture(scanCameraTrack);
+      const blob = await imageCapture.takePhoto();
+      processReceiptImage(blob);
+      return;
+    } catch (err) {
+      console.warn("ImageCapture.takePhoto() fehlgeschlagen, nutze Video-Frame:", err && err.message ? err.message : err);
+    }
+  }
+  captureFromScanCameraFrame();
+}
+
+function captureFromScanCameraFrame() {
   const video = document.getElementById("scan-camera");
   if (!video.videoWidth || !video.videoHeight) {
     // Kamera hat noch keinen Frame geliefert (z.B. sehr kurz nach dem
