@@ -67,7 +67,7 @@ function fetchEvents(storeKey) {
   cutoff.setHours(0, 0, 0, 0);
 
   let url =
-    `${SUPABASE_URL}/rest/v1/events?select=type,player_id,ts,item_key` +
+    `${SUPABASE_URL}/rest/v1/events?select=type,player_id,ts,item_key,amount_cents` +
     `&ts=gte.${encodeURIComponent(cutoff.toISOString())}&order=ts.asc&limit=10000`;
   if (storeKey !== "all") {
     url += `&category=eq.${encodeURIComponent(storeKey)}`;
@@ -115,12 +115,17 @@ function aggregateEvents(events, daysWindow) {
     const receiptEvents = dayEvents.filter((e) => e.type === "item_receipt_scanned");
     const distinctPlayers = new Set(selected.map((e) => e.player_id)).size;
     const distinctBuyers = new Set(receiptEvents.map((e) => e.player_id)).size;
+    // amount_cents haengt nur an einem Event pro Bon-Scan (siehe
+    // js/bonscan.js grantReceiptItems) -> einfaches Aufsummieren ueber alle
+    // Events des Tages zaehlt jeden Bon trotzdem nur einmal.
+    const revenueCents = receiptEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
     return {
       date,
       playersSelected: distinctPlayers,
       freeItemsReceived: items.length,
       realBuyers: distinctBuyers,
       realItemsReceived: receiptEvents.length,
+      revenueCents,
     };
   });
 
@@ -168,6 +173,7 @@ function aggregateEvents(events, daysWindow) {
       lastEventTs,
       buyersToday: todayStat.realBuyers,
       purchaseItemsToday: todayStat.realItemsReceived,
+      revenueCentsToday: todayStat.revenueCents,
       lastReceiptTs,
     },
   };
@@ -192,6 +198,7 @@ function renderStats(data) {
 
   document.getElementById("kpi-buyers").textContent = kpis.buyersToday ?? 0;
   document.getElementById("kpi-purchase-items").textContent = kpis.purchaseItemsToday ?? 0;
+  document.getElementById("kpi-revenue").textContent = formatEuro(kpis.revenueCentsToday);
   document.getElementById("kpi-purchase-last").textContent = formatAgo(kpis.lastReceiptTs);
 
   renderChart(document.getElementById("chart-svg"), data.days || [], [
@@ -205,6 +212,11 @@ function renderStats(data) {
 
   renderTopItems("top-items-body", data.topItems || [], "Noch keine Items vergeben.");
   renderTopItems("top-purchase-items-body", data.topReceiptItems || [], "Noch keine Bon-Scans erfasst.");
+}
+
+function formatEuro(cents) {
+  if (!cents) return "0,00 €";
+  return (cents / 100).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
 
 function formatGrowth(pct) {

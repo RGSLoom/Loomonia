@@ -91,6 +91,31 @@ async function processReceiptImage(imageSource) {
   }
 }
 
+// Erkennt die Bon-Gesamtsumme per OCR-Text (fuers Haendler-Dashboard, siehe
+// grantReceiptItems). Sucht die erste Zeile mit einem Summen-Schluesselwort
+// und nimmt darin die RECHTESTE Zahl — bei Bons mit MwSt-Aufschluesselung
+// (z.B. "Summe 0,88 9,66 10,54") steht der Bruttogesamtbetrag konventionell
+// in der letzten Spalte, das deckt sich mit allen vier Test-Bons in
+// assets/bons/. Rein heuristisch (OCR-Text, kein strukturiertes Bon-Format)
+// — kann bei ungewoehnlichen Bon-Layouts danebenliegen, deshalb im
+// Dashboard klar als "geschaetzt" gekennzeichnet.
+const RECEIPT_TOTAL_LINE_PATTERN = /^\s*(zu\s*zahlen|summe|gesamtbetrag|gesamt)\b/i;
+const RECEIPT_AMOUNT_PATTERN = /\d{1,4}[.,]\d{2}/g;
+
+function extractReceiptAmountCents(text) {
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    if (!RECEIPT_TOTAL_LINE_PATTERN.test(line)) continue;
+    const matches = line.match(RECEIPT_AMOUNT_PATTERN);
+    if (!matches || matches.length === 0) continue;
+    const value = parseFloat(matches[matches.length - 1].replace(",", "."));
+    if (!isNaN(value) && value > 0 && value < 10000) {
+      return Math.round(value * 100);
+    }
+  }
+  return null; // Betrag nicht sicher erkannt -> lieber keiner als ein falscher
+}
+
 function matchReceiptText(text) {
   const storeMatch = RECEIPT_STORE_PATTERNS.find((entry) => entry.pattern.test(text));
   if (!storeMatch) {
@@ -126,11 +151,17 @@ function matchReceiptText(text) {
   if (Object.keys(counts).length === 0) counts[randomChoice(pool)] = 1;
 
   setScanStatus("");
-  grantReceiptItems(counts, storeMatch.categoryKey);
+  grantReceiptItems(counts, storeMatch.categoryKey, extractReceiptAmountCents(text));
 }
 
-function grantReceiptItems(counts, categoryKey) {
+// amountCents gehoert zum ganzen Bon, nicht zu einzelnen Items — wird
+// deshalb nur an das allererste getrackte Event dieses Scans gehaengt
+// (amountAttached-Flag), alle weiteren Item-Events desselben Bons bekommen
+// keinen Betrag. Sonst wuerde das Dashboard bei mehreren erkannten Items
+// denselben Bon-Betrag mehrfach aufsummieren.
+function grantReceiptItems(counts, categoryKey, amountCents) {
   const category = STORE_CATEGORIES[categoryKey];
+  let amountAttached = false;
 
   const entries = Object.entries(counts).map(([itemKey, count]) => {
     const item = ITEMS[itemKey];
@@ -142,7 +173,9 @@ function grantReceiptItems(counts, categoryKey) {
         category: categoryKey,
         itemKey,
         rarity: item.rarity,
+        amountCents: amountAttached ? null : amountCents,
       });
+      amountAttached = true;
     }
     return { itemKey, count, storeText: `Echter Kauf erkannt bei ${category.name} 🧾` };
   });
