@@ -140,7 +140,8 @@ function matchReceiptText(text) {
   // seinen eigenen Wert traegt statt eines gemeinsamen Bon-Betrags.
   const lines = text.split(/\r?\n/);
   const matches = {}; // itemKey -> { count, amounts: [cents|null, ...] }
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const hit = pool.find((itemKey) => {
       const patterns = RECEIPT_ITEM_KEYWORDS[itemKey] || [];
       return patterns.some((p) => p.test(line));
@@ -148,7 +149,16 @@ function matchReceiptText(text) {
     if (!hit) continue;
     if (!matches[hit]) matches[hit] = { count: 0, amounts: [] };
     matches[hit].count++;
-    matches[hit].amounts.push(extractLineAmountCents(line));
+    // Der Preis steht nicht immer auf exakt derselben Zeile wie das
+    // Stichwort — z.B. steht bei Deichmann-Bons Artikelnummer+Preis auf
+    // einer Zeile und der Markenname ("Bench") separat direkt darunter.
+    // Deshalb zusaetzlich eine Zeile vor/nach der Treffer-Zeile pruefen,
+    // bevor der Preis als "nicht gefunden" gilt.
+    const amount =
+      extractLineAmountCents(line) ??
+      extractLineAmountCents(lines[i - 1] || "") ??
+      extractLineAmountCents(lines[i + 1] || "");
+    matches[hit].amounts.push(amount);
   }
 
   if (Object.keys(matches).length === 0) {
