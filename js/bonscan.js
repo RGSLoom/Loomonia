@@ -7,6 +7,43 @@
 let scanCameraStream = null;
 let scanCameraTrack = null; // fuer ImageCapture.takePhoto(), siehe captureFromScanCamera()
 
+// Maximale Kantenlaenge (px), auf die ein aufgenommenes Foto vor der OCR
+// herunterskaliert wird. Ein echtes Kamerafoto (ImageCapture.takePhoto())
+// kann 12+ Megapixel/mehrere MB gross sein — bleibt komplett im
+// Arbeitsspeicher (nie auf Platte/Server), wird aber ohne Verkleinerung
+// von Tesseract sehr langsam bis gar nicht verarbeitet. 2000px ist immer
+// noch deutlich schaerfer als der alte Video-Frame-Snapshot, aber schnell
+// genug fuer eine OCR im Browser.
+const RECEIPT_PHOTO_MAX_DIMENSION = 2000;
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}: Timeout nach ${ms}ms`)), ms)),
+  ]);
+}
+
+// Verkleinert ein Bild-Blob auf maximal RECEIPT_PHOTO_MAX_DIMENSION Kante
+// (Seitenverhaeltnis bleibt erhalten) und gibt es als neues JPEG-Blob
+// zurueck. Ist das Bild schon kleiner, bleibt es unveraendert. Laeuft rein
+// im Speicher (createImageBitmap + Canvas), landet nirgends persistent.
+async function downscaleImageBlob(blob, maxDim) {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    if (scale >= 1) return blob;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const resized = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.9));
+    return resized || blob;
+  } catch (err) {
+    console.warn("Verkleinern des Bon-Fotos fehlgeschlagen, nutze Original:", err && err.message ? err.message : err);
+    return blob;
+  }
+}
+
 function openScanScreen() {
   resetScanUI();
   showScreen("screen-scan");
@@ -106,17 +143,22 @@ async function captureFromScanCamera() {
   if (window.ImageCapture && scanCameraTrack) {
     try {
       const imageCapture = new ImageCapture(scanCameraTrack);
-      const blob = await imageCapture.takePhoto();
-      processReceiptImage(blob);
+      // Timeout, falls takePhoto() auf manchen Geraeten haengen bleibt
+      // (z.B. wenn Foto- und Video-Aufloesung nicht gleichzeitig
+      // unterstuetzt werden) — sonst wirkt der Scan komplett tot, ohne
+      // dass der Fallback je zum Zug kommt.
+      const blob = await withTimeout(imageCapture.takePhoto(), 7000, "takePhoto");
+      const resized = await downscaleImageBlob(blob, RECEIPT_PHOTO_MAX_DIMENSION);
+      processReceiptImage(resized);
       return;
     } catch (err) {
-      console.warn("ImageCapture.takePhoto() fehlgeschlagen, nutze Video-Frame:", err && err.message ? err.message : err);
+      console.warn("ImageCapture.takePhoto() fehlgeschlagen/zu langsam, nutze Video-Frame:", err && err.message ? err.message : err);
     }
   }
   captureFromScanCameraFrame();
 }
 
-function captureFromScanCameraFrame() {
+async function captureFromScanCameraFrame() {
   const video = document.getElementById("scan-camera");
   if (!video.videoWidth || !video.videoHeight) {
     // Kamera hat noch keinen Frame geliefert (z.B. sehr kurz nach dem
@@ -129,9 +171,10 @@ function captureFromScanCameraFrame() {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-  canvas.toBlob((blob) => {
+  canvas.toBlob(async (blob) => {
     if (blob) {
-      processReceiptImage(blob);
+      const resized = await downscaleImageBlob(blob, RECEIPT_PHOTO_MAX_DIMENSION);
+      processReceiptImage(resized);
     } else {
       setScanError("Foto konnte nicht aufgenommen werden. Bitte erneut versuchen.");
     }
@@ -149,13 +192,16 @@ async function processReceiptImage(imageSource) {
   setScanStatus("Bon wird gelesen…");
   try {
     // deu+eng+nld: Bon kann auch im Ausland fotografiert werden (DE/EN/NL) —
-    // Tesseract erkennt damit alle drei gemeinsam statt nur Deutsch.
-    const result = await Tesseract.recognize(imageSource, "deu+eng+nld");
+    // Tesseract erkennt damit alle drei gemeinsam statt nur Deutsch. Timeout
+    // als Absicherung, falls die OCR haengt (z.B. Sprachpaket-Download beim
+    // allerersten Scan bricht ab) — sonst bleibt der Screen fuer immer auf
+    // "Bon wird gelesen…" stehen, ohne dass der Nutzer etwas tun kann.
+    const result = await withTimeout(Tesseract.recognize(imageSource, "deu+eng+nld"), 30000, "OCR");
     matchReceiptText(result.data.text || "");
   } catch (err) {
     console.warn("OCR fehlgeschlagen:", err && err.message ? err.message : err);
     setScanStatus("");
-    setScanError("Bon konnte nicht gelesen werden. Bitte erneut versuchen (heller/schärfer fotografieren).");
+    setScanError("Bon konnte nicht gelesen werden. Bitte erneut versuchen (heller/schärfer fotografieren, stabile Internetverbindung fürs erste Mal nötig).");
   }
 }
 
