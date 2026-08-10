@@ -478,7 +478,9 @@ html, body {
   border: 1px solid rgba(239,68,68,0.5);
   padding: 8px 16px;
   border-radius: 10px;
-  max-width: 320px;
+  max-width: 340px;
+  white-space: pre-wrap;
+  text-align: left;
 }
 .scan-status.hidden, .scan-error.hidden { display: none; }
 .scan-btn {

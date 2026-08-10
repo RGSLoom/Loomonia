@@ -39,8 +39,16 @@ async function tryStartScanCamera() {
     // Android-Kameras/Browser bieten keine exakte "environment"-Uebereinstimmung
     // an und wuerden getUserMedia sonst komplett ablehnen (gleiches Muster
     // wie die bewaehrte AR-Kamera in der Fangszene, siehe catchgame.js).
+    // Hohe ideale Aufloesung angefragt, weil kleine Bon-Schrift auf einem
+    // Standard-Videostream (oft nur 640x480) fuer OCR kaum lesbar ist —
+    // bei Datei-Uploads (echte Fotos) tritt dieses Problem nicht auf, dort
+    // ist die volle Kamera-Aufloesung des Geraets im Bild.
     scanCameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } },
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1920 },
+      },
       audio: false,
     });
     const video = document.getElementById("scan-camera");
@@ -184,9 +192,17 @@ function matchReceiptText(text) {
       matches[randomChoice(pool)] = { count: 1, amounts: [null] };
     } else {
       // Weder Store noch irgendein Artikel erkannt -> das ist der einzige
-      // echte Fehlerfall, der bleibt (z.B. unlesbares/leeres Foto).
+      // echte Fehlerfall, der bleibt (z.B. unlesbares/leeres Foto). Zeigt
+      // zusaetzlich einen Ausschnitt des tatsaechlich erkannten OCR-Texts,
+      // damit sich beim Testen erkennen laesst, ob die OCR selbst schlecht
+      // gelesen hat (dann Foto-/Aufloesungsproblem) oder ob nur die
+      // Stichwortliste den Text nicht abdeckt (dann Wortliste erweitern).
+      const preview = text.replace(/\s+/g, " ").trim().slice(0, 160);
       setScanStatus("");
-      setScanError("Konnte weder Store noch Artikel auf dem Bon erkennen. Bitte ein schärferes/helleres Foto versuchen.");
+      setScanError(
+        "Konnte weder Store noch Artikel auf dem Bon erkennen. Bitte ein schärferes/helleres Foto versuchen." +
+          (preview ? `\n\nErkannter Text: „${preview}${text.trim().length > 160 ? "…" : ""}“` : "\n\n(Kein Text erkannt — Foto vermutlich zu unscharf/dunkel.)")
+      );
       return;
     }
   }
