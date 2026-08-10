@@ -11,6 +11,35 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
+// Grosszuegiger Groessendeckel (nur gegen wirklich riesige Fotos, die den
+// Speicher/die OCR-Zeit sprengen wuerden) — echte Handyfotos liegen meist
+// darunter, greift also selten.
+const RECEIPT_PHOTO_MAX_DIMENSION = 4000;
+
+// Manche Handys liefern Kamerafotos (v.a. iPhones per capture="environment")
+// im HEIC/HEIF-Format statt JPEG, das Tesseract nicht zuverlaessig lesen
+// kann ("Error attempting to read image"). createImageBitmap() nutzt den
+// nativen Bild-Decoder des Browsers (der HEIC i.d.R. beherrscht) und wir
+// zeichnen das Ergebnis als normales JPEG auf einen Canvas — damit bekommt
+// die OCR garantiert ein Format, das sie lesen kann, egal woher das Bild
+// kam. Schlaegt das fehl (z.B. wirklich exotisches Format), wird einfach
+// das Original-Bild direkt an Tesseract weitergereicht statt abzubrechen.
+async function normalizeImageForOcr(source) {
+  try {
+    const bitmap = await createImageBitmap(source);
+    const scale = Math.min(1, RECEIPT_PHOTO_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const jpeg = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92));
+    return jpeg || source;
+  } catch (err) {
+    console.warn("Bild-Normalisierung fehlgeschlagen, nutze Original direkt:", err && err.message ? err.message : err);
+    return source;
+  }
+}
+
 function openScanScreen() {
   resetScanUI();
   showScreen("screen-scan");
@@ -52,17 +81,21 @@ async function processReceiptImage(imageSource) {
   resetScanUI();
   setScanStatus("Bon wird gelesen…");
   try {
+    const normalized = await normalizeImageForOcr(imageSource);
     // deu+eng+nld: Bon kann auch im Ausland fotografiert werden (DE/EN/NL) —
     // Tesseract erkennt damit alle drei gemeinsam statt nur Deutsch. Timeout
     // als Absicherung, falls die OCR haengt (z.B. Sprachpaket-Download beim
-    // allerersten Scan bricht ab, oder ein sehr grosses Kamerafoto) — sonst
-    // bleibt der Screen fuer immer auf "Bon wird gelesen…" stehen.
-    const result = await withTimeout(Tesseract.recognize(imageSource, "deu+eng+nld"), 45000, "OCR");
+    // allerersten Scan bricht ab) — sonst bleibt der Screen fuer immer auf
+    // "Bon wird gelesen…" stehen.
+    const result = await withTimeout(Tesseract.recognize(normalized, "deu+eng+nld"), 45000, "OCR");
     matchReceiptText(result.data.text || "");
   } catch (err) {
     console.warn("OCR fehlgeschlagen:", err && err.message ? err.message : err);
     setScanStatus("");
-    setScanError("Bon konnte nicht gelesen werden. Bitte erneut versuchen (heller/schärfer fotografieren, stabile Internetverbindung fürs erste Mal nötig).");
+    setScanError(
+      "Bon konnte nicht gelesen werden. Bitte erneut versuchen (heller/schärfer fotografieren, stabile Internetverbindung fürs erste Mal nötig)." +
+        (err && err.message ? `\n\n(Technischer Grund: ${err.message})` : "")
+    );
   }
 }
 
