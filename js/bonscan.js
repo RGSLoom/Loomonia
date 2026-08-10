@@ -32,13 +32,34 @@ function setScanError(text) {
 async function tryStartScanCamera() {
   if (scanCameraStream) return true;
   try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("getUserMedia wird von diesem Browser nicht unterstuetzt");
+    }
+    // { ideal: "environment" } statt einer harten Anforderung — manche
+    // Android-Kameras/Browser bieten keine exakte "environment"-Uebereinstimmung
+    // an und wuerden getUserMedia sonst komplett ablehnen (gleiches Muster
+    // wie die bewaehrte AR-Kamera in der Fangszene, siehe catchgame.js).
     scanCameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
+      video: { facingMode: { ideal: "environment" } },
       audio: false,
     });
     const video = document.getElementById("scan-camera");
     video.srcObject = scanCameraStream;
     video.style.display = "block";
+    // Erst wenn das Video wirklich Frames liefert (videoWidth > 0) den
+    // Aufnahme-Button freigeben — sonst wuerde ein Tap direkt nach dem
+    // Start ein leeres 0x0-Bild aufnehmen und stillschweigend nichts tun.
+    await new Promise((resolve) => {
+      if (video.readyState >= 2 && video.videoWidth > 0) return resolve();
+      video.addEventListener("loadedmetadata", () => resolve(), { once: true });
+    });
+    try {
+      await video.play();
+    } catch (playErr) {
+      // Manche Browser brauchen ein aktives play() trotz autoplay-Attribut;
+      // schlaegt es fehl, bleibt das Video ggf. schwarz, aber die Frames
+      // sind i.d.R. trotzdem lesbar -> nicht hart abbrechen.
+    }
     document.getElementById("btn-scan-capture").style.display = "block";
     return true;
   } catch (err) {
@@ -63,12 +84,23 @@ function stopScanCamera() {
 
 function captureFromScanCamera() {
   const video = document.getElementById("scan-camera");
+  if (!video.videoWidth || !video.videoHeight) {
+    // Kamera hat noch keinen Frame geliefert (z.B. sehr kurz nach dem
+    // Oeffnen getappt) — vorher fiel das hier lautlos aus (0x0-Bild ohne
+    // jede Rueckmeldung). Jetzt sichtbarer Hinweis statt totem Button.
+    setScanError("Kamera ist noch nicht bereit. Bitte kurz warten und erneut auf \"Bon fotografieren\" tippen.");
+    return;
+  }
   const canvas = document.getElementById("scan-canvas");
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
   canvas.toBlob((blob) => {
-    if (blob) processReceiptImage(blob);
+    if (blob) {
+      processReceiptImage(blob);
+    } else {
+      setScanError("Foto konnte nicht aufgenommen werden. Bitte erneut versuchen.");
+    }
   }, "image/jpeg", 0.92);
 }
 
