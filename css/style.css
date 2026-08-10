@@ -697,6 +697,42 @@ html, body {
 .detail-card-effect { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
 .detail-card-hint { font-size: 12px; opacity: 0.7; line-height: 1.4; }
 
+.danger-btn, .secondary-btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.danger-btn:active, .secondary-btn:active { transform: scale(0.97); }
+.danger-btn {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: white;
+  box-shadow: 0 4px 16px rgba(220,38,38,0.4);
+}
+.secondary-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--text-light);
+}
+.confirm-card {
+  max-width: 320px;
+  margin: 40px auto 0;
+  padding: 24px 20px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, #16123a, #0c0a20);
+  border: 1px solid rgba(239,68,68,0.4);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  text-align: center;
+}
+.confirm-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+.confirm-text { font-size: 14px; opacity: 0.85; line-height: 1.4; margin-bottom: 20px; }
+.confirm-actions { display: flex; flex-direction: column; gap: 10px; }
+
 .essence-banner {
   text-align: center;
   padding: 10px;

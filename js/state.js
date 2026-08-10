@@ -25,6 +25,11 @@ function defaultState() {
       // AR-Kamera-Hintergrund in der Fangszene — Default aus (Privacy-
       // freundlich, erfordert explizite Kamera-Erlaubnis vom Nutzer).
       arCameraEnabled: false,
+      // Loeschoption im Items-Screen — Default aus, um versehentliches
+      // Loeschen zu vermeiden; muss explizit in den Einstellungen aktiviert
+      // werden. Vor dem eigentlichen Loeschen fragt die UI trotzdem immer
+      // aktiv nach (siehe profile.js).
+      allowItemDeletion: false,
     },
     storePositions: null, // { [storeKey]: { lat, lon } } — einmalig gesetzt
     playerId: null, // anonyme ID fuers Haendler-Dashboard (siehe tracking.js)
@@ -73,6 +78,32 @@ function addItem(key, qty = 1) {
   saveState();
 }
 
+// Entfernt ein Exemplar von `key` aus dem Inventar (die UI fragt vorher
+// aktiv nach, siehe profile.js). Gibt false zurueck, falls keins vorhanden
+// ist.
+function removeItem(key) {
+  const owned = gameState.inventory[key] || 0;
+  if (owned < 1) return false;
+  if (owned <= 1) {
+    delete gameState.inventory[key];
+  } else {
+    gameState.inventory[key] = owned - 1;
+  }
+  saveState();
+  return true;
+}
+
+// Entfernt den kompletten Stapel von `key` auf einmal (die UI fragt vorher
+// aktiv nach, siehe profile.js). Gibt false zurueck, falls keins vorhanden
+// ist.
+function removeAllOfItem(key) {
+  const owned = gameState.inventory[key] || 0;
+  if (owned < 1) return false;
+  delete gameState.inventory[key];
+  saveState();
+  return true;
+}
+
 function setSkipMinigame(value) {
   gameState.settings.skipMinigame = value;
   saveState();
@@ -80,6 +111,11 @@ function setSkipMinigame(value) {
 
 function setArCameraEnabled(value) {
   gameState.settings.arCameraEnabled = value;
+  saveState();
+}
+
+function setAllowItemDeletion(value) {
+  gameState.settings.allowItemDeletion = value;
   saveState();
 }
 

@@ -84,10 +84,59 @@ function showItemDetail(key) {
         <div class="detail-card-effect">${item.effect}</div>
         <div class="detail-card-hint">Dieses Item kann durch reale Käufe im Handel aktiviert werden.</div>
       </div>`;
+  const owned = gameState.inventory[key] || 0;
+  let deleteBtnHtml = "";
+  if (gameState.settings.allowItemDeletion) {
+    deleteBtnHtml = owned > 1
+      ? `<button id="btn-item-delete-one" class="danger-btn" style="margin-top:14px;">🗑 1 Stück löschen</button>
+         <button id="btn-item-delete-all" class="danger-btn" style="margin-top:10px;">🗑 Ganzen Stapel löschen (${owned})</button>`
+      : `<button id="btn-item-delete-one" class="danger-btn" style="margin-top:14px;">🗑 Item löschen</button>`;
+  }
   content.innerHTML = `
     <button class="back-btn" id="btn-item-detail-back" style="margin-bottom:12px;">← Übersicht</button>
-    ${cardHtml}`;
+    ${cardHtml}
+    ${deleteBtnHtml}`;
   document.getElementById("btn-item-detail-back").addEventListener("click", () => {
+    content.innerHTML = renderItemsGrid();
+    attachItemGridHandlers();
+  });
+  const deleteOneBtn = document.getElementById("btn-item-delete-one");
+  if (deleteOneBtn) {
+    deleteOneBtn.addEventListener("click", () => showDeleteItemConfirm(key, "one"));
+  }
+  const deleteAllBtn = document.getElementById("btn-item-delete-all");
+  if (deleteAllBtn) {
+    deleteAllBtn.addEventListener("click", () => showDeleteItemConfirm(key, "all"));
+  }
+}
+
+// Aktive Rueckfrage vor dem Loeschen (siehe Einstellungen "Items löschen
+// erlauben") — ersetzt die Detailkarte kurzzeitig durch einen Ja/Abbrechen-
+// Schritt, statt sofort zu loeschen. mode "one" entfernt ein Exemplar,
+// mode "all" den kompletten Stapel auf einmal.
+function showDeleteItemConfirm(key, mode) {
+  const item = ITEMS[key];
+  const owned = gameState.inventory[key] || 0;
+  const content = document.getElementById("items-content");
+  const confirmText = mode === "all"
+    ? `Alle ${owned}× „${item.name}“ werden unwiderruflich aus deinem Inventar entfernt.`
+    : `1× „${item.name}“ wird unwiderruflich aus deinem Inventar entfernt.`;
+  content.innerHTML = `
+    <div class="confirm-card">
+      <div class="confirm-title">${mode === "all" ? "Ganzen Stapel löschen?" : "Item löschen?"}</div>
+      <div class="confirm-text">${confirmText}</div>
+      <div class="confirm-actions">
+        <button id="btn-item-delete-cancel" class="secondary-btn">Abbrechen</button>
+        <button id="btn-item-delete-confirm" class="danger-btn">Ja, löschen</button>
+      </div>
+    </div>`;
+  document.getElementById("btn-item-delete-cancel").addEventListener("click", () => showItemDetail(key));
+  document.getElementById("btn-item-delete-confirm").addEventListener("click", () => {
+    if (mode === "all") {
+      removeAllOfItem(key);
+    } else {
+      removeItem(key);
+    }
     content.innerHTML = renderItemsGrid();
     attachItemGridHandlers();
   });
@@ -213,6 +262,13 @@ function renderSettings() {
         <div style="font-size:12px; opacity:0.75;">Zeigt beim Fangen dein echtes Kamerabild statt eines festen Fotos. Bild bleibt immer nur lokal auf dem Gerät. Ohne Kamera-Erlaubnis wird automatisch das feste Foto genutzt.</div>
       </div>
       <button id="settings-ar-toggle" class="toggle-switch ${gameState.settings.arCameraEnabled ? "on" : ""}"></button>
+    </div>
+    <div class="settings-row">
+      <div>
+        <div style="font-weight:600;">Items löschen erlauben</div>
+        <div style="font-size:12px; opacity:0.75;">Zeigt im Items-Screen die Möglichkeit, einzelne Gegenstände zu löschen. Vor dem Löschen wird immer aktiv nachgefragt.</div>
+      </div>
+      <button id="settings-item-deletion-toggle" class="toggle-switch ${gameState.settings.allowItemDeletion ? "on" : ""}"></button>
     </div>`;
 }
 
@@ -232,5 +288,12 @@ function attachSettingsHandlers() {
     setArCameraEnabled(newValue);
     arToggle.classList.toggle("on", newValue);
     updateArToggleUI();
+  });
+
+  const deletionToggle = document.getElementById("settings-item-deletion-toggle");
+  deletionToggle.addEventListener("click", () => {
+    const newValue = !gameState.settings.allowItemDeletion;
+    setAllowItemDeletion(newValue);
+    deletionToggle.classList.toggle("on", newValue);
   });
 }
