@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Loomonia · Händler-Dashboard</title>
-<link rel="stylesheet" href="css/style.css?v=1" />
+<link rel="stylesheet" href="css/style.css?v=2" />
 </head>
 <body>
 
@@ -30,8 +30,8 @@
     <nav class="sidebar-nav">
       <button class="nav-item active" data-target="panel-dashboard">📊 Dashboard</button>
       <button class="nav-item" data-target="panel-items">📦 Items</button>
-      <button class="nav-item nav-disabled" disabled>💶 Umsatz <span class="soon-tag">Phase 2</span></button>
-      <button class="nav-item nav-disabled" disabled>🧾 Abrechnungen <span class="soon-tag">Phase 2</span></button>
+      <button class="nav-item" data-target="panel-purchases">🧾 Echte Käufe</button>
+      <button class="nav-item nav-disabled" disabled>📄 Abrechnungen <span class="soon-tag">Phase 2</span></button>
       <button id="nav-switch-store" class="nav-item">↩ Store wechseln</button>
     </nav>
   </aside>
@@ -40,7 +40,7 @@
     <header class="content-header">
       <div>
         <h1>Dashboard</h1>
-        <p class="content-sub">Kostenlose Minigame-Items · Übersicht der aktuellen Performance</p>
+        <p class="content-sub">Kostenlose Minigame-Items &amp; echte Käufe · Übersicht der aktuellen Performance</p>
       </div>
       <div id="today-date" class="today-date">–</div>
     </header>
@@ -103,20 +103,57 @@
             <div class="info-card-value" id="info-store">–</div>
           </div>
         </div>
-        <div class="info-card info-card-soon">
-          <div class="info-card-icon">🚧</div>
-          <div>
-            <div class="info-card-title">Phase 2 — folgt als Nächstes</div>
-            <div class="info-card-value">Kaufumsatz &amp; echte Store-Besuche</div>
+      </div>
+    </section>
+
+    <section id="panel-purchases" class="panel">
+      <div class="section-heading">
+        <h2>Echte Käufe (Bon-Scan)</h2>
+        <p class="content-sub">Verifizierte Käufe per Kassenbon-Foto — es wird kein Euro-Betrag erfasst, nur ob und welches Item ein echter Kauf ausgelöst hat.</p>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-orange">🧾</div>
+          <div class="kpi-value" id="kpi-buyers">–</div>
+          <div class="kpi-label">Käufer heute (Bon gescannt)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-purple">🎯</div>
+          <div class="kpi-value" id="kpi-purchase-items">–</div>
+          <div class="kpi-label">Items aus echten Käufen heute</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-icon-blue">🕒</div>
+          <div class="kpi-value" id="kpi-purchase-last">–</div>
+          <div class="kpi-label">Letzter Bon-Scan</div>
+        </div>
+      </div>
+
+      <div class="main-row">
+        <div class="chart-card">
+          <div class="card-title">Käufe Verlauf <span class="card-title-sub">Letzte 14 Tage</span></div>
+          <svg id="purchase-chart-svg" viewBox="0 0 640 260" class="chart-svg"></svg>
+          <div class="chart-legend">
+            <span><i class="dot dot-orange"></i> Käufer (Bon gescannt)</span>
+            <span><i class="dot dot-purple"></i> Items aus Käufen</span>
           </div>
+        </div>
+
+        <div class="top-items-card">
+          <div class="card-title">Top Items aus echten Käufen <span class="card-title-sub">Letzte 14 Tage</span></div>
+          <table class="top-items-table">
+            <thead><tr><th>#</th><th>Item</th><th>Rarität</th><th>Vergaben</th></tr></thead>
+            <tbody id="top-purchase-items-body"></tbody>
+          </table>
         </div>
       </div>
     </section>
   </main>
 </section>
 
-<script src="../js/supabase-config.js?v=1"></script>
-<script src="js/stores-config.js?v=1"></script>
-<script src="js/dashboard.js?v=1"></script>
+<script src="../js/supabase-config.js?v=2"></script>
+<script src="js/stores-config.js?v=2"></script>
+<script src="js/dashboard.js?v=2"></script>
 </body>
 </html>

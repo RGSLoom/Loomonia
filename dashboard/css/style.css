@@ -164,6 +164,13 @@ body {
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
 .dot-blue { background: var(--blue); }
 .dot-green { background: var(--green); }
+.dot-orange { background: var(--orange); }
+.dot-purple { background: var(--purple); }
+
+.panel + .panel { margin-top: 36px; padding-top: 28px; border-top: 1px solid var(--border); }
+.section-heading { margin: 8px 0 18px; }
+.section-heading h2 { margin: 0 0 4px; font-size: 1.25rem; }
+.section-heading .content-sub { margin: 0; }
 
 .top-items-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .top-items-table th { text-align: left; color: var(--text-muted); font-weight: 600; padding: 6px 4px; border-bottom: 1px solid var(--border); }

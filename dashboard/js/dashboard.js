@@ -112,24 +112,42 @@ function aggregateEvents(events, daysWindow) {
     const dayEvents = events.filter((e) => localDateKey(new Date(e.ts)) === date);
     const selected = dayEvents.filter((e) => e.type === "store_selected");
     const items = dayEvents.filter((e) => e.type === "item_free_received");
+    const receiptEvents = dayEvents.filter((e) => e.type === "item_receipt_scanned");
     const distinctPlayers = new Set(selected.map((e) => e.player_id)).size;
-    return { date, playersSelected: distinctPlayers, freeItemsReceived: items.length };
+    const distinctBuyers = new Set(receiptEvents.map((e) => e.player_id)).size;
+    return {
+      date,
+      playersSelected: distinctPlayers,
+      freeItemsReceived: items.length,
+      realBuyers: distinctBuyers,
+      realItemsReceived: receiptEvents.length,
+    };
   });
 
-  const itemCounts = {};
-  events
-    .filter((e) => e.type === "item_free_received")
-    .forEach((e) => {
-      itemCounts[e.item_key] = (itemCounts[e.item_key] || 0) + 1;
+  const countByItemKey = (evts) => {
+    const counts = {};
+    evts.forEach((e) => {
+      counts[e.item_key] = (counts[e.item_key] || 0) + 1;
     });
-  const topItems = Object.entries(itemCounts)
-    .map(([itemKey, count]) => ({ itemKey, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+    return Object.entries(counts)
+      .map(([itemKey, count]) => ({ itemKey, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  };
 
-  // events ist ts-aufsteigend sortiert (order=ts.asc) -> letztes Element
-  // ist das juengste Event.
+  const topItems = countByItemKey(events.filter((e) => e.type === "item_free_received"));
+  const topReceiptItems = countByItemKey(events.filter((e) => e.type === "item_receipt_scanned"));
+
+  // events ist ts-aufsteigend sortiert (order=ts.asc) -> letztes Element je
+  // Typ ist das juengste Event dieses Typs.
+  const lastOfType = (type) => {
+    for (let i = events.length - 1; i >= 0; i--) {
+      if (events[i].type === type) return events[i].ts;
+    }
+    return null;
+  };
   const lastEventTs = events.length > 0 ? events[events.length - 1].ts : null;
+  const lastReceiptTs = lastOfType("item_receipt_scanned");
 
   const todayStat = days[days.length - 1];
   const yesterdayStat = days.length >= 2 ? days[days.length - 2] : null;
@@ -142,11 +160,15 @@ function aggregateEvents(events, daysWindow) {
   return {
     days,
     topItems,
+    topReceiptItems,
     kpis: {
       playersToday: todayStat.playersSelected,
       itemsToday: todayStat.freeItemsReceived,
       growthPct,
       lastEventTs,
+      buyersToday: todayStat.realBuyers,
+      purchaseItemsToday: todayStat.realItemsReceived,
+      lastReceiptTs,
     },
   };
 }
@@ -168,8 +190,21 @@ function renderStats(data) {
   document.getElementById("kpi-last").textContent = formatAgo(kpis.lastEventTs);
   document.getElementById("info-last-event").textContent = formatAgo(kpis.lastEventTs);
 
-  renderChart(data.days || []);
-  renderTopItems(data.topItems || []);
+  document.getElementById("kpi-buyers").textContent = kpis.buyersToday ?? 0;
+  document.getElementById("kpi-purchase-items").textContent = kpis.purchaseItemsToday ?? 0;
+  document.getElementById("kpi-purchase-last").textContent = formatAgo(kpis.lastReceiptTs);
+
+  renderChart(document.getElementById("chart-svg"), data.days || [], [
+    { key: "playersSelected", color: "#3b5bdb" },
+    { key: "freeItemsReceived", color: "#22c55e" },
+  ]);
+  renderChart(document.getElementById("purchase-chart-svg"), data.days || [], [
+    { key: "realBuyers", color: "#f59e0b" },
+    { key: "realItemsReceived", color: "#a855f7" },
+  ]);
+
+  renderTopItems("top-items-body", data.topItems || [], "Noch keine Items vergeben.");
+  renderTopItems("top-purchase-items-body", data.topReceiptItems || [], "Noch keine Bon-Scans erfasst.");
 }
 
 function formatGrowth(pct) {
@@ -190,12 +225,12 @@ function formatAgo(ts) {
   return `vor ${days} Tag(en)`;
 }
 
-function renderTopItems(topItems) {
-  const body = document.getElementById("top-items-body");
+function renderTopItems(bodyId, topItems, emptyText) {
+  const body = document.getElementById(bodyId);
   body.innerHTML = "";
 
   if (topItems.length === 0) {
-    body.innerHTML = `<tr><td colspan="4" style="color:#6b7280;padding:14px 4px;">Noch keine Items vergeben.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="4" style="color:#6b7280;padding:14px 4px;">${emptyText}</td></tr>`;
     return;
   }
 
@@ -213,15 +248,16 @@ function renderTopItems(topItems) {
   });
 }
 
-function renderChart(days) {
-  const svg = document.getElementById("chart-svg");
+// series: [{ key, color }, ...] — welche Tages-Felder als Linien gezeichnet
+// werden. So teilen sich Frei-Item- und Echte-Kaeufe-Chart dieselbe Logik.
+function renderChart(svg, days, series) {
   const W = 640, H = 260;
   const padL = 34, padR = 10, padT = 14, padB = 28;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 
-  const maxVal = Math.max(1, ...days.map((d) => Math.max(d.playersSelected, d.freeItemsReceived)));
-  const totalEvents = days.reduce((sum, d) => sum + d.playersSelected + d.freeItemsReceived, 0);
+  const maxVal = Math.max(1, ...days.flatMap((d) => series.map((s) => d[s.key])));
+  const totalEvents = days.reduce((sum, d) => sum + series.reduce((s2, s) => s2 + d[s.key], 0), 0);
 
   if (totalEvents === 0) {
     svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="#9aa1b5" font-size="14">Noch keine Daten — im Spiel einen Store besuchen, um hier Zahlen zu sehen.</text>`;
@@ -253,15 +289,11 @@ function renderChart(days) {
     xLabels += `<text x="${x}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#6b7280">${label}</text>`;
   });
 
-  const playersPath = linePath("playersSelected");
-  const itemsPath = linePath("freeItemsReceived");
+  const paths = series
+    .map((s) => `<path d="${linePath(s.key)}" fill="none" stroke="${s.color}" stroke-width="2.5" />`)
+    .join("");
 
-  svg.innerHTML = `
-    ${gridLines}
-    <path d="${playersPath}" fill="none" stroke="#3b5bdb" stroke-width="2.5" />
-    <path d="${itemsPath}" fill="none" stroke="#22c55e" stroke-width="2.5" />
-    ${xLabels}
-  `;
+  svg.innerHTML = `${gridLines}${paths}${xLabels}`;
 }
 
 function init() {
