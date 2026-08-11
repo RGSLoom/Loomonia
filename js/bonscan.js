@@ -117,7 +117,39 @@ function extractLineAmountCents(line) {
   return Math.round(value * 100);
 }
 
+// Fuers Pitch/Demo zaehlt vor allem: JEDER lesbare Bon soll erfolgreich
+// scannen und moeglichst einen Preis mitbringen — unabhaengig davon, ob
+// Store oder Artikel-Stichwort erkannt wurden. Bevorzugt die Zeile mit
+// einem Summen-Schluesselwort (DE/EN/NL), sonst den groessten gueltigen
+// Betrag im ganzen Text (meist ohnehin die Bon-Gesamtsumme).
+const RECEIPT_TOTAL_KEYWORDS = /summe|gesamtbetrag|zu zahlen|total|totaal|amount due/i;
+
+function findReceiptTotalCents(text) {
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    if (RECEIPT_TOTAL_KEYWORDS.test(line)) {
+      const amt = extractLineAmountCents(line);
+      if (amt) return amt;
+    }
+  }
+  let max = null;
+  for (const line of lines) {
+    const amt = extractLineAmountCents(line);
+    if (amt && (max === null || amt > max)) max = amt;
+  }
+  return max;
+}
+
 function matchReceiptText(text) {
+  const trimmed = text.trim();
+  if (trimmed.length < 3) {
+    // Wirklich nichts Lesbares erkannt (leeres/kaputtes Foto) — das ist
+    // der einzige verbleibende echte Fehlerfall.
+    setScanStatus("");
+    setScanError("Konnte nichts auf dem Bon lesen. Bitte ein schärferes/helleres Foto versuchen.");
+    return;
+  }
+
   const storeMatch = RECEIPT_STORE_PATTERNS.find((entry) => entry.pattern.test(text));
   const categoryKey = storeMatch ? storeMatch.categoryKey : null;
   const category = categoryKey ? STORE_CATEGORIES[categoryKey] : null;
@@ -162,24 +194,23 @@ function matchReceiptText(text) {
   }
 
   if (Object.keys(matches).length === 0) {
-    if (category) {
-      // Store erkannt, aber keine Zeile hat auf ein Item gepasst ->
-      // zufaelliger Fallback aus dessen Pool (wie bisher).
-      matches[randomChoice(pool)] = { count: 1, amounts: [null] };
-    } else {
-      // Weder Store noch irgendein Artikel erkannt -> das ist der einzige
-      // echte Fehlerfall, der bleibt (z.B. unlesbares/leeres Foto). Zeigt
-      // zusaetzlich einen Ausschnitt des tatsaechlich erkannten OCR-Texts,
-      // damit sich beim Testen erkennen laesst, ob die OCR selbst schlecht
-      // gelesen hat (dann Foto-/Aufloesungsproblem) oder ob nur die
-      // Stichwortliste den Text nicht abdeckt (dann Wortliste erweitern).
-      const preview = text.replace(/\s+/g, " ").trim().slice(0, 160);
-      setScanStatus("");
-      setScanError(
-        "Konnte weder Store noch Artikel auf dem Bon erkennen. Bitte ein schärferes/helleres Foto versuchen." +
-          (preview ? `\n\nErkannter Text: „${preview}${text.trim().length > 160 ? "…" : ""}“` : "\n\n(Kein Text erkannt — Foto vermutlich zu unscharf/dunkel.)")
-      );
-      return;
+    // Kein Store und/oder kein Artikel-Stichwort getroffen — fuer den
+    // Pitch soll das trotzdem ein erfolgreicher Scan sein (Filialen/
+    // Retailer-Zuordnung ist fuer die Demo zweitrangig, siehe Absprache
+    // mit Dirk). Zufaelliges Item aus dem passenden Pool.
+    matches[randomChoice(pool)] = { count: 1, amounts: [null] };
+  }
+
+  // Kein einziger Preis auf irgendeiner Treffer-Zeile gefunden -> die Bon-
+  // Summe (falls lesbar) EINMALIG dem ersten Item zuschreiben, statt den
+  // Scan ganz ohne Umsatz zu lassen. Nicht auf jedes Item verteilen, sonst
+  // wuerde der Umsatz bei mehreren Treffern vervielfacht.
+  const anyAmountFound = Object.values(matches).some((m) => m.amounts.some((a) => a !== null));
+  if (!anyAmountFound) {
+    const total = findReceiptTotalCents(text);
+    if (total !== null) {
+      const firstKey = Object.keys(matches)[0];
+      matches[firstKey].amounts[0] = total;
     }
   }
 

@@ -313,10 +313,55 @@ function renderChart(svg, days, series) {
   svg.innerHTML = `${gridLines}${paths}${xLabels}`;
 }
 
+// Loescht ALLE Events (alle Stores, nicht nur den aktuell ausgewaehlten) —
+// gedacht, um vor einem echten Pitch die Test-/Demo-Daten aus den
+// vorherigen Testlaeufen zu entfernen, damit die Zahlen wieder bei Null
+// anfangen. ts=lt.<weit in der Zukunft> statt eines Primary-Key-Filters,
+// da wir den genauen Spaltennamen der ID nicht kennen, "ts" aber ueberall
+// sonst schon verwendet wird und garantiert auf jede Zeile zutrifft.
+async function resetTestData() {
+  const confirmed = confirm(
+    "Wirklich ALLE Test-Events (Spieler, Items, Bon-Scans, Umsatz) unwiderruflich löschen?\n\nBetrifft alle Stores, nicht nur den aktuell ausgewählten. Danach starten alle Zahlen wieder bei Null."
+  );
+  if (!confirmed) return;
+
+  const btn = document.getElementById("nav-reset-data");
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "🗑️ Lösche…";
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/events?ts=lt.2099-01-01T00:00:00Z`, {
+      method: "DELETE",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Prefer: "return=minimal",
+      },
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${res.statusText}${body ? " – " + body : ""}`);
+    }
+    loadStats(sessionStorage.getItem(STORE_KEY) || "all");
+    alert("Testdaten wurden zurückgesetzt.");
+  } catch (err) {
+    alert(
+      "Zurücksetzen fehlgeschlagen: " +
+        (err && err.message ? err.message : err) +
+        "\n\nMögliche Ursache: Die Supabase-Tabelle \"events\" erlaubt dem öffentlichen API-Key evtl. kein DELETE (Row-Level-Security-Policy) — das müsste einmalig in Supabase freigeschaltet werden."
+    );
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
 function init() {
   renderStoreGrid();
 
   document.getElementById("nav-switch-store").onclick = switchStore;
+  document.getElementById("nav-reset-data").onclick = resetTestData;
   document.querySelectorAll(".nav-item[data-target]").forEach((btn) => {
     btn.onclick = () => {
       document.querySelectorAll(".nav-item[data-target]").forEach((b) => b.classList.remove("active"));

@@ -97,6 +97,9 @@ body {
 .nav-item:hover { background: rgba(255,255,255,0.08); }
 .nav-item.active { background: var(--blue); color: #fff; font-weight: 600; }
 .nav-item.nav-disabled { opacity: 0.5; cursor: not-allowed; }
+.nav-item.nav-danger { color: #fca5a5; margin-top: 8px; }
+.nav-item.nav-danger:hover { background: rgba(239,68,68,0.15); }
+.nav-item.nav-danger:disabled { opacity: 0.5; cursor: not-allowed; }
 .soon-tag {
   font-size: 0.62rem;
   background: rgba(255,255,255,0.15);
