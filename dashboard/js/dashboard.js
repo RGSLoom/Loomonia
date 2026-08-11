@@ -11,6 +11,11 @@ const COMMISSION_RATE = 0.01; // 1% Haendler-Provision auf den geschaetzten Umsa
 let refreshTimer = null;
 
 function storeDisplayName(key) {
+  // "Alle Stores" ist die Beschriftung fuer die Phase-2-Auswahlkachel
+  // (Grosskonzern vergleicht mehrere Filialen); im aktuellen Ein-Store-
+  // Pitch-Modus (siehe init()) steht derselbe interne "all"-Schluessel
+  // fuer "das eine Dashboard dieses Shops" -> passendere Beschriftung an
+  // der einzigen Stelle, wo er dafuer benutzt wird (showDashboard()).
   if (key === "all") return "Alle Stores";
   return (DASHBOARD_STORES[key] && DASHBOARD_STORES[key].name) || key;
 }
@@ -50,10 +55,11 @@ function showDashboard(storeKey) {
   document.getElementById("screen-select").style.display = "none";
   document.getElementById("screen-dashboard").style.display = "flex";
 
-  document.getElementById("sidebar-store-name").textContent = storeDisplayName(storeKey);
+  const displayName = storeKey === "all" ? "Mein Store" : storeDisplayName(storeKey);
+  document.getElementById("sidebar-store-name").textContent = displayName;
   document.getElementById("sidebar-store-id").textContent =
-    storeKey === "all" ? "Store-ID: ALLE" : `Store-ID: ${storeKey.toUpperCase()}`;
-  document.getElementById("info-store").textContent = storeDisplayName(storeKey);
+    storeKey === "all" ? "Store-ID: DEMO" : `Store-ID: ${storeKey.toUpperCase()}`;
+  document.getElementById("info-store").textContent = displayName;
   document.getElementById("today-date").textContent =
     "Heute, " + new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -357,10 +363,14 @@ async function resetTestData() {
   }
 }
 
+// Fuer den Pitch hat jeder teilnehmende Shop nur EIN Konto/EIN Dashboard —
+// die Store-Auswahl (renderStoreGrid/switchStore, fuers spaetere Phase-2-
+// Szenario "Grosskonzern vergleicht seine Filialen") wird deshalb aktuell
+// uebersprungen und direkt die zusammengefasste "Alle Stores"-Ansicht
+// gezeigt, die ohnehin alle Scans unabhaengig von der erkannten Kategorie
+// sammelt. Die Auswahl-Funktionen bleiben im Code fuer spaeter, werden nur
+// nicht mehr verdrahtet/angezeigt.
 function init() {
-  renderStoreGrid();
-
-  document.getElementById("nav-switch-store").onclick = switchStore;
   document.getElementById("nav-reset-data").onclick = resetTestData;
   document.querySelectorAll(".nav-item[data-target]").forEach((btn) => {
     btn.onclick = () => {
@@ -371,10 +381,7 @@ function init() {
     };
   });
 
-  const saved = sessionStorage.getItem(STORE_KEY);
-  if (saved) {
-    showDashboard(saved);
-  }
+  showDashboard("all");
 }
 
 document.addEventListener("DOMContentLoaded", init);
