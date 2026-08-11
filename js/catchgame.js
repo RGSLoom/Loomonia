@@ -182,7 +182,14 @@ function handleFangenClick() {
 }
 
 function onCatchSuccess() {
-  const creature = CREATURES[catchState.creatureKey];
+  // Die Fangszene selbst lief komplett als Basis-Wesen ab (nichts deutet
+  // auf einen moeglichen Shiny hin) — der Zufalls-Wechsel auf die Shiny-
+  // Variante entscheidet sich erst hier, beim Fangerfolg.
+  const baseCreature = CREATURES[catchState.creatureKey];
+  const shinyInfo = SHINY_VARIANTS[baseCreature.key];
+  const isShiny = !!shinyInfo && Math.random() < shinyInfo.chance;
+  const creature = isShiny ? CREATURES[shinyInfo.key] : baseCreature;
+
   addCaughtCreature(creature.key);
   addXp(creature.xp);
   updateCaughtCounter();
@@ -208,6 +215,14 @@ function onCatchSuccess() {
   document.getElementById("success-creature-meta").textContent =
     `${creature.elementIcon} ${creature.element} • ${creature.rarity}`;
   document.getElementById("success-xp").textContent = `+${creature.xp} XP`;
+
+  const shinyBannerEl = document.getElementById("success-shiny-banner");
+  if (isShiny) {
+    shinyBannerEl.textContent = `✨ Herzlichen Glückwunsch! Du hast ${baseCreature.name} als Shiny bekommen!`;
+    shinyBannerEl.classList.remove("hidden");
+  } else {
+    shinyBannerEl.classList.add("hidden");
+  }
 
   showScreen("screen-catch-success");
   catchState = null;

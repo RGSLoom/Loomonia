@@ -105,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Dev-Testknöpfe (siehe Spezifikation Abschnitt 8 — vor Kunden-Demo entfernen/verstecken)
   document.getElementById("btn-test-catch").addEventListener("click", () => {
-    const key = randomChoice(Object.keys(CREATURES));
+    const key = randomChoice(SPAWNABLE_CREATURE_KEYS);
     openCatchSceneForCreature({ key, isTest: true });
   });
   document.getElementById("btn-test-item").addEventListener("click", () => {

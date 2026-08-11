@@ -195,7 +195,7 @@ function fillCreatureSpawns() {
 
 function spawnCreature() {
   if (!playerPos) return;
-  const key = randomChoice(Object.keys(CREATURES));
+  const key = randomChoice(SPAWNABLE_CREATURE_KEYS);
   let lat, lon;
 
   const nearStore = Math.random() < CREATURE_STORE_SPAWN_WEIGHT && Object.keys(storeMarkers).length > 0;

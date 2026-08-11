@@ -564,6 +564,22 @@ html, body {
   font-weight: 700;
   margin-bottom: 14px;
 }
+.success-shiny-banner {
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 14px;
+  background: linear-gradient(90deg, #38bdf8, #c084fc, #fbbf24, #38bdf8);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shiny-shimmer 2.4s linear infinite;
+}
+.success-shiny-banner.hidden { display: none; }
+@keyframes shiny-shimmer {
+  to { background-position: -300% center; }
+}
+
 .hint-text { font-size: 13px; opacity: 0.75; margin-bottom: 18px; line-height: 1.4; }
 
 /* ============ Profil-Hub ============ */

@@ -136,6 +136,25 @@ const CREATURES = {
     scene: "assets/hintergrund/Schattenreich.png",
     sceneIsRealPhoto: false,
   },
+  duskan_shiny: {
+    key: "duskan_shiny",
+    name: "Duskan ✨ Shiny",
+    element: "Schatten",
+    elementIcon: "🌑",
+    color: "#38bdf8",
+    rarity: "Episch",
+    xp: 1000,
+    icon: "assets/wesen/Duskan_shiny.png",
+    scene: "assets/hintergrund/Schattenreich.png",
+    sceneIsRealPhoto: false,
+    // Erscheint nie als eigener Spawn auf der Karte/im Dev-Testmenü (siehe
+    // SPAWNABLE_CREATURE_KEYS) und wird in der Fangszene selbst nicht
+    // angezeigt — die Fangszene laeuft komplett als normaler Duskan ab.
+    // Der Shiny-Wechsel entscheidet sich per Zufall erst bei Fangerfolg
+    // (siehe SHINY_VARIANTS + onCatchSuccess in catchgame.js) und wird
+    // erst auf dem Erfolgsscreen enthuellt.
+    isSecret: true,
+  },
   ashira: {
     key: "ashira",
     name: "Ashira",
@@ -148,6 +167,17 @@ const CREATURES = {
     scene: "assets/hintergrund/Lichtreich.png",
     sceneIsRealPhoto: false,
   },
+};
+
+// Spawn-/Testpool: alle Wesen ausser geheimen Shiny-Varianten (die duerfen
+// nie als eigener Marker auf der Karte oder im Dev-Testmenue auftauchen,
+// siehe map.js/main.js).
+const SPAWNABLE_CREATURE_KEYS = Object.keys(CREATURES).filter((k) => !CREATURES[k].isSecret);
+
+// Basis-Wesen-Schluessel -> Shiny-Variante + Drop-Chance (0..1), geprueft
+// bei Fangerfolg in onCatchSuccess (catchgame.js). Bewusst sehr selten.
+const SHINY_VARIANTS = {
+  duskan: { key: "duskan_shiny", chance: 0.02 },
 };
 
 const ITEMS = {
