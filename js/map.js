@@ -6,6 +6,10 @@ let playerAccuracyCircle = null;
 let playerPos = null; // { lat, lon }
 let firstFixHandled = false;
 
+let playerHeading = 0; // Grad im Uhrzeigersinn ab Norden, direkt CSS-rotate-kompatibel
+let lastHeadingPos = null; // { lat, lon } — letzter Punkt, aus dem eine Bewegungspeilung berechnet wurde
+const MIN_HEADING_MOVE_M = 3; // unterhalb dieser Distanz zaehlt Bewegung als GPS-Rauschen (kein Dreh-Jitter im Stehen)
+
 const storeMarkers = {}; // storeKey -> { marker, lat, lon }
 let activeCreatures = []; // { id, key, lat, lon, marker }
 const creatureIconCache = {}; // key -> cutout data URL
@@ -16,20 +20,22 @@ function initMap() {
     attributionControl: true,
   }).setView([52.52, 13.405], 16);
 
-  // CARTO Voyager: bunter, spielerischer Kartenstil (farbige Strassen,
-  // erkennbare Park-/Wasserflaechen, kleine Gebaeude-Umrisse) statt eines
-  // gedeckten Dark-/Invert-Looks — geht in Richtung Pokemon-Go-Kartengefuehl,
-  // ganz ohne eigenen Account/API-Key. Das dunkle HUD bleibt unveraendert,
-  // die Verlaeufe unter Titelzeile/Bottom-UI sorgen weiter fuer Kontrast.
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+  // CARTO Voyager ohne Labels: bunter, spielerischer Kartenstil (farbige
+  // Strassen, erkennbare Park-/Wasserflaechen, Gebaeude-Umrisse), aber ohne
+  // Strassennamen/POI-Icons/Ortsschilder — reduziert die visuelle Dichte
+  // deutlich, ganz ohne eigenen Kartenanbieter-Account/API-Key. Fuer eine
+  // feiner abgestufte Reduzierung (z.B. nur Hauptstrassen-Namen) braeuchte
+  // es einen eigenen Vektor-Stil (Mapbox/MapTiler).
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png", {
     maxZoom: 20,
     subdomains: "abcd",
     attribution: '&copy; OpenStreetMap-Mitwirkende &copy; <a href="https://carto.com/attributions">CARTO</a>',
   }).addTo(leafletMap);
 
-  // Faerbt die (sehr dunklen) Kartenkacheln in Richtung des Cosmic-Lila der
-  // restlichen App ein und hellt sie etwas auf — reines CARTO-Dark wirkt auf
-  // dem Handy zu schwarz/kontrastarm zum HUD.
+  // Leichter Farbwasch in den App-eigenen Violett-/Cyan-Toenen (siehe
+  // .profile-screen), damit die Karte zur restlichen Cosmic-Bildsprache
+  // passt statt neutral-bunt zu wirken — Wasser/Gruenflaechen bleiben
+  // bewusst erkennbar (siehe .map-tint in style.css).
   const tint = document.createElement("div");
   tint.className = "map-tint";
   leafletMap.getContainer().appendChild(tint);
@@ -96,8 +102,31 @@ function onPositionUpdate(pos) {
     onFirstFix();
   }
 
+  updatePlayerHeading(pos.coords.heading);
   updatePlayerMarker(pos.coords.accuracy);
   refreshDistancesAndHud();
+}
+
+// Bevorzugt den echten heading-Wert der Geolocation API (auf den meisten
+// Handys nur bei Bewegung gesetzt, sonst null). Faellt sonst auf die Peilung
+// zwischen dem letzten und aktuellen Punkt zurueck — aber erst ab
+// MIN_HEADING_MOVE_M Bewegung, sonst dreht sich der Avatar im Stehen
+// staendig durchs GPS-Rauschen zufaellig hin und her.
+function updatePlayerHeading(gpsHeading) {
+  if (typeof gpsHeading === "number" && !Number.isNaN(gpsHeading)) {
+    playerHeading = gpsHeading;
+    lastHeadingPos = { ...playerPos };
+    return;
+  }
+  if (!lastHeadingPos) {
+    lastHeadingPos = { ...playerPos };
+    return;
+  }
+  const moved = distanceMeters(lastHeadingPos.lat, lastHeadingPos.lon, playerPos.lat, playerPos.lon);
+  if (moved >= MIN_HEADING_MOVE_M) {
+    playerHeading = bearingBetween(lastHeadingPos.lat, lastHeadingPos.lon, playerPos.lat, playerPos.lon);
+    lastHeadingPos = { ...playerPos };
+  }
 }
 
 function onFirstFix() {
@@ -107,13 +136,31 @@ function onFirstFix() {
   fillCreatureSpawns();
 }
 
+// Blickrichtungs-Kegel + Punkt statt starrem Blau-Punkt (aehnlich dem
+// Pokemon-Go-Standortmarker) — der Kegel dreht sich per CSS transform auf
+// playerHeading, der Punkt selbst bleibt zentriert (Rotationsmittelpunkt).
+const PLAYER_MARKER_ICON_HTML = `
+  <div class="player-marker-wrap">
+    <svg class="player-cone" viewBox="0 0 60 60" width="60" height="60" aria-hidden="true">
+      <defs>
+        <radialGradient id="playerConeGrad" cx="50%" cy="100%" r="100%">
+          <stop offset="0%" stop-color="rgba(69,212,255,0.55)"/>
+          <stop offset="100%" stop-color="rgba(69,212,255,0)"/>
+        </radialGradient>
+      </defs>
+      <path d="M30 30 L16 8 L44 8 Z" fill="url(#playerConeGrad)"/>
+    </svg>
+    <div class="player-marker"></div>
+  </div>`;
+
 function updatePlayerMarker(accuracy) {
   const latlng = [playerPos.lat, playerPos.lon];
   if (!playerMarker) {
     const icon = L.divIcon({
       className: "",
-      html: '<div class="player-marker"></div>',
-      iconSize: [22, 22],
+      html: PLAYER_MARKER_ICON_HTML,
+      iconSize: [60, 60],
+      iconAnchor: [30, 30],
     });
     playerMarker = L.marker(latlng, { icon, zIndexOffset: 1000 }).addTo(leafletMap);
     playerAccuracyCircle = L.circle(latlng, {
@@ -127,6 +174,10 @@ function updatePlayerMarker(accuracy) {
     playerAccuracyCircle.setLatLng(latlng);
     if (accuracy) playerAccuracyCircle.setRadius(accuracy);
   }
+
+  const el = playerMarker.getElement();
+  const wrap = el && el.querySelector(".player-marker-wrap");
+  if (wrap) wrap.style.transform = `rotate(${playerHeading}deg)`;
 }
 
 // ---------- Stores ----------
@@ -300,6 +351,9 @@ function updateCaughtCounter() {
   const levelCeil = isMaxLevel ? MAX_LEVEL_XP : xpForLevel(level + 1);
   const xpPct = isMaxLevel ? 100 : Math.round(((gameState.xp - levelFloor) / (levelCeil - levelFloor)) * 100);
   document.getElementById("hud-level-label").textContent = `LVL ${level}`;
+  document.getElementById("hud-xp-text").textContent = isMaxLevel
+    ? "Levelcap erreicht"
+    : `${formatNumber(gameState.xp - levelFloor)} / ${formatNumber(levelCeil - levelFloor)} XP`;
   document.getElementById("hud-xp-fill").style.width = `${xpPct}%`;
 
   const itemsOwnedTypes = Object.keys(gameState.inventory).length;

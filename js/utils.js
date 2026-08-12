@@ -42,6 +42,19 @@ function destinationPoint(lat, lon, distance, bearingDeg) {
   return { lat: toDeg(newLat), lon: ((toDeg(newLon) + 540) % 360) - 180 };
 }
 
+// Peilung von Punkt 1 zu Punkt 2 in Grad im Uhrzeigersinn ab Norden (0-360)
+// — passt 1:1 zu CSS transform:rotate()deg, da beide im Uhrzeigersinn
+// zaehlen und 0deg "oben"/Norden ist.
+function bearingBetween(lat1, lon1, lat2, lon2) {
+  const φ1 = toRad(lat1);
+  const φ2 = toRad(lat2);
+  const λ1 = toRad(lon1);
+  const λ2 = toRad(lon2);
+  const y = Math.sin(λ2 - λ1) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(λ2 - λ1);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
 function randomPointAround(lat, lon, maxRadiusM, minRadiusM = 0) {
   const angle = Math.random() * 360;
   const dist = minRadiusM + Math.random() * (maxRadiusM - minRadiusM);
