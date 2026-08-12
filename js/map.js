@@ -66,7 +66,7 @@ function hideGpsBanner() {
 function startGeolocation() {
   if (!("geolocation" in navigator)) {
     showGpsBanner(
-      "Dieses Gerät/dieser Browser unterstützt keine Standortbestimmung. Nutze die Testknöpfe unten rechts zum Ausprobieren."
+      "Dieses Gerät/dieser Browser unterstützt keine Standortbestimmung. Nutze die Testknöpfe über der unteren Leiste zum Ausprobieren."
     );
     return;
   }
@@ -83,7 +83,7 @@ function onPositionError(err) {
   showGpsBanner(
     "Standort konnte nicht ermittelt werden (" +
       (err.message || "unbekannter Fehler") +
-      "). Bitte Standortzugriff erlauben. Bis dahin funktionieren nur die Testknöpfe unten rechts."
+      "). Bitte Standortzugriff erlauben. Bis dahin funktionieren nur die Testknöpfe über der unteren Leiste."
   );
 }
 
@@ -299,7 +299,6 @@ function updateCaughtCounter() {
   const levelFloor = xpForLevel(level);
   const levelCeil = isMaxLevel ? MAX_LEVEL_XP : xpForLevel(level + 1);
   const xpPct = isMaxLevel ? 100 : Math.round(((gameState.xp - levelFloor) / (levelCeil - levelFloor)) * 100);
-  document.getElementById("hud-avatar-level").textContent = level;
   document.getElementById("hud-level-label").textContent = `LVL ${level}`;
   document.getElementById("hud-xp-fill").style.width = `${xpPct}%`;
 
@@ -307,4 +306,8 @@ function updateCaughtCounter() {
   const badge = document.getElementById("hud-backpack-badge");
   badge.textContent = itemsOwnedTypes;
   badge.classList.toggle("hidden", itemsOwnedTypes === 0);
+
+  const energy = getEnergy();
+  document.getElementById("hud-energy-label").textContent = energy;
+  document.getElementById("hud-energy-fill").style.width = `${(energy / ENERGY_MAX) * 100}%`;
 }

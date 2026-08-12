@@ -17,6 +17,8 @@ function loadState() {
 function defaultState() {
   return {
     xp: 0,
+    energy: ENERGY_MAX,
+    lastEnergyTimestamp: Date.now(),
     caughtCreatures: {}, // key -> count
     inventory: {}, // itemKey -> count
     shadowEssence: 0,
@@ -49,6 +51,36 @@ function saveState() {
 function addXp(amount) {
   gameState.xp += amount;
   saveState();
+}
+
+// Rechnet die seit dem letzten Aufruf vergangene Zeit in Energiepunkte um
+// (passive Regeneration, laeuft auch waehrend die App geschlossen war) —
+// rundet auf ganze Regenerationsschritte ab und "verbraucht" den
+// Zeitstempel nur um exakt diesen Anteil, damit bei krummen Aufrufabstaenden
+// kein angefangener Regenerationsschritt verloren geht.
+function settleEnergy() {
+  if (gameState.energy >= ENERGY_MAX) {
+    gameState.lastEnergyTimestamp = Date.now();
+    return;
+  }
+  const elapsedMs = Date.now() - gameState.lastEnergyTimestamp;
+  const pointsGained = Math.floor(elapsedMs / ENERGY_REGEN_MS_PER_POINT);
+  if (pointsGained > 0) {
+    gameState.energy = Math.min(ENERGY_MAX, gameState.energy + pointsGained);
+    gameState.lastEnergyTimestamp += pointsGained * ENERGY_REGEN_MS_PER_POINT;
+  }
+}
+
+function getEnergy() {
+  settleEnergy();
+  return gameState.energy;
+}
+
+function spendEnergy(amount) {
+  settleEnergy();
+  gameState.energy = Math.max(0, gameState.energy - amount);
+  saveState();
+  return gameState.energy;
 }
 
 function addCaughtCreature(key) {

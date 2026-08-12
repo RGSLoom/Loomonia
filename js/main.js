@@ -42,6 +42,9 @@ function showScreen(id) {
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
   updateCaughtCounter();
+  // Energie regeneriert passiv mit echter Zeit — Anzeige alle 30s
+  // auffrischen, damit man das Auffuellen auch bei offener App mitbekommt.
+  setInterval(updateCaughtCounter, 30000);
 
   // Map-HUD
   document.getElementById("btn-avatar").addEventListener("click", openProfile);

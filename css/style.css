@@ -44,7 +44,8 @@ html, body {
 #app {
   position: relative;
   width: 100vw;
-  height: 100vh;
+  height: 100vh; /* Fallback fuer Browser ohne dvh-Unterstuetzung */
+  height: 100dvh; /* beruecksichtigt dynamische Browser-UI (Adressleiste etc.) */
   overflow: hidden;
 }
 
@@ -111,8 +112,10 @@ html, body {
 .hud-top > * { pointer-events: auto; }
 
 .avatar-btn {
-  width: 44px;
-  height: 44px;
+  /* Responsiv statt fixer px-Werte: skaliert mit der Viewport-Breite,
+     gedeckelt nach unten/oben (52-68px) statt einer starren Groesse. */
+  width: clamp(52px, 15vw, 68px);
+  height: clamp(52px, 15vw, 68px);
   border-radius: 50%;
   flex-shrink: 0;
   padding: 0;
@@ -129,23 +132,27 @@ html, body {
   display: block;
   border: 2px solid var(--cosmic-dark);
 }
-.avatar-lvl {
-  position: absolute;
-  bottom: -3px;
-  right: -3px;
-  background: var(--cosmic-dark);
-  border: 1px solid var(--glass-border-strong);
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 700;
-  padding: 1px 5px;
-  color: var(--accent-cyan);
+/* Platzhalter-Avatar (generisches Icon statt Foto) — dieselbe Bildflaeche/
+   Rahmung wie spaeter das echte <img>, siehe Kommentar in index.html. */
+.avatar-dummy {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cosmic-mid);
+  border: 2px solid var(--cosmic-dark);
+  color: var(--text-muted);
+}
+.avatar-dummy .icon {
+  width: 56%;
+  height: 56%;
 }
 
 .icon-btn {
-  width: 38px;
-  height: 38px;
+  width: clamp(46px, 13vw, 60px);
+  height: clamp(46px, 13vw, 60px);
   border-radius: 50%;
   flex-shrink: 0;
   position: relative;
@@ -157,6 +164,10 @@ html, body {
   padding: 0;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+.icon-btn .icon {
+  width: clamp(21px, 6vw, 27px);
+  height: clamp(21px, 6vw, 27px);
+}
 .icon-btn:active { transform: scale(0.9); }
 .icon-btn.action {
   border-color: rgba(69,212,255,0.4);
@@ -167,14 +178,14 @@ html, body {
   position: absolute;
   bottom: -3px;
   right: -3px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
   border-radius: 999px;
   background: var(--accent-cyan);
   color: #0a0718;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: clamp(10px, 2.8vw, 12px);
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -199,12 +210,13 @@ html, body {
   position: absolute;
   left: 14px;
   right: 14px;
-  bottom: calc(14px + env(safe-area-inset-bottom));
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   z-index: 500;
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+  padding: 14px 20px;
   border-radius: 26px;
   /* Kraeftiger Cyan-Farbblock statt gedecktem Glas — auf der hellen,
      bunten Voyager-Karte ging ein dunkler/subtiler Ton komplett unter.
@@ -213,8 +225,7 @@ html, body {
   border: none;
   box-shadow: 0 10px 28px -8px rgba(69,212,255,0.6), 0 4px 14px rgba(0,0,0,0.35);
 }
-.footer-level {
-  flex: 1;
+.footer-level, .footer-energy {
   min-width: 0;
   display: flex;
   align-items: center;
@@ -230,6 +241,14 @@ html, body {
 }
 .xp-track { flex: 1; height: 14px; border-radius: 7px; background: rgba(10,7,24,0.18); overflow: hidden; }
 .xp-fill { height: 100%; width: 0%; border-radius: 7px; background: var(--cosmic-dark); transition: width 0.4s ease; }
+
+/* Energie-Leiste: eigenes Amber/Blitz-Motiv statt Cyan/Navy der Levelleiste,
+   damit auf einen Blick klar ist, dass es sich um eine andere Ressource
+   (Energie, nicht Level/XP) handelt. */
+.footer-energy .icon { width: 17px; height: 17px; color: #d97706; flex-shrink: 0; }
+.energy-track { height: 10px; }
+.energy-fill { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.energy-label { min-width: 24px; text-align: right; }
 
 .gps-banner {
   position: absolute;
@@ -268,34 +287,31 @@ html, body {
   box-shadow: none;
 }
 
-.dev-panel {
+.dev-btn {
   position: absolute;
-  bottom: calc(84px + env(safe-area-inset-bottom));
-  right: 10px;
+  bottom: calc(97px + env(safe-area-inset-bottom, 0px));
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   z-index: 500;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: flex-end;
-  opacity: 0.85;
-}
-.dev-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  background: rgba(0,0,0,0.5);
-  padding: 2px 6px;
-  border-radius: 6px;
-}
-.dev-btn {
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px dashed rgba(255,255,255,0.4);
-  background: rgba(0,0,0,0.5);
-  color: var(--text-light);
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--accent-cyan);
   cursor: pointer;
+  background: rgba(10,7,24,0.6);
+  border: 1.5px dashed rgba(69,212,255,0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+  transition: transform 0.15s ease;
+  opacity: 0.9;
 }
+.dev-btn:active { transform: scale(0.9); }
+.dev-btn .icon { width: 21px; height: 21px; }
+.dev-btn-left { left: 14px; }
+.dev-btn-right { right: 14px; }
 
 /* Leaflet marker helpers */
 .player-marker {

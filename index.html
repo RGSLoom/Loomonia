@@ -2,10 +2,10 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Store Walk</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="css/style.css?v=40" />
+<link rel="stylesheet" href="css/style.css?v=47" />
 </head>
 <body>
 <div id="app">
@@ -15,9 +15,13 @@
     <div id="map"></div>
 
     <div class="hud-top">
+      <!-- Platzhalter bis zum echten Avatar-Bild: generisches Personen-Icon
+           statt Foto. Einfach spaeter das <span class="avatar-dummy"> gegen
+           ein <img> wie zuvor (assets/generated/hud_avatar.png o.ae.) tauschen. -->
       <button id="btn-avatar" class="avatar-btn" title="Profil öffnen">
-        <img src="assets/generated/hud_avatar.png" alt="Profil" />
-        <span id="hud-avatar-level" class="avatar-lvl">1</span>
+        <span class="avatar-dummy">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+        </span>
       </button>
       <div class="hud-title">Store Walk</div>
       <button id="btn-backpack" class="icon-btn glass action" title="Items öffnen">
@@ -29,17 +33,26 @@
     <div id="gps-banner" class="gps-banner hidden"></div>
 
     <div class="hud-footer">
+      <div class="footer-energy">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="none"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>
+        <div class="xp-track energy-track"><div id="hud-energy-fill" class="xp-fill energy-fill"></div></div>
+        <span id="hud-energy-label" class="footer-level-label energy-label">100</span>
+      </div>
       <div class="footer-level">
         <span id="hud-level-label" class="footer-level-label">LVL 1</span>
         <div class="xp-track"><div id="hud-xp-fill" class="xp-fill"></div></div>
       </div>
     </div>
 
-    <div class="dev-panel">
-      <span class="dev-label">Dev</span>
-      <button id="btn-test-catch" class="dev-btn">🧪 Testfang</button>
-      <button id="btn-test-item" class="dev-btn">🧪 Testitem</button>
-    </div>
+    <!-- Dev-Testknöpfe (siehe Spezifikation Abschnitt 8 — vor Kunden-Demo
+         entfernen/verstecken). Gestrichelter Rand markiert sie bewusst als
+         Test-Tools statt echter Spielfunktion. -->
+    <button id="btn-test-catch" class="dev-btn dev-btn-left" title="Dev: Testfang auslösen">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="16.5" rx="5" ry="4"/><ellipse cx="4.5" cy="10" rx="2" ry="2.5"/><ellipse cx="9" cy="6" rx="2" ry="2.5"/><ellipse cx="15" cy="6" rx="2" ry="2.5"/><ellipse cx="19.5" cy="10" rx="2" ry="2.5"/></svg>
+    </button>
+    <button id="btn-test-item" class="dev-btn dev-btn-right" title="Dev: Testitem auslösen">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7Z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7Z"/></svg>
+    </button>
   </section>
 
   <!-- ============ FANGSZENE ============ -->
@@ -215,16 +228,16 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="js/data.js?v=40"></script>
-<script src="js/utils.js?v=40"></script>
-<script src="js/state.js?v=40"></script>
-<script src="js/supabase-config.js?v=40"></script>
-<script src="js/tracking.js?v=40"></script>
-<script src="js/map.js?v=40"></script>
-<script src="js/catchgame.js?v=40"></script>
-<script src="js/drawgame.js?v=40"></script>
-<script src="js/bonscan.js?v=40"></script>
-<script src="js/profile.js?v=40"></script>
-<script src="js/main.js?v=40"></script>
+<script src="js/data.js?v=47"></script>
+<script src="js/utils.js?v=47"></script>
+<script src="js/state.js?v=47"></script>
+<script src="js/supabase-config.js?v=47"></script>
+<script src="js/tracking.js?v=47"></script>
+<script src="js/map.js?v=47"></script>
+<script src="js/catchgame.js?v=47"></script>
+<script src="js/drawgame.js?v=47"></script>
+<script src="js/bonscan.js?v=47"></script>
+<script src="js/profile.js?v=47"></script>
+<script src="js/main.js?v=47"></script>
 </body>
 </html>

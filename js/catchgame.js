@@ -165,6 +165,12 @@ function stopBarLoop() {
 
 function handleFangenClick() {
   if (!catchState) return;
+
+  // Jeder Tipp-Versuch kostet Energie, unabhaengig vom Ausgang (Treffer,
+  // zweiter Versuch oder Fehlschlag) — siehe ENERGY_PER_CATCH_ATTEMPT.
+  spendEnergy(ENERGY_PER_CATCH_ATTEMPT);
+  updateCaughtCounter();
+
   const distanceFromCenter = Math.abs(catchState.currentPosition - 50);
 
   if (distanceFromCenter <= BAR_CONFIG.greenHalfWidth) {
