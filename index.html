@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
 <title>Store Walk</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="css/style.css?v=37" />
+<link rel="stylesheet" href="css/style.css?v=40" />
 </head>
 <body>
 <div id="app">
@@ -26,18 +26,14 @@
       </button>
     </div>
 
-    <div class="hud-stats">
-      <div class="stat-pill glass">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.6-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.4-9.5 9-9.5 9Z"/></svg>
-        <span id="caught-count">0</span>
-      </div>
-      <div class="stat-pill xpbar glass">
-        <span id="hud-level-label">LVL 1</span>
+    <div id="gps-banner" class="gps-banner hidden"></div>
+
+    <div class="hud-footer">
+      <div class="footer-level">
+        <span id="hud-level-label" class="footer-level-label">LVL 1</span>
         <div class="xp-track"><div id="hud-xp-fill" class="xp-fill"></div></div>
       </div>
     </div>
-
-    <div id="gps-banner" class="gps-banner hidden"></div>
 
     <div class="dev-panel">
       <span class="dev-label">Dev</span>
@@ -219,16 +215,16 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="js/data.js?v=37"></script>
-<script src="js/utils.js?v=37"></script>
-<script src="js/state.js?v=37"></script>
-<script src="js/supabase-config.js?v=37"></script>
-<script src="js/tracking.js?v=37"></script>
-<script src="js/map.js?v=37"></script>
-<script src="js/catchgame.js?v=37"></script>
-<script src="js/drawgame.js?v=37"></script>
-<script src="js/bonscan.js?v=37"></script>
-<script src="js/profile.js?v=37"></script>
-<script src="js/main.js?v=37"></script>
+<script src="js/data.js?v=40"></script>
+<script src="js/utils.js?v=40"></script>
+<script src="js/state.js?v=40"></script>
+<script src="js/supabase-config.js?v=40"></script>
+<script src="js/tracking.js?v=40"></script>
+<script src="js/map.js?v=40"></script>
+<script src="js/catchgame.js?v=40"></script>
+<script src="js/drawgame.js?v=40"></script>
+<script src="js/bonscan.js?v=40"></script>
+<script src="js/profile.js?v=40"></script>
+<script src="js/main.js?v=40"></script>
 </body>
 </html>

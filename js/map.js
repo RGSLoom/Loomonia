@@ -294,8 +294,6 @@ function refreshDistancesAndHud() {
 }
 
 function updateCaughtCounter() {
-  document.getElementById("caught-count").textContent = totalCaughtCount();
-
   const level = xpToLevel(gameState.xp);
   const isMaxLevel = level >= LEVEL_CAP;
   const levelFloor = xpForLevel(level);

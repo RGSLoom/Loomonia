@@ -195,32 +195,41 @@ html, body {
   text-shadow: 0 2px 6px rgba(0,0,0,0.6);
 }
 
-.hud-stats {
+.hud-footer {
   position: absolute;
-  top: 68px;
-  left: 16px;
-  right: 16px;
+  left: 14px;
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom));
   z-index: 500;
   display: flex;
-  gap: 8px;
-  pointer-events: none;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 26px;
+  /* Kraeftiger Cyan-Farbblock statt gedecktem Glas — auf der hellen,
+     bunten Voyager-Karte ging ein dunkler/subtiler Ton komplett unter.
+     Dieselbe dunkel-auf-cyan-Logik wie .primary-btn, nur als Leiste. */
+  background: linear-gradient(120deg, var(--accent-cyan), #8ff0ff);
+  border: none;
+  box-shadow: 0 10px 28px -8px rgba(69,212,255,0.6), 0 4px 14px rgba(0,0,0,0.35);
 }
-.hud-stats > * { pointer-events: auto; }
-.stat-pill {
+.footer-level {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
+  gap: 12px;
 }
-.stat-pill .icon { width: 14px; height: 14px; color: var(--accent-cyan); }
-.stat-pill.xpbar { flex: 1; gap: 8px; padding: 6px 8px 6px 12px; }
-.stat-pill.xpbar span { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
-.xp-track { flex: 1; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; }
-.xp-fill { height: 100%; width: 0%; border-radius: 3px; background: linear-gradient(90deg, var(--cosmic-accent), var(--accent-cyan)); transition: width 0.4s ease; }
+.footer-level-label {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: rgba(10,7,24,0.7);
+  white-space: nowrap;
+}
+.xp-track { flex: 1; height: 14px; border-radius: 7px; background: rgba(10,7,24,0.18); overflow: hidden; }
+.xp-fill { height: 100%; width: 0%; border-radius: 7px; background: var(--cosmic-dark); transition: width 0.4s ease; }
 
 .gps-banner {
   position: absolute;
@@ -261,7 +270,7 @@ html, body {
 
 .dev-panel {
   position: absolute;
-  bottom: calc(16px + env(safe-area-inset-bottom));
+  bottom: calc(84px + env(safe-area-inset-bottom));
   right: 10px;
   z-index: 500;
   display: flex;
