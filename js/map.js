@@ -349,7 +349,10 @@ function updateCaughtCounter() {
   const isMaxLevel = level >= LEVEL_CAP;
   const levelFloor = xpForLevel(level);
   const levelCeil = isMaxLevel ? MAX_LEVEL_XP : xpForLevel(level + 1);
-  const xpPct = isMaxLevel ? 100 : Math.round(((gameState.xp - levelFloor) / (levelCeil - levelFloor)) * 100);
+  const xpPctRaw = isMaxLevel ? 100 : ((gameState.xp - levelFloor) / (levelCeil - levelFloor)) * 100;
+  // Immer ein sichtbarer Rest-Fuellstand, auch ganz am Levelanfang — sonst
+  // wirkt der Balken bei 0-3% wie eine leere Rille statt einer Anzeige.
+  const xpPct = Math.max(Math.round(xpPctRaw), 4);
   document.getElementById("hud-level-label").textContent = `LVL ${level}`;
   document.getElementById("hud-xp-text").textContent = isMaxLevel
     ? "Levelcap erreicht"

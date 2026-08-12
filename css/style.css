@@ -252,7 +252,14 @@ html, body {
   white-space: nowrap;
 }
 .xp-track { flex: 1; height: 14px; border-radius: 7px; background: rgba(10,7,24,0.18); overflow: hidden; }
-.xp-fill { height: 100%; width: 0%; border-radius: 7px; background: var(--cosmic-dark); transition: width 0.4s ease; }
+.xp-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #4c1d95, #7c3aed);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 0 10px rgba(124,58,237,0.55);
+  transition: width 0.4s ease;
+}
 
 /* Energie-Leiste: eigenes Amber/Blitz-Motiv statt Cyan/Navy der Levelleiste,
    damit auf einen Blick klar ist, dass es sich um eine andere Ressource
