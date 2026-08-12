@@ -25,6 +25,13 @@ function initMap() {
     attribution: '&copy; OpenStreetMap-Mitwirkende &copy; <a href="https://carto.com/attributions">CARTO</a>',
   }).addTo(leafletMap);
 
+  // Faerbt die (sehr dunklen) Kartenkacheln in Richtung des Cosmic-Lila der
+  // restlichen App ein und hellt sie etwas auf — reines CARTO-Dark wirkt auf
+  // dem Handy zu schwarz/kontrastarm zum HUD.
+  const tint = document.createElement("div");
+  tint.className = "map-tint";
+  leafletMap.getContainer().appendChild(tint);
+
   startGeolocation();
   preloadCreatureIcons();
 }
