@@ -35,6 +35,34 @@ const DRAW_CONFIG = {
 // Eintausch-Kurs: gefangene Wesen -> Schatten-Essenz (Loomas-Screen).
 const SHADOW_ESSENCE_PER_CREATURE = 1000;
 
+// ============ Levelsystem ============
+// Level 50 ist der Pilot-Cap (spaeter erweiterbar), erreicht bei 10 Mio.
+// Lebenszeit-XP. Kubische Kurve statt linear: fruehe Level gehen schnell,
+// die letzten Level sind absichtlich sehr grindy (Endgame-Ziel, kein
+// Nebenbei-Fortschritt). gameState.xp ist immer schon eine reine
+// Lebenszeit-Summe — bestehende Spielstaende brauchen keine Migration,
+// nur die Ableitung Level<->XP aendert sich mit dieser Kurve.
+const LEVEL_CAP = 50;
+const MAX_LEVEL_XP = 10000000;
+const LEVEL_CURVE_EXPONENT = 3;
+const LEVEL_CURVE_K = MAX_LEVEL_XP / Math.pow(LEVEL_CAP - 1, LEVEL_CURVE_EXPONENT);
+
+// Kumulierte XP-Schwelle, um `level` zu erreichen (Level 1 = 0 XP).
+function xpForLevel(level) {
+  if (level <= 1) return 0;
+  if (level >= LEVEL_CAP) return MAX_LEVEL_XP;
+  return Math.round(LEVEL_CURVE_K * Math.pow(level - 1, LEVEL_CURVE_EXPONENT));
+}
+
+// Aktuelles Level aus der Lebenszeit-XP ableiten (Cap bei LEVEL_CAP).
+function xpToLevel(xp) {
+  let level = 1;
+  while (level < LEVEL_CAP && xp >= xpForLevel(level + 1)) {
+    level++;
+  }
+  return level;
+}
+
 const RARITY_COLORS = {
   "Gewöhnlich": "#5eead4",
   "Ungewöhnlich": "#4ade80",

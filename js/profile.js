@@ -2,12 +2,6 @@
 // Map-HUD/Untermenues) statt des frueheren Baked-Bilds. Die sechs Kacheln
 // oeffnen eigene Vollbild-Unterseiten mit eigenem Zurueck-Button.
 
-const XP_PER_LEVEL = 500;
-
-function xpToLevel(xp) {
-  return Math.floor(xp / XP_PER_LEVEL) + 1;
-}
-
 const PROFILE_TILE_ICONS = {
   outfit: '<path d="M6 7l6-3 6 3v3H6V7Z"/><path d="M6 10v10h12V10"/>',
   items: '<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M4 8l2-4h12l2 4"/>',
@@ -19,8 +13,11 @@ const PROFILE_TILE_ICONS = {
 
 function renderProfileHub() {
   const level = xpToLevel(gameState.xp);
-  const xpIntoLevel = gameState.xp % XP_PER_LEVEL;
-  const xpPct = Math.round((xpIntoLevel / XP_PER_LEVEL) * 100);
+  const isMaxLevel = level >= LEVEL_CAP;
+  const levelFloor = xpForLevel(level);
+  const levelCeil = isMaxLevel ? MAX_LEVEL_XP : xpForLevel(level + 1);
+  const xpIntoLevel = gameState.xp - levelFloor;
+  const xpPct = isMaxLevel ? 100 : Math.round((xpIntoLevel / (levelCeil - levelFloor)) * 100);
   const itemsOwnedTypes = Object.keys(gameState.inventory).length;
   const totalItemTypes = Object.keys(ITEMS).length;
   const loomasCaught = totalCaughtCount();
@@ -50,12 +47,12 @@ function renderProfileHub() {
         <div class="profile-avatar"><img src="assets/generated/hud_avatar.png" alt="" /></div>
         <div>
           <div class="profile-name">Dein Profil</div>
-          <div class="profile-lvl">LEVEL ${level}</div>
+          <div class="profile-lvl">LEVEL ${level}${isMaxLevel ? " · MAX" : ""}</div>
         </div>
       </div>
     </div>
     <div class="xp-card glass" style="border-radius:14px;">
-      <div class="xp-card-top"><span>${xpIntoLevel} XP</span><span>${XP_PER_LEVEL} XP</span></div>
+      <div class="xp-card-top"><span>${formatNumber(xpIntoLevel)} XP</span><span>${isMaxLevel ? "Levelcap erreicht" : `${formatNumber(levelCeil - levelFloor)} XP`}</span></div>
       <div class="xp-track2"><div class="xp-fill2" style="width:${xpPct}%"></div></div>
     </div>
     <div class="tile-grid">${tiles}</div>

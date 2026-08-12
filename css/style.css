@@ -225,40 +225,6 @@ html, body {
 }
 .gps-banner.hidden { display: none; }
 
-.hud-bottom {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 500;
-  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, rgba(18,10,42,0.95), rgba(18,10,42,0));
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.status-card {
-  border-radius: 16px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--cosmic-accent-2);
-  box-shadow: 0 0 8px var(--cosmic-accent-2);
-  flex-shrink: 0;
-}
-.status-line {
-  flex: 1;
-  font-size: 13.5px;
-  color: var(--text-muted);
-}
-
 .primary-btn {
   display: block;
   width: 100%;
@@ -283,7 +249,7 @@ html, body {
 
 .dev-panel {
   position: absolute;
-  bottom: 100px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
   right: 10px;
   z-index: 500;
   display: flex;

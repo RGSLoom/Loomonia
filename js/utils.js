@@ -61,6 +61,10 @@ function formatDistance(m) {
   return `${(m / 1000).toFixed(1)} km`;
 }
 
+function formatNumber(n) {
+  return Math.round(n).toLocaleString("de-DE");
+}
+
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }

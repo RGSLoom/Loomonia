@@ -10,17 +10,19 @@ const storeMarkers = {}; // storeKey -> { marker, lat, lon }
 let activeCreatures = []; // { id, key, lat, lon, marker }
 const creatureIconCache = {}; // key -> cutout data URL
 
-let nearestEntity = null; // { type: 'creature'|'store', ref, distance }
-
 function initMap() {
   leafletMap = L.map("map", {
     zoomControl: false,
     attributionControl: true,
   }).setView([52.52, 13.405], 16);
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "&copy; OpenStreetMap-Mitwirkende",
+  // Dunkles Kartendesign (CARTO Dark Matter) statt Standard-OSM-Tiles —
+  // sonst kollidiert die helle Karte mit dem dunklen HUD und Marker/Text
+  // werden schlecht lesbar.
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    maxZoom: 20,
+    subdomains: "abcd",
+    attribution: '&copy; OpenStreetMap-Mitwirkende &copy; <a href="https://carto.com/attributions">CARTO</a>',
   }).addTo(leafletMap);
 
   startGeolocation();
@@ -57,8 +59,6 @@ function startGeolocation() {
     showGpsBanner(
       "Dieses Gerät/dieser Browser unterstützt keine Standortbestimmung. Nutze die Testknöpfe unten rechts zum Ausprobieren."
     );
-    document.getElementById("status-line").textContent =
-      "Kein GPS verfügbar — nur Testmodus";
     return;
   }
 
@@ -254,10 +254,13 @@ function removeCreature(entry) {
 
 // ---------- HUD / Distanz ----------
 
+// Markiert Wesen/Store-Marker als in/out-of-range (visuelles Feedback,
+// siehe .in-range/.out-of-range in style.css). Das eigentliche Fangen/
+// Item-Abholen laeuft ausschliesslich ueber Antippen des Markers selbst
+// (onCreatureMarkerClick/onStoreMarkerClick) — keine separate HUD-Leiste
+// mehr dafuer noetig.
 function refreshDistancesAndHud() {
   if (!playerPos) return;
-
-  let best = null;
 
   activeCreatures.forEach((c) => {
     const d = distanceMeters(playerPos.lat, playerPos.lon, c.lat, c.lon);
@@ -269,9 +272,6 @@ function refreshDistancesAndHud() {
         inner.classList.toggle("in-range", d <= CATCH_RADIUS_M);
       }
     }
-    if (!best || d < best.distance) {
-      best = { type: "creature", key: c.key, ref: c, distance: d };
-    }
   });
 
   Object.entries(storeMarkers).forEach(([key, s]) => {
@@ -281,61 +281,17 @@ function refreshDistancesAndHud() {
       const inner = el.querySelector(".store-marker");
       if (inner) inner.classList.toggle("out-of-range", d > CATCH_RADIUS_M);
     }
-    if (!best || d < best.distance) {
-      best = { type: "store", key, ref: s, distance: d };
-    }
   });
-
-  nearestEntity = best;
-  updateBottomBar();
-}
-
-function updateBottomBar() {
-  const statusLine = document.getElementById("status-line");
-  const btn = document.getElementById("main-action-btn");
-
-  if (!nearestEntity) {
-    statusLine.textContent = "Suche Wesen und Stores in der Nähe…";
-    btn.disabled = true;
-    btn.textContent = "…";
-    return;
-  }
-
-  const inRange = nearestEntity.distance <= CATCH_RADIUS_M;
-
-  if (nearestEntity.type === "creature") {
-    const creature = CREATURES[nearestEntity.key];
-    if (inRange) {
-      statusLine.textContent = `In Reichweite: ${creature.name}`;
-      btn.disabled = false;
-      btn.textContent = `${creature.name} entdeckt`;
-      btn.onclick = () => openCatchSceneForCreature(nearestEntity.ref);
-    } else {
-      statusLine.textContent = `${creature.name} in ${formatDistance(nearestEntity.distance)} Entfernung`;
-      btn.disabled = true;
-      btn.textContent = "Näher herangehen…";
-    }
-  } else {
-    const category = STORE_CATEGORIES[nearestEntity.ref.categoryKey];
-    if (inRange) {
-      statusLine.textContent = `In Reichweite: ${category.name}`;
-      btn.disabled = false;
-      btn.textContent = `Item bei ${category.name}`;
-      btn.onclick = () => openDrawSceneForStore(nearestEntity.key);
-    } else {
-      statusLine.textContent = `${category.name} in ${formatDistance(nearestEntity.distance)} Entfernung`;
-      btn.disabled = true;
-      btn.textContent = "Näher herangehen…";
-    }
-  }
 }
 
 function updateCaughtCounter() {
   document.getElementById("caught-count").textContent = totalCaughtCount();
 
   const level = xpToLevel(gameState.xp);
-  const xpIntoLevel = gameState.xp % XP_PER_LEVEL;
-  const xpPct = Math.round((xpIntoLevel / XP_PER_LEVEL) * 100);
+  const isMaxLevel = level >= LEVEL_CAP;
+  const levelFloor = xpForLevel(level);
+  const levelCeil = isMaxLevel ? MAX_LEVEL_XP : xpForLevel(level + 1);
+  const xpPct = isMaxLevel ? 100 : Math.round(((gameState.xp - levelFloor) / (levelCeil - levelFloor)) * 100);
   document.getElementById("hud-avatar-level").textContent = level;
   document.getElementById("hud-level-label").textContent = `LVL ${level}`;
   document.getElementById("hud-xp-fill").style.width = `${xpPct}%`;
