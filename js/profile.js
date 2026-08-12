@@ -1,18 +1,93 @@
-// Profil-Hub: eine einzige unveraenderte Grafik (assets/generated/
-// profile_hub.png) mit unsichtbaren Hotspots fuer Zurueck und die sechs
-// Icon-Kacheln (siehe Spielspezifikation Abschnitt 6) — keine eigene
-// Rekonstruktion mit Live-Daten. Die sechs Kacheln oeffnen eigene
-// Vollbild-Unterseiten mit eigenem Zurueck-Button.
+// Profil-Hub: echte Komponenten (Glas-Kacheln, dasselbe System wie
+// Map-HUD/Untermenues) statt des frueheren Baked-Bilds. Die sechs Kacheln
+// oeffnen eigene Vollbild-Unterseiten mit eigenem Zurueck-Button.
+
+const XP_PER_LEVEL = 500;
 
 function xpToLevel(xp) {
-  return Math.floor(xp / 500) + 1;
+  return Math.floor(xp / XP_PER_LEVEL) + 1;
+}
+
+const PROFILE_TILE_ICONS = {
+  outfit: '<path d="M6 7l6-3 6 3v3H6V7Z"/><path d="M6 10v10h12V10"/>',
+  items: '<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M4 8l2-4h12l2 4"/>',
+  trophies: '<path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4Z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/>',
+  loomas: '<circle cx="12" cy="9" r="3"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/>',
+  habitat: '<path d="M3 20c2-6 6-9 9-9s7 3 9 9"/><circle cx="12" cy="7" r="3"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V19.5a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H4.5a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H10a1.7 1.7 0 0 0 1-1.55V4.5a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V10a1.7 1.7 0 0 0 1.55 1h.09a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/>',
+};
+
+function renderProfileHub() {
+  const level = xpToLevel(gameState.xp);
+  const xpIntoLevel = gameState.xp % XP_PER_LEVEL;
+  const xpPct = Math.round((xpIntoLevel / XP_PER_LEVEL) * 100);
+  const itemsOwnedTypes = Object.keys(gameState.inventory).length;
+  const totalItemTypes = Object.keys(ITEMS).length;
+  const loomasCaught = totalCaughtCount();
+
+  const tiles = [
+    { key: "outfit", label: "Outfit", sub: "Anpassen" },
+    { key: "items", label: "Items", sub: `${itemsOwnedTypes}/${totalItemTypes} Sorten` },
+    { key: "trophies", label: "Trophäen", sub: "Bald verfügbar" },
+    { key: "loomas", label: "Loomas", sub: `${loomasCaught} gefangen` },
+    { key: "habitat", label: "Habitat", sub: "Bald verfügbar" },
+    { key: "settings", label: "Einstellungen", sub: "" },
+  ]
+    .map(
+      (t) => `<button class="tile glass" data-tile="${t.key}" style="border-radius:16px;">
+        <div class="tile-icon-wrap"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${PROFILE_TILE_ICONS[t.key]}</svg></div>
+        <span>${t.label}</span><small>${t.sub || "&nbsp;"}</small>
+      </button>`
+    )
+    .join("");
+
+  return `
+    <div class="profile-top">
+      <button class="back-circle glass" id="hotspot-profile-back" aria-label="Zurück" style="border-radius:50%;">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="profile-id">
+        <div class="profile-avatar"><img src="assets/generated/hud_avatar.png" alt="" /></div>
+        <div>
+          <div class="profile-name">Dein Profil</div>
+          <div class="profile-lvl">LEVEL ${level}</div>
+        </div>
+      </div>
+    </div>
+    <div class="xp-card glass" style="border-radius:14px;">
+      <div class="xp-card-top"><span>${xpIntoLevel} XP</span><span>${XP_PER_LEVEL} XP</span></div>
+      <div class="xp-track2"><div class="xp-fill2" style="width:${xpPct}%"></div></div>
+    </div>
+    <div class="tile-grid">${tiles}</div>
+    <button class="scan-strip glass" id="hotspot-scan" style="border-radius:14px;">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg>
+      <span class="scan-strip-text"><b>Aktiviere dich im Store</b>Bon scannen für dein nächstes Item</span>
+    </button>`;
+}
+
+// Rucksack-Button im Map-HUD — oeffnet Items direkt, ohne Umweg ueber den
+// Profil-Hub. Zurueck fuehrt dann auch direkt zur Karte.
+function openItemsFromHud() {
+  openSubScreen("items", "screen-map");
 }
 
 function openProfile() {
+  document.getElementById("profile-content").innerHTML = renderProfileHub();
+  document.getElementById("hotspot-profile-back").addEventListener("click", () => showScreen("screen-map"));
+  document.getElementById("hotspot-scan").addEventListener("click", openScanScreen);
+  document.querySelectorAll(".tile[data-tile]").forEach((tile) => {
+    tile.addEventListener("click", () => openSubScreen(tile.dataset.tile));
+  });
   showScreen("screen-profile");
 }
 
-function openSubScreen(tileKey) {
+// Woher ein Unterseiten-Zurueck-Button kommen soll — normalerweise der
+// Profil-Hub, aber z.B. der Rucksack-Button im Map-HUD oeffnet Items direkt
+// und will dann auch direkt zurueck zur Karte (siehe openItemsFromHud()).
+let subScreenReturnTo = "screen-profile";
+
+function openSubScreen(tileKey, returnTo = "screen-profile") {
+  subScreenReturnTo = returnTo;
   switch (tileKey) {
     case "items":
       document.getElementById("items-content").innerHTML = renderItemsGrid();
@@ -49,7 +124,7 @@ function renderItemsGrid() {
       const count = gameState.inventory[item.key] || 0;
       const owned = count > 0;
       if (!owned) return `<div class="item-cell locked" data-item="${item.key}"></div>`;
-      return `<div class="item-cell" data-item="${item.key}">
+      return `<div class="item-cell" data-item="${item.key}" style="--rarity-color:${RARITY_COLORS[item.rarity]}">
         <img src="${item.icon}" alt="${item.name}" /><span class="cell-count">${count}</span>
         <span class="cell-label">${item.name}</span>
       </div>`;
@@ -148,7 +223,7 @@ function renderLoomasGrid() {
       const count = gameState.caughtCreatures[c.key] || 0;
       const owned = count > 0;
       if (!owned) return `<div class="looma-cell locked"></div>`;
-      return `<div class="looma-cell" data-creature="${c.key}">
+      return `<div class="looma-cell" data-creature="${c.key}" style="--rarity-color:${RARITY_COLORS[c.rarity]}">
         <img src="${creatureIconCache[c.key] || c.icon}" alt="${c.name}" /><span class="cell-count">${count}</span>
         <span class="cell-label">${c.name}</span>
       </div>`;

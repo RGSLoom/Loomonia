@@ -192,6 +192,7 @@ function grantRandomItemFromStore(locationId) {
 
   addItem(itemKey);
   addXp(item.xp);
+  updateCaughtCounter();
 
   trackEvent("item_free_received", {
     storeId: locationId,

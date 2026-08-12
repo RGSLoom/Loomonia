@@ -227,6 +227,7 @@ function grantReceiptItems(matches, categoryKey, storeText) {
     const item = ITEMS[itemKey];
     addItem(itemKey, count);
     addXp(item.xp * count);
+    updateCaughtCounter();
     for (let i = 0; i < count; i++) {
       trackEvent("item_receipt_scanned", {
         storeId: "receipt_scan",

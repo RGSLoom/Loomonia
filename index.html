@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
 <title>Store Walk</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="css/style.css?v=29" />
+<link rel="stylesheet" href="css/style.css?v=32" />
 </head>
 <body>
 <div id="app">
@@ -15,17 +15,35 @@
     <div id="map"></div>
 
     <div class="hud-top">
-      <button id="btn-avatar" class="hud-icon-btn hud-icon-img" title="Profil öffnen"><img src="assets/generated/hud_avatar.png" alt="Profil" /></button>
+      <button id="btn-avatar" class="avatar-btn" title="Profil öffnen">
+        <img src="assets/generated/hud_avatar.png" alt="Profil" />
+        <span id="hud-avatar-level" class="avatar-lvl">1</span>
+      </button>
       <div class="hud-title">Store Walk</div>
-      <button id="btn-backpack" class="hud-icon-btn hud-icon-img hud-icon-decorative" title="Rucksack (bald verfügbar)"><img src="assets/generated/hud_backpack.png" alt="Rucksack" /></button>
+      <button id="btn-backpack" class="icon-btn glass action" title="Items öffnen">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+        <span id="hud-backpack-badge" class="icon-btn-badge hidden">0</span>
+      </button>
     </div>
 
-    <div class="hud-counter">🐾 <span id="caught-count">0</span></div>
+    <div class="hud-stats">
+      <div class="stat-pill glass">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.6-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.4-9.5 9-9.5 9Z"/></svg>
+        <span id="caught-count">0</span>
+      </div>
+      <div class="stat-pill xpbar glass">
+        <span id="hud-level-label">LVL 1</span>
+        <div class="xp-track"><div id="hud-xp-fill" class="xp-fill"></div></div>
+      </div>
+    </div>
 
     <div id="gps-banner" class="gps-banner hidden"></div>
 
     <div class="hud-bottom">
-      <div id="status-line" class="status-line">Suche GPS-Signal…</div>
+      <div class="status-card glass">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-line" class="status-line">Suche GPS-Signal…</span>
+      </div>
       <button id="main-action-btn" class="primary-btn" disabled>Warte auf Standort…</button>
     </div>
 
@@ -137,28 +155,19 @@
   </section>
 
   <!-- ============ PROFIL-HUB ============ -->
-  <!-- Eine einzige, unveraenderte Original-Grafik (siehe Spielspezifikation
-       Abschnitt 6) — keine Rekonstruktion mit eigenen Elementen/Daten.
-       Navigation ausschliesslich ueber unsichtbare Hotspots exakt ueber
-       dem Zurueck-Pfeil und den sechs Icon-Kacheln im Bild. -->
+  <!-- Echte Komponenten statt Baked-Bild (siehe Spielspezifikation Abschnitt 6,
+       Entscheidung wurde beim UI-Redesign bewusst revidiert) — gerendert von
+       renderProfileHub() in js/profile.js mit echten Spielstand-Daten. -->
   <section id="screen-profile" class="screen profile-screen">
-    <div class="profile-image-wrap">
-      <img src="assets/generated/profile_hub.png" alt="Profil" class="profile-full-image" />
-      <button class="profile-hotspot" id="hotspot-profile-back" style="left:0%; top:0.9%; width:15%; height:7.5%;" aria-label="Zurück"></button>
-      <button class="profile-hotspot" data-tile="outfit" style="left:3.4%; top:53.4%; width:30.5%; height:15.8%;" aria-label="Outfit"></button>
-      <button class="profile-hotspot" data-tile="items" style="left:35.6%; top:53.4%; width:30.5%; height:15.8%;" aria-label="Items"></button>
-      <button class="profile-hotspot" data-tile="trophies" style="left:67.8%; top:53.4%; width:30.5%; height:15.8%;" aria-label="Trophäen"></button>
-      <button class="profile-hotspot" data-tile="loomas" style="left:3.4%; top:71%; width:30.5%; height:15.8%;" aria-label="Loomas"></button>
-      <button class="profile-hotspot" data-tile="habitat" style="left:35.6%; top:71%; width:30.5%; height:15.8%;" aria-label="Habitat"></button>
-      <button class="profile-hotspot" data-tile="settings" style="left:67.8%; top:71%; width:30.5%; height:15.8%;" aria-label="Einstellungen"></button>
-      <button class="profile-hotspot" id="hotspot-scan" style="left:2%; top:87%; width:96%; height:11%;" aria-label="Bon scannen"></button>
-    </div>
+    <div id="profile-content" class="profile-content"></div>
   </section>
 
   <!-- ============ PROFIL-UNTERSEITEN (eigene Vollbild-Screens) ============ -->
   <section id="screen-outfit" class="screen profile-screen">
     <div class="sub-screen-topbar">
-      <button class="back-btn sub-back-btn">← Zurück</button>
+      <button class="back-circle glass sub-back-btn" aria-label="Zurück">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
       <div class="sub-screen-title">Outfit</div>
     </div>
     <div id="outfit-content" class="sub-screen-content"></div>
@@ -166,7 +175,9 @@
 
   <section id="screen-items" class="screen profile-screen">
     <div class="sub-screen-topbar">
-      <button class="back-btn sub-back-btn">← Zurück</button>
+      <button class="back-circle glass sub-back-btn" aria-label="Zurück">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
       <div class="sub-screen-title">Items</div>
     </div>
     <div id="items-content" class="sub-screen-content"></div>
@@ -174,7 +185,9 @@
 
   <section id="screen-trophies" class="screen profile-screen">
     <div class="sub-screen-topbar">
-      <button class="back-btn sub-back-btn">← Zurück</button>
+      <button class="back-circle glass sub-back-btn" aria-label="Zurück">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
       <div class="sub-screen-title">Trophäen</div>
     </div>
     <div class="sub-screen-content"><div class="placeholder-note">Screen folgt als Nächstes</div></div>
@@ -182,7 +195,9 @@
 
   <section id="screen-loomas" class="screen profile-screen">
     <div class="sub-screen-topbar">
-      <button class="back-btn sub-back-btn">← Zurück</button>
+      <button class="back-circle glass sub-back-btn" aria-label="Zurück">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
       <div class="sub-screen-title">Loomas</div>
     </div>
     <div id="loomas-content" class="sub-screen-content"></div>
@@ -190,7 +205,9 @@
 
   <section id="screen-habitat" class="screen profile-screen">
     <div class="sub-screen-topbar">
-      <button class="back-btn sub-back-btn">← Zurück</button>
+      <button class="back-circle glass sub-back-btn" aria-label="Zurück">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
       <div class="sub-screen-title">Habitat</div>
     </div>
     <div class="sub-screen-content"><div class="placeholder-note">Screen folgt als Nächstes</div></div>
@@ -198,7 +215,9 @@
 
   <section id="screen-settings" class="screen profile-screen">
     <div class="sub-screen-topbar">
-      <button class="back-btn sub-back-btn">← Zurück</button>
+      <button class="back-circle glass sub-back-btn" aria-label="Zurück">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
       <div class="sub-screen-title">Einstellungen</div>
     </div>
     <div id="settings-content" class="sub-screen-content"></div>
@@ -208,16 +227,16 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="js/data.js?v=29"></script>
-<script src="js/utils.js?v=29"></script>
-<script src="js/state.js?v=29"></script>
-<script src="js/supabase-config.js?v=29"></script>
-<script src="js/tracking.js?v=29"></script>
-<script src="js/map.js?v=29"></script>
-<script src="js/catchgame.js?v=29"></script>
-<script src="js/drawgame.js?v=29"></script>
-<script src="js/bonscan.js?v=29"></script>
-<script src="js/profile.js?v=29"></script>
-<script src="js/main.js?v=29"></script>
+<script src="js/data.js?v=32"></script>
+<script src="js/utils.js?v=32"></script>
+<script src="js/state.js?v=32"></script>
+<script src="js/supabase-config.js?v=32"></script>
+<script src="js/tracking.js?v=32"></script>
+<script src="js/map.js?v=32"></script>
+<script src="js/catchgame.js?v=32"></script>
+<script src="js/drawgame.js?v=32"></script>
+<script src="js/bonscan.js?v=32"></script>
+<script src="js/profile.js?v=32"></script>
+<script src="js/main.js?v=32"></script>
 </body>
 </html>

@@ -332,4 +332,16 @@ function updateBottomBar() {
 
 function updateCaughtCounter() {
   document.getElementById("caught-count").textContent = totalCaughtCount();
+
+  const level = xpToLevel(gameState.xp);
+  const xpIntoLevel = gameState.xp % XP_PER_LEVEL;
+  const xpPct = Math.round((xpIntoLevel / XP_PER_LEVEL) * 100);
+  document.getElementById("hud-avatar-level").textContent = level;
+  document.getElementById("hud-level-label").textContent = `LVL ${level}`;
+  document.getElementById("hud-xp-fill").style.width = `${xpPct}%`;
+
+  const itemsOwnedTypes = Object.keys(gameState.inventory).length;
+  const badge = document.getElementById("hud-backpack-badge");
+  badge.textContent = itemsOwnedTypes;
+  badge.classList.toggle("hidden", itemsOwnedTypes === 0);
 }

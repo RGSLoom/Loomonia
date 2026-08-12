@@ -45,6 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Map-HUD
   document.getElementById("btn-avatar").addEventListener("click", openProfile);
+  document.getElementById("btn-backpack").addEventListener("click", openItemsFromHud);
 
   // Fangszene — Tippen ist ueberall in der Szene erlaubt (nicht nur auf dem
   // Button), das fuehlt sich beim echten Fangen natuerlicher an. Der
@@ -78,12 +79,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Profil-Hub (eine Grafik + unsichtbare Hotspots, siehe profile.js)
-  document.getElementById("hotspot-profile-back").addEventListener("click", () => showScreen("screen-map"));
-  document.querySelectorAll(".profile-hotspot[data-tile]").forEach((tile) => {
-    tile.addEventListener("click", () => openSubScreen(tile.dataset.tile));
-  });
-  document.getElementById("hotspot-scan").addEventListener("click", openScanScreen);
+  // Profil-Hub: renderProfileHub() haengt Back/Tile/Scan-Handler bei jedem
+  // Oeffnen selbst ein (siehe openProfile() in profile.js), da der Inhalt
+  // jetzt dynamisch aus echten Komponenten gerendert wird.
 
   // Bon-Scan — beide Buttons oeffnen nur ein <input type="file">, siehe
   // js/bonscan.js. "Fotografieren" hat zusaetzlich capture="environment"
@@ -100,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Profil-Unterseiten (Outfit/Items/Trophäen/Loomas/Habitat/Einstellungen)
   // — eigene Vollbild-Screens, Zurück fuehrt immer zum Profil-Hub.
   document.querySelectorAll(".sub-back-btn").forEach((btn) => {
-    btn.addEventListener("click", () => showScreen("screen-profile"));
+    btn.addEventListener("click", () => showScreen(subScreenReturnTo));
   });
 
   // Dev-Testknöpfe (siehe Spezifikation Abschnitt 8 — vor Kunden-Demo entfernen/verstecken)
