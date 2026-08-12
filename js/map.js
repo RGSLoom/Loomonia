@@ -16,10 +16,12 @@ function initMap() {
     attributionControl: true,
   }).setView([52.52, 13.405], 16);
 
-  // Dunkles Kartendesign (CARTO Dark Matter) statt Standard-OSM-Tiles —
-  // sonst kollidiert die helle Karte mit dem dunklen HUD und Marker/Text
-  // werden schlecht lesbar.
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  // CARTO Voyager: bunter, spielerischer Kartenstil (farbige Strassen,
+  // erkennbare Park-/Wasserflaechen, kleine Gebaeude-Umrisse) statt eines
+  // gedeckten Dark-/Invert-Looks — geht in Richtung Pokemon-Go-Kartengefuehl,
+  // ganz ohne eigenen Account/API-Key. Das dunkle HUD bleibt unveraendert,
+  // die Verlaeufe unter Titelzeile/Bottom-UI sorgen weiter fuer Kontrast.
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
     maxZoom: 20,
     subdomains: "abcd",
     attribution: '&copy; OpenStreetMap-Mitwirkende &copy; <a href="https://carto.com/attributions">CARTO</a>',
