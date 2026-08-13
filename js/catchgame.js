@@ -15,6 +15,11 @@ function openCatchSceneForCreature(entry) {
   };
   const creature = CREATURES[creatureKey];
 
+  // Einmal pro Begegnung, unabhaengig davon ob spaeter 1 oder 2 Tipp-Versuche
+  // gebraucht werden — siehe ENERGY_PER_CATCH in js/data.js.
+  spendEnergy(ENERGY_PER_CATCH);
+  updateCaughtCounter();
+
   document.getElementById("catch-attempt-label").textContent = "Versuch 1 von 2";
   setupCatchBackground(creature);
 
@@ -165,11 +170,6 @@ function stopBarLoop() {
 
 function handleFangenClick() {
   if (!catchState) return;
-
-  // Jeder Tipp-Versuch kostet Energie, unabhaengig vom Ausgang (Treffer,
-  // zweiter Versuch oder Fehlschlag) — siehe ENERGY_PER_CATCH_ATTEMPT.
-  spendEnergy(ENERGY_PER_CATCH_ATTEMPT);
-  updateCaughtCounter();
 
   const distanceFromCenter = Math.abs(catchState.currentPosition - 50);
 

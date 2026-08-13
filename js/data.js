@@ -36,13 +36,15 @@ const DRAW_CONFIG = {
 const SHADOW_ESSENCE_PER_CREATURE = 1000;
 
 // ============ Energie ============
-// Jeder Fangversuch (jedes Tippen in der Fangszene, egal ob Treffer,
-// zweiter Versuch oder Fehlschlag) kostet Energie. Regeneriert sich passiv
-// mit echter vergangener Zeit — auch waehrend die App geschlossen ist
-// (siehe settleEnergy() in js/state.js). 2 Min/Punkt = volle Leiste in ca.
-// 3h20min, leicht in ENERGY_REGEN_MS_PER_POINT anpassbar.
+// Kostet einmal pro Fang-Begegnung Energie (beim Oeffnen der Fangszene,
+// siehe openCatchSceneForCreature() in js/catchgame.js) — bewusst NICHT pro
+// einzelnem Tipp-Versuch, sonst waere der Verbrauch je nach 1 oder 2
+// gebrauchten Versuchen uneinheitlich (5 oder 10 statt immer gleich).
+// Regeneriert sich passiv mit echter vergangener Zeit — auch waehrend die
+// App geschlossen ist (siehe settleEnergy() in js/state.js). 2 Min/Punkt =
+// volle Leiste in ca. 3h20min, leicht in ENERGY_REGEN_MS_PER_POINT anpassbar.
 const ENERGY_MAX = 100;
-const ENERGY_PER_CATCH_ATTEMPT = 5;
+const ENERGY_PER_CATCH = 3;
 const ENERGY_REGEN_MS_PER_POINT = 2 * 60 * 1000;
 
 // ============ Levelsystem ============
