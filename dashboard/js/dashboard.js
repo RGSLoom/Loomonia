@@ -60,8 +60,9 @@ function showDashboard(storeKey) {
   document.getElementById("sidebar-store-id").textContent =
     storeKey === "all" ? "Store-ID: DEMO" : `Store-ID: ${storeKey.toUpperCase()}`;
   document.getElementById("info-store").textContent = displayName;
-  document.getElementById("today-date").textContent =
-    "Heute, " + new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const dateLabel = "Heute, " + new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+  document.getElementById("today-date").textContent = dateLabel;
+  document.getElementById("today-date-umsatz").textContent = dateLabel;
 
   loadStats(storeKey);
   if (refreshTimer) clearInterval(refreshTimer);
@@ -89,6 +90,41 @@ function fetchEvents(storeKey) {
     if (!r.ok) throw new Error(`Supabase request failed: ${r.status}`);
     return r.json();
   });
+}
+
+// Zusatzabfrage ohne Zeitfenster fuer "seit Erfassungsbeginn"-Kennzahlen
+// (Umsatz/Provision/Kaeufer gesamt) und fuer die Events-Ansicht (Teilnahmen/
+// Abschluesse der automatischen Bon-Scan-Aktion). Bewusst getrennt von
+// fetchEvents(), da dort nur die letzten DAYS_WINDOW Tage geladen werden.
+function fetchAllTimeTotals(storeKey) {
+  let url =
+    `${SUPABASE_URL}/rest/v1/events?select=type,player_id,amount_cents` +
+    `&type=in.(item_receipt_scanned,trophy_unlocked)&limit=50000`;
+  if (storeKey !== "all") {
+    url += `&category=eq.${encodeURIComponent(storeKey)}`;
+  }
+
+  return fetch(url, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  }).then((r) => {
+    if (!r.ok) throw new Error(`Supabase request failed: ${r.status}`);
+    return r.json();
+  });
+}
+
+function aggregateAllTimeTotals(events) {
+  const receiptEvents = events.filter((e) => e.type === "item_receipt_scanned");
+  const trophyEvents = events.filter((e) => e.type === "trophy_unlocked");
+  const revenueCents = receiptEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
+  return {
+    revenueCents,
+    provisionCents: Math.round(revenueCents * COMMISSION_RATE),
+    buyers: new Set(receiptEvents.map((e) => e.player_id)).size,
+    completers: new Set(trophyEvents.map((e) => e.player_id)).size,
+  };
 }
 
 // Baut aus den rohen Supabase-Zeilen dieselbe Struktur, die renderStats()
@@ -196,6 +232,10 @@ function loadStats(storeKey) {
       // Supabase evtl. kurz nicht erreichbar/Config fehlt noch — beim
       // naechsten Refresh-Tick automatisch erneut versuchen.
     });
+
+  fetchAllTimeTotals(storeKey)
+    .then((events) => renderAllTimeStats(aggregateAllTimeTotals(events)))
+    .catch(() => {});
 }
 
 function renderStats(data) {
@@ -213,16 +253,48 @@ function renderStats(data) {
   document.getElementById("kpi-purchase-last").textContent = formatAgo(kpis.lastReceiptTs);
 
   renderChart(document.getElementById("chart-svg"), data.days || [], [
-    { key: "playersSelected", color: "#3b5bdb" },
-    { key: "freeItemsReceived", color: "#22c55e" },
+    { key: "playersSelected", color: "#2656A3" },
+    { key: "freeItemsReceived", color: "#00354E" },
   ]);
-  renderChart(document.getElementById("purchase-chart-svg"), data.days || [], [
-    { key: "realBuyers", color: "#f59e0b" },
-    { key: "realItemsReceived", color: "#a855f7" },
+  renderChart(document.getElementById("revenue-chart-svg"), data.days || [], [
+    { key: "revenueCents", color: "#2656A3" },
   ]);
 
   renderTopItems("top-items-body", data.topItems || [], "Noch keine Items vergeben.");
   renderTopItems("top-purchase-items-body", data.topReceiptItems || [], "Noch keine Bon-Scans erfasst.");
+}
+
+function renderAllTimeStats(totals) {
+  document.getElementById("kpi-revenue-total").textContent = formatEuro(totals.revenueCents);
+  document.getElementById("kpi-buyers-total").textContent = totals.buyers ?? 0;
+  document.getElementById("kpi-provision-total").textContent = formatEuro(totals.provisionCents);
+
+  renderEventsTable(totals);
+}
+
+// Events-Ansicht: aktuell existiert im Spiel genau eine automatisch
+// erfasste Aktion (die Tutorial-Quest "Erster Schritt", die per Bon-Scan
+// ausgeloest wird, siehe js/bonscan.js TROPHIES.erster_schritt). Teilnahmen
+// = Spieler mit mind. einem Bon-Scan, Abschluesse = Spieler mit
+// freigeschalteter Trophaee. Absichtlich keine erfundenen weiteren
+// Kampagnen, solange es dafuer keine echte Datenquelle gibt.
+function renderEventsTable(totals) {
+  const body = document.getElementById("events-active-body");
+  if (!body) return;
+
+  const participants = totals.buyers ?? 0;
+  const completions = totals.completers ?? 0;
+  const conversion = participants > 0 ? Math.round((completions / participants) * 1000) / 10 : null;
+
+  body.innerHTML = `
+    <tr>
+      <td>Erster Schritt <span class="card-title-sub">Bon-Scan schaltet Bronze-Trophäe + Sonderitem frei</span></td>
+      <td><span class="status-pill status-pill-active">Aktiv</span></td>
+      <td>${participants}</td>
+      <td>${completions}</td>
+      <td>${conversion === null ? "–" : conversion + " %"}</td>
+    </tr>
+  `;
 }
 
 function formatEuro(cents) {
@@ -253,7 +325,7 @@ function renderTopItems(bodyId, topItems, emptyText) {
   body.innerHTML = "";
 
   if (topItems.length === 0) {
-    body.innerHTML = `<tr><td colspan="4" style="color:#6b7280;padding:14px 4px;">${emptyText}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="4" class="empty-note">${emptyText}</td></tr>`;
     return;
   }
 
@@ -272,7 +344,7 @@ function renderTopItems(bodyId, topItems, emptyText) {
 }
 
 // series: [{ key, color }, ...] — welche Tages-Felder als Linien gezeichnet
-// werden. So teilen sich Frei-Item- und Echte-Kaeufe-Chart dieselbe Logik.
+// werden. So teilen sich Aktivitaets- und Umsatz-Chart dieselbe Logik.
 function renderChart(svg, days, series) {
   const W = 640, H = 260;
   const padL = 34, padR = 10, padT = 14, padB = 28;
@@ -283,7 +355,7 @@ function renderChart(svg, days, series) {
   const totalEvents = days.reduce((sum, d) => sum + series.reduce((s2, s) => s2 + d[s.key], 0), 0);
 
   if (totalEvents === 0) {
-    svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="#9aa1b5" font-size="14">Noch keine Daten — im Spiel einen Store besuchen, um hier Zahlen zu sehen.</text>`;
+    svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="#85898f" font-size="14">Noch keine Daten — im Spiel einen Store besuchen, um hier Zahlen zu sehen.</text>`;
     return;
   }
 
@@ -300,7 +372,7 @@ function renderChart(svg, days, series) {
   let gridLines = "";
   for (let g = 0; g <= 2; g++) {
     const y = padT + (innerH / 2) * g;
-    gridLines += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#e5e8f0" stroke-width="1" />`;
+    gridLines += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#E1E6EE" stroke-width="1" />`;
   }
 
   let xLabels = "";
@@ -309,7 +381,7 @@ function renderChart(svg, days, series) {
     if (i % labelEvery !== 0 && i !== days.length - 1) return;
     const [x] = toXY(0, i);
     const label = d.date.slice(5).replace("-", ".");
-    xLabels += `<text x="${x}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#6b7280">${label}</text>`;
+    xLabels += `<text x="${x}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#85898f">${label}</text>`;
   });
 
   const paths = series
@@ -332,9 +404,10 @@ async function resetTestData() {
   if (!confirmed) return;
 
   const btn = document.getElementById("nav-reset-data");
-  const originalText = btn.textContent;
+  const label = btn.querySelector(".nav-label");
+  const originalText = label.textContent;
   btn.disabled = true;
-  btn.textContent = "🗑️ Lösche…";
+  label.textContent = "Lösche…";
 
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/events?ts=lt.2099-01-01T00:00:00Z`, {
@@ -359,7 +432,7 @@ async function resetTestData() {
     );
   } finally {
     btn.disabled = false;
-    btn.textContent = originalText;
+    label.textContent = originalText;
   }
 }
 
@@ -376,8 +449,9 @@ function init() {
     btn.onclick = () => {
       document.querySelectorAll(".nav-item[data-target]").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
+      document.querySelectorAll(".view-panel").forEach((p) => p.classList.remove("active"));
       const target = document.getElementById(btn.dataset.target);
-      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (target) target.classList.add("active");
     };
   });
 
