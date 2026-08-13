@@ -35,6 +35,7 @@ function defaultState() {
     },
     storePositions: null, // { [storeKey]: { lat, lon } } — einmalig gesetzt
     playerId: null, // anonyme ID fuers Haendler-Dashboard (siehe tracking.js)
+    trophies: {}, // trophyKey -> Freischalt-Zeitstempel (siehe TROPHIES in data.js)
   };
 }
 
@@ -154,6 +155,18 @@ function setAllowItemDeletion(value) {
 function setStorePositions(positions) {
   gameState.storePositions = positions;
   saveState();
+}
+
+// Schaltet eine Trophaee einmalig frei (siehe TROPHIES in data.js). Gibt
+// true zurueck, wenn sie dadurch NEU freigeschaltet wurde (Aufrufer soll
+// dann z.B. XP gutschreiben + Erfolgsmeldung zeigen), false wenn sie schon
+// vorher freigeschaltet war (Wiederholungs-Trigger, z.B. weitere Bon-Scans,
+// sollen sie nicht erneut verleihen).
+function unlockTrophy(key) {
+  if (gameState.trophies[key]) return false;
+  gameState.trophies[key] = Date.now();
+  saveState();
+  return true;
 }
 
 // Anonyme, geraetelokale Spieler-ID fuers Haendler-Dashboard (Zaehlung

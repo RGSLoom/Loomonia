@@ -5,7 +5,7 @@
 const PROFILE_TILE_ICONS = {
   outfit: '<path d="M6 7l6-3 6 3v3H6V7Z"/><path d="M6 10v10h12V10"/>',
   items: '<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M4 8l2-4h12l2 4"/>',
-  trophies: '<path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4Z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/>',
+  trophies: TROPHY_ICON_PATH,
   loomas: '<circle cx="12" cy="9" r="3"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/>',
   habitat: '<path d="M3 20c2-6 6-9 9-9s7 3 9 9"/><circle cx="12" cy="7" r="3"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V19.5a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H4.5a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H10a1.7 1.7 0 0 0 1-1.55V4.5a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V10a1.7 1.7 0 0 0 1.55 1h.09a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/>',
@@ -21,11 +21,13 @@ function renderProfileHub() {
   const itemsOwnedTypes = Object.keys(gameState.inventory).length;
   const totalItemTypes = Object.keys(ITEMS).length;
   const loomasCaught = totalCaughtCount();
+  const trophiesUnlocked = Object.keys(gameState.trophies || {}).length;
+  const totalTrophies = Object.keys(TROPHIES).length;
 
   const tiles = [
     { key: "outfit", label: "Outfit", sub: "Anpassen" },
     { key: "items", label: "Items", sub: `${itemsOwnedTypes}/${totalItemTypes} Sorten` },
-    { key: "trophies", label: "Trophäen", sub: "Bald verfügbar" },
+    { key: "trophies", label: "Trophäen", sub: `${trophiesUnlocked}/${totalTrophies} freigeschaltet` },
     { key: "loomas", label: "Loomas", sub: `${loomasCaught} gefangen` },
     { key: "habitat", label: "Habitat", sub: "Bald verfügbar" },
     { key: "settings", label: "Einstellungen", sub: "" },
@@ -107,6 +109,8 @@ function openSubScreen(tileKey, returnTo = "screen-profile") {
       showScreen("screen-settings");
       break;
     case "trophies":
+      document.getElementById("trophies-content").innerHTML = renderTrophiesGrid();
+      attachTrophiesGridHandlers();
       showScreen("screen-trophies");
       break;
     case "habitat":
@@ -282,6 +286,61 @@ function showLoomaExchangeDetail(key) {
   document.getElementById("btn-looma-detail-back").addEventListener("click", () => {
     content.innerHTML = renderLoomasGrid();
     attachLoomasGridHandlers();
+  });
+}
+
+function renderTrophiesGrid() {
+  const cells = Object.values(TROPHIES)
+    .map((trophy) => {
+      const unlocked = !!(gameState.trophies && gameState.trophies[trophy.key]);
+      if (!unlocked) return `<div class="item-cell locked" data-trophy="${trophy.key}"></div>`;
+      return `<div class="item-cell" data-trophy="${trophy.key}" style="--rarity-color:${TROPHY_TIER_COLORS[trophy.tier]}">
+        <svg class="icon trophy-cell-icon" viewBox="0 0 24 24" aria-hidden="true">${TROPHY_ICON_PATH}</svg>
+        <span class="cell-label">${trophy.name}</span>
+      </div>`;
+    })
+    .join("");
+  return `<div class="item-grid">${cells}</div>`;
+}
+
+function attachTrophiesGridHandlers() {
+  document.querySelectorAll(".item-cell[data-trophy]").forEach((cell) => {
+    cell.addEventListener("click", () => {
+      const key = cell.dataset.trophy;
+      const unlocked = !!(gameState.trophies && gameState.trophies[key]);
+      if (!unlocked) return;
+      showTrophyDetail(key);
+    });
+  });
+}
+
+function showTrophyDetail(key) {
+  const trophy = TROPHIES[key];
+  const content = document.getElementById("trophies-content");
+  const tierLabel = trophy.tier.charAt(0).toUpperCase() + trophy.tier.slice(1);
+  const rewardItem = trophy.itemKey ? ITEMS[trophy.itemKey] : null;
+  const itemRewardHtml = rewardItem
+    ? `<div class="trophy-reward-item">
+        <img src="${rewardItem.icon}" alt="${rewardItem.name}" />
+        <div class="trophy-reward-item-info">
+          <div class="trophy-reward-item-name">${rewardItem.name}</div>
+          <span class="rarity-pill" style="background:${RARITY_COLORS[rewardItem.rarity]}">${rewardItem.rarity}</span>
+        </div>
+      </div>`
+    : "";
+  content.innerHTML = `
+    <button class="back-btn" id="btn-trophy-detail-back" style="margin-bottom:12px;">← Übersicht</button>
+    <div class="detail-card-synthetic">
+      <div class="detail-card-name">${trophy.name}</div>
+      <div class="detail-card-rarity" style="color:${TROPHY_TIER_COLORS[trophy.tier]}">${tierLabel}-Trophäe</div>
+      <svg class="icon detail-card-icon trophy-detail-icon" viewBox="0 0 24 24" aria-hidden="true" style="color:${TROPHY_TIER_COLORS[trophy.tier]}">${TROPHY_ICON_PATH}</svg>
+      <div class="detail-card-effect">${trophy.description}</div>
+      <div class="detail-card-hint">Belohnung: +${formatNumber(trophy.xp)} XP</div>
+      ${itemRewardHtml}
+    </div>`;
+  document.getElementById("btn-trophy-detail-back").addEventListener("click", () => {
+    content.innerHTML = renderTrophiesGrid();
+    attachTrophiesGridHandlers();
   });
 }
 

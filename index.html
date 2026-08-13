@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Store Walk</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="css/style.css?v=56" />
+<link rel="stylesheet" href="css/style.css?v=59" />
 </head>
 <body>
 <div id="app">
@@ -24,6 +24,9 @@
         </span>
       </button>
       <div class="hud-title">Store Walk</div>
+      <button id="btn-quest" class="icon-btn glass action quest-btn" title="Aufgabe">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l2 2 4-4"/><rect x="3" y="4" width="18" height="17" rx="3"/></svg>
+      </button>
       <button id="btn-backpack" class="icon-btn glass action" title="Items öffnen">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
         <span id="hud-backpack-badge" class="icon-btn-badge hidden">0</span>
@@ -31,6 +34,28 @@
     </div>
 
     <div id="gps-banner" class="gps-banner hidden"></div>
+
+    <!-- Aufgaben-Detail (erste Tutorial-Quest) — nur solange Trophaee
+         "erster_schritt" noch nicht freigeschaltet ist, siehe btn-quest. -->
+    <div id="quest-modal" class="quest-modal hidden">
+      <div class="quest-modal-card glass">
+        <div class="quest-modal-title">🎯 Erste Aufgabe</div>
+        <div class="quest-modal-text">Gehe in einen Laden und kaufe einen Gegenstand.</div>
+        <div class="quest-modal-item-preview">
+          <img id="quest-modal-item-icon" src="" alt="" />
+          <div class="quest-modal-item-info">
+            <div id="quest-modal-item-name" class="quest-modal-item-name"></div>
+            <span id="quest-modal-item-rarity"></span>
+          </div>
+        </div>
+        <div class="quest-modal-reward">
+          <span id="quest-modal-tier-pill" class="rarity-pill"></span>
+          <span id="quest-modal-xp" class="success-xp" style="margin-left:8px;"></span>
+        </div>
+        <div class="quest-modal-hint">Schließe deinen Einkauf einfach über den Bon-Scan ab (Profil → Bon scannen) – Item und Trophäe werden automatisch freigeschaltet.</div>
+        <button id="btn-quest-modal-close" class="primary-btn">Alles klar</button>
+      </div>
+    </div>
 
     <div class="hud-footer">
       <div class="footer-energy">
@@ -55,6 +80,9 @@
     </button>
     <button id="btn-test-item" class="dev-btn dev-btn-right" title="Dev: Testitem auslösen">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7Z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7Z"/></svg>
+    </button>
+    <button id="btn-test-bonscan" class="dev-btn dev-btn-center" title="Dev: Bon-Scan simulieren (löst erste Quest/Trophäe aus)">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4Z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/></svg>
     </button>
   </section>
 
@@ -122,9 +150,12 @@
   <!-- ============ ITEM-ERFOLGSMELDUNG ============ -->
   <section id="screen-item-success" class="screen fullscreen-scene success-scene">
     <div class="success-card">
-      <div class="success-banner">✅ Item erhalten!</div>
+      <div id="item-success-banner" class="success-banner">✅ Item erhalten!</div>
       <div id="item-success-progress" class="success-progress hidden"></div>
       <img id="item-success-img" class="success-img item-img" alt="" />
+      <div id="item-success-trophy-icon" class="success-trophy-icon hidden">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4Z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/></svg>
+      </div>
       <div id="item-success-name" class="success-name"></div>
       <div id="item-success-rarity" class="success-meta"></div>
       <div id="item-success-store" class="success-store"></div>
@@ -194,7 +225,7 @@
       </button>
       <div class="sub-screen-title">Trophäen</div>
     </div>
-    <div class="sub-screen-content"><div class="placeholder-note">Screen folgt als Nächstes</div></div>
+    <div id="trophies-content" class="sub-screen-content"></div>
   </section>
 
   <section id="screen-loomas" class="screen profile-screen">
@@ -231,16 +262,16 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="js/data.js?v=56"></script>
-<script src="js/utils.js?v=56"></script>
-<script src="js/state.js?v=56"></script>
-<script src="js/supabase-config.js?v=56"></script>
-<script src="js/tracking.js?v=56"></script>
-<script src="js/map.js?v=56"></script>
-<script src="js/catchgame.js?v=56"></script>
-<script src="js/drawgame.js?v=56"></script>
-<script src="js/bonscan.js?v=56"></script>
-<script src="js/profile.js?v=56"></script>
-<script src="js/main.js?v=56"></script>
+<script src="js/data.js?v=59"></script>
+<script src="js/utils.js?v=59"></script>
+<script src="js/state.js?v=59"></script>
+<script src="js/supabase-config.js?v=59"></script>
+<script src="js/tracking.js?v=59"></script>
+<script src="js/map.js?v=59"></script>
+<script src="js/catchgame.js?v=59"></script>
+<script src="js/drawgame.js?v=59"></script>
+<script src="js/bonscan.js?v=59"></script>
+<script src="js/profile.js?v=59"></script>
+<script src="js/main.js?v=59"></script>
 </body>
 </html>

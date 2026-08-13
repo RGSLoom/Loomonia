@@ -83,6 +83,39 @@ const RARITY_COLORS = {
   "Legendär": "#fbbf24",
 };
 
+// ============ Trophaeen ============
+// Referenzliste siehe store-walk-spielspezifikation.md Abschnitt 7. Fuer den
+// Prototyp ist bislang nur "Erster Schritt" spielbar umgesetzt — sie wird
+// automatisch ueber den allerersten erfolgreichen Bon-Scan freigeschaltet
+// (siehe grantReceiptItems() in js/bonscan.js) und ist zugleich die
+// Belohnung der ersten Tutorial-Quest ("Gehe in einen Laden und kaufe einen
+// Gegenstand"). Die 2.500-XP-Belohnung hier ersetzt bewusst den in der
+// Spezifikation urspruenglich notierten "+2% Bonus auf Drops"-Text.
+const TROPHY_TIER_COLORS = {
+  bronze: "#cd7f32",
+  silber: "#c9d3e0",
+  gold: "#fbbf24",
+};
+
+// Gemeinsames Trophaeen-Icon (Pokal) fuer Profil-Kachel, Trophaeen-Screen
+// und Quest-Hinweis — ein Pfad statt an mehreren Stellen dupliziert.
+const TROPHY_ICON_PATH =
+  '<path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4Z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/>';
+
+const TROPHIES = {
+  erster_schritt: {
+    key: "erster_schritt",
+    name: "Erster Schritt",
+    tier: "bronze",
+    description: "Für deinen ersten Einkauf bei einem teilnehmenden Retail-Partner.",
+    xp: 2500,
+    // Exklusive Item-Belohnung: das einzige Legendaer-Item ("armband"), das
+    // bislang keinem Store-/Bon-Item-Pool zugeordnet ist — dadurch nur ueber
+    // diese Trophaee erreichbar statt zufaellig ueber normale Drops.
+    itemKey: "armband",
+  },
+};
+
 const CREATURES = {
   fauli: {
     key: "fauli",

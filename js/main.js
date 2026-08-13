@@ -6,18 +6,50 @@
 let itemSuccessQueue = [];
 
 function renderItemSuccess(entry, position, total) {
+  const progressEl = document.getElementById("item-success-progress");
+  progressEl.textContent = total > 1 ? `${position} von ${total}` : "";
+  progressEl.classList.toggle("hidden", total <= 1);
+
+  const img = document.getElementById("item-success-img");
+  const trophyIcon = document.getElementById("item-success-trophy-icon");
+
+  if (entry.type === "trophy") {
+    const trophy = TROPHIES[entry.trophyKey];
+    document.getElementById("item-success-banner").textContent = "🏆 Trophäe freigeschaltet!";
+    img.classList.add("hidden");
+    trophyIcon.classList.remove("hidden");
+    trophyIcon.style.setProperty("--trophy-color", TROPHY_TIER_COLORS[trophy.tier]);
+    document.getElementById("item-success-name").textContent = trophy.name;
+    const tierLabel = trophy.tier.charAt(0).toUpperCase() + trophy.tier.slice(1);
+    document.getElementById("item-success-rarity").innerHTML =
+      `<span class="rarity-pill" style="background:${TROPHY_TIER_COLORS[trophy.tier]}">${tierLabel}-Trophäe</span>`;
+    document.getElementById("item-success-store").textContent = "";
+    document.getElementById("item-success-effect").textContent = trophy.description;
+    document.getElementById("item-success-xp").textContent = `+${formatNumber(trophy.xp)} XP`;
+    return;
+  }
+
+  document.getElementById("item-success-banner").textContent = "✅ Item erhalten!";
+  trophyIcon.classList.add("hidden");
+  img.classList.remove("hidden");
   const item = ITEMS[entry.itemKey];
   const count = entry.count || 1;
-  document.getElementById("item-success-img").src = item.icon;
+  img.src = item.icon;
   document.getElementById("item-success-name").textContent = count > 1 ? `${item.name} ×${count}` : item.name;
   document.getElementById("item-success-rarity").innerHTML =
     `<span class="rarity-pill" style="background:${RARITY_COLORS[item.rarity]}">${item.rarity}</span>`;
   document.getElementById("item-success-store").textContent = entry.storeText;
   document.getElementById("item-success-effect").textContent = item.effect;
   document.getElementById("item-success-xp").textContent = `+${item.xp * count} XP`;
-  const progressEl = document.getElementById("item-success-progress");
-  progressEl.textContent = total > 1 ? `Artikel ${position} von ${total}` : "";
-  progressEl.classList.toggle("hidden", total <= 1);
+}
+
+// Aufgaben-Hinweis-Button im Map-HUD: sichtbar, solange die erste Tutorial-
+// Quest (Trophaee "erster_schritt") noch nicht freigeschaltet ist —
+// verschwindet danach dauerhaft (Zustand kommt aus gameState.trophies,
+// bleibt also auch nach Neuladen so).
+function updateQuestButtonVisibility() {
+  const btn = document.getElementById("btn-quest");
+  if (btn) btn.classList.toggle("hidden", !!gameState.trophies[TROPHIES.erster_schritt.key]);
 }
 
 function showItemSuccessQueue(entries) {
@@ -49,6 +81,26 @@ document.addEventListener("DOMContentLoaded", () => {
   // Map-HUD
   document.getElementById("btn-avatar").addEventListener("click", openProfile);
   document.getElementById("btn-backpack").addEventListener("click", openItemsFromHud);
+
+  // Aufgaben-Hinweis (erste Tutorial-Quest) — Button + Detail-Modal auf der
+  // Karte, siehe grantReceiptItems() in js/bonscan.js fuer den Ausloeser.
+  const questTrophy = TROPHIES.erster_schritt;
+  const tierLabel = questTrophy.tier.charAt(0).toUpperCase() + questTrophy.tier.slice(1);
+  document.getElementById("quest-modal-tier-pill").textContent = `${tierLabel}-Trophäe · ${questTrophy.name}`;
+  document.getElementById("quest-modal-tier-pill").style.background = TROPHY_TIER_COLORS[questTrophy.tier];
+  document.getElementById("quest-modal-xp").textContent = `+${formatNumber(questTrophy.xp)} XP`;
+  const questRewardItem = ITEMS[questTrophy.itemKey];
+  document.getElementById("quest-modal-item-icon").src = questRewardItem.icon;
+  document.getElementById("quest-modal-item-name").textContent = questRewardItem.name;
+  document.getElementById("quest-modal-item-rarity").innerHTML =
+    `<span class="rarity-pill" style="background:${RARITY_COLORS[questRewardItem.rarity]}">${questRewardItem.rarity}</span>`;
+  updateQuestButtonVisibility();
+  document.getElementById("btn-quest").addEventListener("click", () => {
+    document.getElementById("quest-modal").classList.remove("hidden");
+  });
+  document.getElementById("btn-quest-modal-close").addEventListener("click", () => {
+    document.getElementById("quest-modal").classList.add("hidden");
+  });
 
   // Fangszene — Tippen ist ueberall in der Szene erlaubt (nicht nur auf dem
   // Button), das fuehlt sich beim echten Fangen natuerlicher an. Der
@@ -112,5 +164,13 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-test-item").addEventListener("click", () => {
     const location = randomChoice(STORE_LOCATIONS);
     openDrawSceneForStore(location.id);
+  });
+  // Simuliert einen echten Bon-Scan ueber denselben Code-Pfad wie ein
+  // echtes Foto (matchReceiptText -> grantReceiptItems, siehe bonscan.js) —
+  // kein Store/Artikel im Text erkennbar, greift also der Zufalls-Fallback
+  // genau wie bei einem unbekannten Retailer. Damit laesst sich die erste
+  // Tutorial-Quest/Trophaee ohne echten Papierbon testen.
+  document.getElementById("btn-test-bonscan").addEventListener("click", () => {
+    matchReceiptText("STOREWALK DEV TESTBON");
   });
 });

@@ -269,6 +269,55 @@ html, body {
 .energy-fill { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
 .energy-label { min-width: 24px; text-align: right; }
 
+.quest-btn.hidden { display: none; }
+
+.quest-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(5,3,14,0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.quest-modal.hidden { display: none; }
+.quest-modal-card {
+  width: min(100%, 360px);
+  border-radius: 20px;
+  padding: 26px 22px;
+  text-align: center;
+  background: rgba(30,18,71,0.94);
+  border: 1px solid rgba(255,255,255,0.16);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.55);
+}
+.quest-modal-title { font-size: 18px; font-weight: 800; margin-bottom: 10px; }
+.quest-modal-text { font-size: 14px; opacity: 0.9; margin-bottom: 16px; line-height: 1.4; }
+.quest-modal-item-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: rgba(251,191,36,0.08);
+  border: 1px solid rgba(251,191,36,0.3);
+  text-align: left;
+}
+.quest-modal-item-preview img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 10px rgba(251,191,36,0.5));
+}
+.quest-modal-item-info { min-width: 0; }
+.quest-modal-item-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.quest-modal-reward { margin-bottom: 14px; }
+.quest-modal-hint { font-size: 12px; opacity: 0.7; margin-bottom: 18px; line-height: 1.4; }
+
 .gps-banner {
   position: absolute;
   top: 124px;
@@ -331,6 +380,8 @@ html, body {
 .dev-btn .icon { width: 21px; height: 21px; }
 .dev-btn-left { left: 14px; }
 .dev-btn-right { right: 14px; }
+.dev-btn-center { left: 50%; transform: translateX(-50%); }
+.dev-btn-center:active { transform: translateX(-50%) scale(0.9); }
 
 /* Leaflet marker helpers */
 /* Spieler-Standort: Punkt + drehbarer Blickrichtungs-Kegel (Pokemon-Go-
@@ -691,6 +742,7 @@ html, body {
   filter: drop-shadow(0 6px 16px rgba(0,0,0,0.5));
   display: block;
 }
+.success-img.hidden { display: none; }
 .success-creature-icon {
   position: absolute;
   top: 50%;
@@ -709,6 +761,21 @@ html, body {
    Wrapper haengenbleibt (text-align:center wirkt nur auf Inline-Inhalte).
    Deshalb hier explizit zentrieren. */
 .item-img { width: 130px; height: 130px; border-radius: 20px; margin: 0 auto; }
+.success-trophy-icon {
+  --trophy-color: var(--rarity-legendary);
+  width: 160px;
+  height: 160px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.14), transparent 60%), rgba(255,255,255,0.05);
+  border: 2px solid var(--trophy-color);
+  box-shadow: 0 0 30px -6px var(--trophy-color);
+}
+.success-trophy-icon svg { width: 72px; height: 72px; color: var(--trophy-color); stroke-width: 1.4; }
+.success-trophy-icon.hidden { display: none; }
 .success-progress {
   font-size: 12px;
   font-weight: 600;
@@ -908,6 +975,7 @@ html, body {
   cursor: default;
 }
 .item-cell img, .looma-cell img { width: 56%; height: 56%; object-fit: contain; }
+.trophy-cell-icon { width: 46%; height: 46%; color: var(--rarity-color); stroke-width: 1.4; }
 .cell-count {
   position: absolute;
   top: 4px;
@@ -949,6 +1017,26 @@ html, body {
 }
 .detail-card-effect { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
 .detail-card-hint { font-size: 12px; opacity: 0.7; line-height: 1.4; }
+.trophy-reward-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(251,191,36,0.08);
+  border: 1px solid rgba(251,191,36,0.3);
+  text-align: left;
+}
+.trophy-reward-item img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 10px rgba(251,191,36,0.5));
+}
+.trophy-reward-item-info { min-width: 0; }
+.trophy-reward-item-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
 
 .danger-btn, .secondary-btn {
   display: block;
