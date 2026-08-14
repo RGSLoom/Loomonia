@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=8" />
+<link rel="stylesheet" href="css/style.css?v=9" />
 </head>
 <body>
 
@@ -24,14 +24,18 @@
 <!-- Haupt-Dashboard -->
 <section id="screen-dashboard" class="screen screen-dashboard" style="display:none">
   <aside class="sidebar">
-    <div class="sidebar-logo">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9 4 4h16l1 5"/><path d="M4 9v10h16V9"/><path d="M9 19v-5h6v5"/></svg>
-      Loomonia
-    </div>
     <div class="sidebar-store">
-      <div class="sidebar-store-label">Store</div>
-      <div id="sidebar-store-name" class="sidebar-store-name">–</div>
-      <div id="sidebar-store-id" class="sidebar-store-id">–</div>
+      <div class="sidebar-store-top">
+        <!-- Platzhalter fuers Logo des Store-Partners (nicht Loomonia) —
+             soll spaeter durch das hochgeladene Kundenlogo ersetzt werden,
+             das dann auch als Marker-Icon auf der Spielkarte dient. -->
+        <div class="sidebar-store-logo" aria-hidden="true">Logo</div>
+        <div>
+          <div class="sidebar-store-label">Store</div>
+          <div id="sidebar-store-name" class="sidebar-store-name">–</div>
+          <div id="sidebar-store-id" class="sidebar-store-id">–</div>
+        </div>
+      </div>
       <div id="sidebar-store-address" class="sidebar-store-address hidden">–</div>
     </div>
     <nav class="sidebar-nav">
@@ -271,8 +275,8 @@
   </main>
 </section>
 
-<script src="../js/supabase-config.js?v=8"></script>
-<script src="js/stores-config.js?v=8"></script>
-<script src="js/dashboard.js?v=8"></script>
+<script src="../js/supabase-config.js?v=9"></script>
+<script src="js/stores-config.js?v=9"></script>
+<script src="js/dashboard.js?v=9"></script>
 </body>
 </html>
