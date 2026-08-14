@@ -70,6 +70,7 @@ function updateTypeToggleVisuals() {
   document.getElementById("type-label-landmark").classList.toggle("selected", currentType() === "landmark");
   document.getElementById("field-category").classList.toggle("hidden", currentType() !== "store");
   document.getElementById("field-landmark-icon").classList.toggle("hidden", currentType() !== "landmark");
+  document.getElementById("field-store-number").classList.toggle("hidden", currentType() !== "store");
 }
 
 function clearGeocodeResult() {
@@ -153,6 +154,7 @@ function resetForm() {
   document.getElementById("loc-id").value = "";
   document.getElementById("loc-id").readOnly = false;
   document.getElementById("loc-address").value = "";
+  document.getElementById("loc-store-number").value = "";
   document.querySelector('input[name="loc-type"][value="store"]').checked = true;
   updateTypeToggleVisuals();
   document.getElementById("loc-category").selectedIndex = 0;
@@ -172,6 +174,7 @@ async function onSaveClick() {
     landmark_icon: type === "landmark" ? document.getElementById("loc-landmark-icon").value : null,
     name: document.getElementById("loc-name").value.trim(),
     address: document.getElementById("loc-address").value.trim() || null,
+    store_number: type === "store" ? (document.getElementById("loc-store-number").value.trim() || null) : null,
     lat: resolvedCoords.lat,
     lon: resolvedCoords.lon,
   };
@@ -213,6 +216,7 @@ function startEdit(row) {
   document.getElementById("loc-id").value = row.id;
   document.getElementById("loc-id").readOnly = true;
   document.getElementById("loc-address").value = row.address || "";
+  document.getElementById("loc-store-number").value = row.store_number || "";
   document.querySelector(`input[name="loc-type"][value="${row.type}"]`).checked = true;
   updateTypeToggleVisuals();
   if (row.type === "store" && row.category_key) document.getElementById("loc-category").value = row.category_key;
@@ -270,7 +274,7 @@ async function loadLocations() {
 
     body.innerHTML = "";
     if (rows.length === 0) {
-      body.innerHTML = `<tr><td colspan="6" class="empty-note">Noch keine Standorte in Supabase. Solange bleibt das Spiel bei der eingebauten Fallback-Liste (siehe js/data.js).</td></tr>`;
+      body.innerHTML = `<tr><td colspan="7" class="empty-note">Noch keine Standorte in Supabase. Solange bleibt das Spiel bei der eingebauten Fallback-Liste (siehe js/data.js).</td></tr>`;
       return;
     }
 
@@ -286,6 +290,7 @@ async function loadLocations() {
         <td>${row.name}</td>
         <td><span class="status-pill ${row.type === "store" ? "status-pill-active" : "status-pill-planned"}">${row.type === "store" ? "Store" : "Landmark"}</span></td>
         <td>${categoryLabel}</td>
+        <td>${row.store_number || "–"}</td>
         <td>${coordsLabel}</td>
         <td>${formatUpdatedAt(row.updated_at)}</td>
         <td></td>
@@ -304,7 +309,7 @@ async function loadLocations() {
       body.appendChild(tr);
     });
   } catch (err) {
-    body.innerHTML = `<tr><td colspan="6" class="empty-note">Standorte konnten nicht geladen werden: ${err.message || err}. Prüfen, ob supabase/locations_setup.sql bereits ausgeführt wurde.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="7" class="empty-note">Standorte konnten nicht geladen werden: ${err.message || err}. Prüfen, ob supabase/locations_setup.sql bereits ausgeführt wurde.</td></tr>`;
   }
 }
 

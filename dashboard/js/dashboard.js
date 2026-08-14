@@ -55,43 +55,51 @@ function showDashboard(storeKey) {
   document.getElementById("screen-select").style.display = "none";
   document.getElementById("screen-dashboard").style.display = "flex";
 
-  const displayName = storeKey === "all" ? "Mein Store" : storeDisplayName(storeKey);
-  document.getElementById("sidebar-store-name").textContent = displayName;
-  document.getElementById("sidebar-store-id").textContent =
-    storeKey === "all" ? "Store-ID: DEMO" : `Store-ID: ${storeKey.toUpperCase()}`;
-  document.getElementById("info-store").textContent = displayName;
   const dateLabel = "Heute, " + new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
   document.getElementById("today-date").textContent = dateLabel;
   document.getElementById("today-date-umsatz").textContent = dateLabel;
 
   loadStats(storeKey);
-  loadStoreAddress();
+  loadStoreIdentity();
   if (refreshTimer) clearInterval(refreshTimer);
   refreshTimer = setInterval(() => loadStats(storeKey), REFRESH_MS);
 }
 
-// Zeigt im Pitch-Modus (siehe init()) die Adresse des zuletzt ueber die
-// Standortverwaltung (dashboard/standorte.html) angelegten Stores an, damit
-// der Kunde beim Pitch sofort sieht "das ist mein Standort, der schon im
-// Spiel hinterlegt ist". Rein informativ -> darf das Dashboard nie
-// blockieren, wenn Supabase kurz nicht erreichbar ist oder noch kein Store
-// mit Adresse hinterlegt wurde.
-function loadStoreAddress() {
-  const sidebarEl = document.getElementById("sidebar-store-address");
-  const infoEl = document.getElementById("info-store-address");
+// Zeigt in Sidebar und "Beobachteter Store"-Karte den zuletzt ueber die
+// Standortverwaltung (dashboard/standorte.html) angelegten Store mit
+// seinem echten Namen, optionaler Store-Nummer und Adresse. Ersetzt die
+// vorherige generische "Mein Store"/"Store-ID: DEMO"-Platzhalterzeile, die
+// zusaetzlich zum echten Namen darunter stand -> jetzt genau EINE
+// Store-Identitaet. Rein informativ -> darf das Dashboard nie blockieren,
+// wenn Supabase kurz nicht erreichbar ist oder noch kein Store hinterlegt
+// wurde.
+function loadStoreIdentity() {
+  const nameEl = document.getElementById("sidebar-store-name");
+  const idEl = document.getElementById("sidebar-store-id");
+  const addressEl = document.getElementById("sidebar-store-address");
+  const infoNameEl = document.getElementById("info-store");
+  const infoAddressEl = document.getElementById("info-store-address");
 
   fetch(
-    `${SUPABASE_URL}/rest/v1/locations?select=name,address&type=eq.store&address=not.is.null&order=created_at.desc&limit=1`,
+    `${SUPABASE_URL}/rest/v1/locations?select=name,address,store_number&type=eq.store&order=created_at.desc&limit=1`,
     { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
   )
     .then((r) => (r.ok ? r.json() : []))
     .then((rows) => {
       const row = rows[0];
-      const text = row ? `${row.name} · ${row.address}` : "";
-      sidebarEl.textContent = text;
-      sidebarEl.classList.toggle("hidden", !text);
-      infoEl.textContent = row ? row.address : "";
-      infoEl.classList.toggle("hidden", !row);
+      const name = row ? row.name : "Noch kein Store hinterlegt";
+      nameEl.textContent = name;
+      infoNameEl.textContent = name;
+
+      const hasId = !!(row && row.store_number);
+      idEl.textContent = hasId ? `Store-ID: ${row.store_number}` : "";
+      idEl.classList.toggle("hidden", !hasId);
+
+      const address = row ? row.address : null;
+      addressEl.textContent = address || "";
+      addressEl.classList.toggle("hidden", !address);
+      infoAddressEl.textContent = address || "";
+      infoAddressEl.classList.toggle("hidden", !address);
     })
     .catch(() => {});
 }
