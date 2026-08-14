@@ -249,6 +249,10 @@ const CREATURES = {
     rarity: "Ungewöhnlich",
     xp: 300,
     icon: "assets/wesen/moosilda_icon.png",
+    // Neues Bild hat schon einen echten Alphakanal (anders als die
+    // urspruenglichen Icons) — Laufzeit-Weissabgleich wuerde helle
+    // Fellstellen kaputt-loechern, siehe wollypig-Kommentar oben.
+    iconAlreadyTransparent: true,
     scene: "assets/hintergrund/Wiesenlandschaft.png",
     sceneIsRealPhoto: false,
   },
@@ -261,6 +265,8 @@ const CREATURES = {
     rarity: "Selten",
     xp: 450,
     icon: "assets/wesen/lavaris_icon.png",
+    // Ebenfalls schon echt freigestellt, siehe moosilda-Kommentar oben.
+    iconAlreadyTransparent: true,
     scene: "assets/hintergrund/Vulkan.png",
     sceneIsRealPhoto: false,
   },
