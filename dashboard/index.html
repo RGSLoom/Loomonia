@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=7" />
+<link rel="stylesheet" href="css/style.css?v=8" />
 </head>
 <body>
 
@@ -32,6 +32,7 @@
       <div class="sidebar-store-label">Store</div>
       <div id="sidebar-store-name" class="sidebar-store-name">–</div>
       <div id="sidebar-store-id" class="sidebar-store-id">–</div>
+      <div id="sidebar-store-address" class="sidebar-store-address hidden">–</div>
     </div>
     <nav class="sidebar-nav">
       <button class="nav-item active" data-target="panel-dashboard">
@@ -128,6 +129,7 @@
           <div>
             <div class="info-card-title">Beobachteter Store</div>
             <div class="info-card-value" id="info-store">–</div>
+            <div id="info-store-address" class="info-card-sub hidden"></div>
           </div>
         </div>
       </div>
@@ -269,8 +271,8 @@
   </main>
 </section>
 
-<script src="../js/supabase-config.js?v=7"></script>
-<script src="js/stores-config.js?v=7"></script>
-<script src="js/dashboard.js?v=7"></script>
+<script src="../js/supabase-config.js?v=8"></script>
+<script src="js/stores-config.js?v=8"></script>
+<script src="js/dashboard.js?v=8"></script>
 </body>
 </html>

@@ -112,6 +112,7 @@ h1, h2, h3 { font-family: var(--font-heading); color: var(--heading); }
 .sidebar-store-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.65; }
 .sidebar-store-name { font-family: var(--font-heading); font-weight: 700; color: #fff; margin-top: 2px; }
 .sidebar-store-id { font-size: 0.75rem; opacity: 0.65; margin-top: 2px; }
+.sidebar-store-address { font-size: 0.72rem; opacity: 0.8; margin-top: 8px; line-height: 1.4; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.12); }
 
 .sidebar-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .nav-item {
@@ -259,6 +260,9 @@ h1, h2, h3 { font-family: var(--font-heading); color: var(--heading); }
 .info-card .icon { color: var(--tech-blue); }
 .info-card-title { font-size: 0.75rem; color: var(--text-muted); }
 .info-card-value { font-family: var(--font-heading); font-weight: 700; color: var(--heading); margin-top: 2px; }
+.info-card-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+.hidden { display: none !important; }
 
 .data-card {
   background: var(--card);
