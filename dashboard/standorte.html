@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Loomonia · Standortverwaltung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="css/style.css?v=1" />
+<link rel="stylesheet" href="css/standorte.css?v=1" />
+</head>
+<body>
+
+<!-- Passwortsperre — siehe js/standorte-auth.js. Bewusst kein echtes Login-
+     system, nur eine Huerde gegen zufaelliges Finden dieser (nicht
+     verlinkten) Seite. Echter Schutz muss spaeter ueber Supabase RLS +
+     echte Nutzerrollen kommen, siehe Hinweis unten und in
+     supabase/locations_setup.sql. -->
+<section id="screen-lock" class="lock-screen">
+  <div class="lock-card">
+    <div class="select-logo">Loomonia</div>
+    <h1 id="lock-title">Standortverwaltung</h1>
+    <p class="lock-sub" id="lock-sub">Interner Bereich · nicht für Store-Partner.</p>
+    <input type="password" id="lock-password" placeholder="Passwort" autocomplete="off" />
+    <button id="lock-submit" class="btn btn-primary" style="width:100%">Entsperren</button>
+    <p id="lock-error" class="lock-error hidden"></p>
+    <p class="lock-hint">Nur ein einfacher Zugriffsschutz auf UI-Ebene, kein vollständiges Login-System — nicht für vertrauliche Daten geeignet.</p>
+  </div>
+</section>
+
+<!-- ============ ADMIN-BEREICH ============ -->
+<div id="screen-admin" class="admin-shell hidden">
+  <header class="admin-header">
+    <h1>Standortverwaltung</h1>
+    <p class="content-sub">Neue Store- und Orientierungs-Standorte anlegen — schreibt direkt in die Supabase-Tabelle „locations“, aus der das Spiel seine Kartenpunkte lädt.</p>
+    <div class="admin-warning">Nur für den internen Gebrauch. Diese Seite ist nicht in der Store-Partner-Navigation verlinkt und nur einfach passwortgeschützt — keine echte Zugriffskontrolle.</div>
+  </header>
+
+  <div class="data-card">
+    <div class="data-card-title" id="form-title">Neuen Ort anlegen</div>
+    <p class="data-card-sub">Adresse eingeben und geocodieren lassen — Koordinaten werden automatisch ermittelt.</p>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Art des Ortes</label>
+        <div class="type-toggle" id="type-toggle">
+          <label id="type-label-store"><input type="radio" name="loc-type" value="store" checked /><span>🏬 Store</span></label>
+          <label id="type-label-landmark"><input type="radio" name="loc-type" value="landmark" /><span>📍 Orientierungspunkt</span></label>
+        </div>
+      </div>
+      <div class="field" id="field-category">
+        <label for="loc-category">Kategorie</label>
+        <select id="loc-category"></select>
+      </div>
+      <div class="field hidden" id="field-landmark-icon">
+        <label for="loc-landmark-icon">Symbol</label>
+        <select id="loc-landmark-icon"></select>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="loc-name">Name (nur intern sichtbar)</label>
+        <input type="text" id="loc-name" placeholder="z.B. Café Sonnenplatz" />
+      </div>
+      <div class="field">
+        <label for="loc-id">Interne ID</label>
+        <input type="text" id="loc-id" placeholder="wird aus dem Namen erzeugt" />
+        <span class="field-hint">Eindeutiger Schlüssel, wird nie im Spiel angezeigt.</span>
+      </div>
+    </div>
+
+    <div class="geocode-row">
+      <div class="field">
+        <label for="loc-address">Adresse</label>
+        <input type="text" id="loc-address" placeholder="Straße Hausnummer, PLZ Ort" />
+      </div>
+      <button id="btn-geocode" class="btn btn-secondary">Adresse suchen</button>
+    </div>
+
+    <div id="geocode-result" class="geocode-result hidden">
+      <div class="geocode-result-address" id="geocode-address">–</div>
+      <div class="geocode-result-coords" id="geocode-coords">–</div>
+      <div id="geocode-map" class="geocode-map"></div>
+    </div>
+    <div class="osm-attribution">Adresssuche via OpenStreetMap Nominatim · Kartendaten © OpenStreetMap-Mitwirkende</div>
+
+    <div id="form-status" class="form-status"></div>
+
+    <div class="form-actions">
+      <button id="btn-save" class="btn btn-cta" disabled>Ort speichern</button>
+      <button id="btn-cancel-edit" class="btn btn-secondary hidden">Abbrechen</button>
+    </div>
+  </div>
+
+  <div class="data-card">
+    <div class="data-card-title">Bestehende Standorte</div>
+    <p class="data-card-sub" id="locations-count">–</p>
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Typ</th><th>Kategorie/Symbol</th><th>Koordinaten</th><th>Geändert</th><th></th></tr></thead>
+      <tbody id="locations-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="../js/supabase-config.js?v=1"></script>
+<script src="js/stores-config.js?v=1"></script>
+<script src="js/standorte-auth.js?v=1"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/standorte.js?v=1"></script>
+</body>
+</html>

@@ -13,6 +13,7 @@ const MIN_HEADING_MOVE_M = 3; // unterhalb dieser Distanz zaehlt Bewegung als GP
 const storeMarkers = {}; // storeKey -> { marker, lat, lon }
 let activeCreatures = []; // { id, key, lat, lon, marker }
 const creatureIconCache = {}; // key -> cutout data URL
+let storeLocationsReady = null; // Promise aus loadStoreLocations() (js/locations.js)
 
 function initMap() {
   leafletMap = L.map("map", {
@@ -40,6 +41,11 @@ function initMap() {
   tint.className = "map-tint";
   leafletMap.getContainer().appendChild(tint);
 
+  // Laeuft parallel zur (nutzerseitig oft erst nach Erlaubnis-Dialog
+  // eintreffenden) Geolocation-Anfrage -> in der Praxis meist laengst
+  // fertig, bevor onFirstFix() das Ergebnis braucht. onFirstFix() wartet
+  // trotzdem explizit darauf, falls Supabase langsamer ist.
+  storeLocationsReady = loadStoreLocations();
   startGeolocation();
   preloadCreatureIcons();
 }
@@ -129,8 +135,9 @@ function updatePlayerHeading(gpsHeading) {
   }
 }
 
-function onFirstFix() {
+async function onFirstFix() {
   leafletMap.setView([playerPos.lat, playerPos.lon], 17);
+  await storeLocationsReady;
   ensureStorePositions();
   renderStoreMarkers();
   fillCreatureSpawns();
@@ -183,23 +190,38 @@ function updatePlayerMarker(accuracy) {
 // ---------- Stores ----------
 
 // Ergaenzt fehlende Standort-Positionen, ohne bereits platzierte Standorte
-// zu verschieben — so koennen jederzeit neue Standorte in data.js
-// hinzugefuegt werden, ohne bestehende Spielstaende (localStorage) zu
-// zerstoeren. Standorte mit echten coords bekommen genau diese Position,
-// alle anderen werden einmalig zufaellig um den Spieler-Start platziert.
+// unnoetig zu verschieben — so koennen jederzeit neue Standorte in der
+// Supabase-Tabelle "locations" hinzugefuegt werden, ohne bestehende
+// Spielstaende (localStorage) zu zerstoeren. Standorte mit echten coords
+// bekommen genau diese Position, alle anderen werden einmalig zufaellig um
+// den Spieler-Start platziert.
+//
+// Cache-Invalidierung: jede Position wird zusammen mit dem updatedAt-
+// Zeitstempel der Quelle gecacht. Weicht der aktuell geladene updatedAt vom
+// gecachten ab (z.B. weil der Standort im Dashboard nachtraeglich
+// verschoben wurde), wird die gecachte Position ueberschrieben statt
+// beibehalten — nur so kommt eine Korrektur auch bei Spielern an, die den
+// Standort schon vorher geladen hatten.
 function ensureStorePositions() {
   const positions = gameState.storePositions ? { ...gameState.storePositions } : {};
   let changed = false;
 
   STORE_LOCATIONS.forEach((location) => {
-    if (positions[location.id]) return;
+    const cached = positions[location.id];
+    const isStale = cached && location.updatedAt && cached.updatedAt !== location.updatedAt;
+    if (cached && !isStale) return;
+
     if (location.coords) {
-      positions[location.id] = { lat: location.coords.lat, lon: location.coords.lon };
-    } else {
+      positions[location.id] = { lat: location.coords.lat, lon: location.coords.lon, updatedAt: location.updatedAt || null };
+      changed = true;
+    } else if (!cached) {
+      // Nur beim allerersten Mal zufaellig platzieren -> eine spaetere
+      // Aenderung ohne echte Koordinate soll die zufaellige Platzierung
+      // nicht bei jedem Ladevorgang neu wuerfeln.
       const p = randomPointAround(playerPos.lat, playerPos.lon, STORE_OFFSET_RADIUS_M, 30);
-      positions[location.id] = { lat: p.lat, lon: p.lon };
+      positions[location.id] = { lat: p.lat, lon: p.lon, updatedAt: location.updatedAt || null };
+      changed = true;
     }
-    changed = true;
   });
 
   if (changed) setStorePositions(positions);
@@ -217,22 +239,36 @@ const STORE_EMOJI = {
   bar: "🍹",
 };
 
+// Landmarks (type "landmark") sind reine Orientierungspunkte auf der Karte
+// ohne Minigame/Item-Vergabe — kein Klick-Handler, kein Store-Szenenbild,
+// nur ein kleines Icon-Badge mit dem im Dashboard gewaehlten Symbol.
 function renderStoreMarkers() {
   STORE_LOCATIONS.forEach((location) => {
     const pos = gameState.storePositions[location.id];
     if (!pos) return;
-    const category = STORE_CATEGORIES[location.categoryKey];
-    const icon = L.divIcon({
-      className: "",
-      html: `<div class="store-marker" data-store="${location.id}" style="background-image:url('${category.scene}')">
+
+    const isLandmark = location.type === "landmark";
+    let html, tooltip;
+    if (isLandmark) {
+      html = `<div class="store-marker store-marker-landmark" data-store="${location.id}">
+          <span class="store-marker-badge">${location.landmarkIcon || "📍"}</span>
+        </div>`;
+      tooltip = location.name || "Ort";
+    } else {
+      const category = STORE_CATEGORIES[location.categoryKey];
+      html = `<div class="store-marker" data-store="${location.id}" style="background-image:url('${category.scene}')">
           <span class="store-marker-badge">${STORE_EMOJI[location.categoryKey] || "🏬"}</span>
-        </div>`,
-      iconSize: [56, 56],
-    });
+        </div>`;
+      tooltip = category.name;
+    }
+
+    const icon = L.divIcon({ className: "", html, iconSize: [56, 56] });
     const marker = L.marker([pos.lat, pos.lon], { icon }).addTo(leafletMap);
-    marker.on("click", () => onStoreMarkerClick(location.id));
-    marker.bindTooltip(category.name, { direction: "top", offset: [0, -20] });
-    storeMarkers[location.id] = { marker, lat: pos.lat, lon: pos.lon, categoryKey: location.categoryKey };
+    if (!isLandmark) {
+      marker.on("click", () => onStoreMarkerClick(location.id));
+    }
+    marker.bindTooltip(tooltip, { direction: "top", offset: [0, -20] });
+    storeMarkers[location.id] = { marker, lat: pos.lat, lon: pos.lon, categoryKey: location.categoryKey, type: location.type };
   });
 }
 

@@ -574,29 +574,40 @@ const RECEIPT_ITEM_KEYWORDS = {
   ],
 };
 
-// STORE_LOCATIONS = einzelne physische Standorte. Mehrere Standorte koennen
-// dieselbe Kategorie teilen (z.B. zwei "Feinkost & Snacks"-Filialen).
-// coords: { lat, lon } fuer einen echten Standort, oder null fuer eine
-// zufaellige Platzierung im Radius STORE_OFFSET_RADIUS_M um den
-// Spieler-Startpunkt (einmalig, danach in localStorage gecacht).
+// STORE_LOCATIONS = einzelne physische Standorte (Stores + reine
+// Kartenpunkte/Landmarks). Mehrere Standorte koennen dieselbe Kategorie
+// teilen (z.B. zwei "Feinkost & Snacks"-Filialen). coords: { lat, lon } fuer
+// einen echten Standort, oder null fuer eine zufaellige Platzierung im
+// Radius STORE_OFFSET_RADIUS_M um den Spieler-Startpunkt (einmalig, danach
+// in localStorage gecacht, siehe ensureStorePositions() in js/map.js).
+//
+// Wird zur Laufzeit aus der Supabase-Tabelle "locations" geladen (siehe
+// js/locations.js + dashboard "Standorte"-Ansicht zum Eintragen neuer Orte)
+// -> STORE_LOCATIONS ist deshalb `let`, nicht `const`, und startet als
+// STORE_LOCATIONS_FALLBACK, bis der Ladevorgang abgeschlossen ist. Bleibt
+// Supabase kurzzeitig nicht erreichbar oder die Tabelle ist (noch) leer,
+// verwendet das Spiel weiterhin diese Fallback-Liste, damit ein Netzwerk-
+// oder Konfigurationsfehler nie zu einer leeren Karte fuehrt.
 //
 // Die id-Feldnamen unten sind interne Klarnamen aus assets/koordinaten/
 // Koordinaten.txt (Emmendingen) — sie dienen nur der Zuordnung im Code und
 // werden dem Nutzer NIE angezeigt, sichtbar ist ausschliesslich der
 // Kategorie-Anzeigename aus STORE_CATEGORIES (siehe Abschnitt 9 der Spec).
-const STORE_LOCATIONS = [
-  { id: "rewe", categoryKey: "feinkost", coords: { lat: 48.11885648062791, lon: 7.849983861819728 } },
-  { id: "kaufland", categoryKey: "feinkost", coords: { lat: 48.11736079020843, lon: 7.848150177677171 } },
-  { id: "baeckerei", categoryKey: "cafe", coords: { lat: 48.11926205204506, lon: 7.848623981867512 } },
-  { id: "modebox", categoryKey: "fashion", coords: { lat: 48.12005556052317, lon: 7.849796063929734 } },
-  { id: "volksbank", categoryKey: "bank", coords: { lat: 48.12025582830878, lon: 7.8492661991757045 } },
-  { id: "sparkasse", categoryKey: "bank", coords: { lat: 48.119719552613226, lon: 7.8501486459263585 } },
-  { id: "mueller", categoryKey: "drogerie", coords: { lat: 48.11931058495179, lon: 7.849707348109254 } },
-  { id: "dm", categoryKey: "drogerie", coords: { lat: 48.120860450673504, lon: 7.850241027354685 } },
-  { id: "mcdonalds", categoryKey: "schnellrestaurant", coords: { lat: 48.113096001026086, lon: 7.852438811998206 } },
-  { id: "cheers", categoryKey: "bar", coords: { lat: 48.10948560102508, lon: 7.854155425715709 } },
-  { id: "feinkost_custom", categoryKey: "feinkost", coords: { lat: 52.2581271, lon: 5.4698785 } },
+const STORE_LOCATIONS_FALLBACK = [
+  { id: "rewe", type: "store", categoryKey: "feinkost", coords: { lat: 48.11885648062791, lon: 7.849983861819728 } },
+  { id: "kaufland", type: "store", categoryKey: "feinkost", coords: { lat: 48.11736079020843, lon: 7.848150177677171 } },
+  { id: "baeckerei", type: "store", categoryKey: "cafe", coords: { lat: 48.11926205204506, lon: 7.848623981867512 } },
+  { id: "modebox", type: "store", categoryKey: "fashion", coords: { lat: 48.12005556052317, lon: 7.849796063929734 } },
+  { id: "volksbank", type: "store", categoryKey: "bank", coords: { lat: 48.12025582830878, lon: 7.8492661991757045 } },
+  { id: "sparkasse", type: "store", categoryKey: "bank", coords: { lat: 48.119719552613226, lon: 7.8501486459263585 } },
+  { id: "mueller", type: "store", categoryKey: "drogerie", coords: { lat: 48.11931058495179, lon: 7.849707348109254 } },
+  { id: "dm", type: "store", categoryKey: "drogerie", coords: { lat: 48.120860450673504, lon: 7.850241027354685 } },
+  { id: "mcdonalds", type: "store", categoryKey: "schnellrestaurant", coords: { lat: 48.113096001026086, lon: 7.852438811998206 } },
+  { id: "cheers", type: "store", categoryKey: "bar", coords: { lat: 48.10948560102508, lon: 7.854155425715709 } },
+  { id: "feinkost_custom", type: "store", categoryKey: "feinkost", coords: { lat: 52.2581271, lon: 5.4698785 } },
   // Keine echte Koordinate hinterlegt -> zufaellig um den Spieler-Start
-  { id: "sneaker_default", categoryKey: "sneaker", coords: null },
-  { id: "juwelier_default", categoryKey: "juwelier", coords: null },
+  { id: "sneaker_default", type: "store", categoryKey: "sneaker", coords: null },
+  { id: "juwelier_default", type: "store", categoryKey: "juwelier", coords: null },
 ];
+
+let STORE_LOCATIONS = STORE_LOCATIONS_FALLBACK;

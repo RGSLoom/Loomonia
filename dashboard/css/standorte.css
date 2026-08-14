@@ -1,0 +1,123 @@
+/* Standortverwaltung — interner Admin-Bereich, baut auf style.css (Tokens,
+   Fonts, .kpi-card/.data-card etc.) auf, eigene Datei damit style.css
+   (Store-Partner-Dashboard) nicht mit admin-only Klassen aufgeblaeht wird. */
+
+body { background: var(--bg); }
+
+.admin-shell { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+.admin-header { margin-bottom: 24px; }
+.admin-header h1 { margin: 0 0 4px; font-size: 1.5rem; }
+.admin-header .content-sub { margin: 0; }
+.admin-warning {
+  background: #fff7e6;
+  border: 1px solid #f3d69a;
+  color: var(--dark-navy);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  margin-top: 14px;
+}
+
+/* --- Passwort-Sperre --- */
+.lock-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dark-navy);
+  padding: 24px;
+}
+.lock-card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.lock-card h1 { font-size: 1.3rem; margin: 4px 0 6px; }
+.lock-sub { color: var(--text-muted); font-size: 0.85rem; margin: 0 0 20px; }
+.lock-card input[type="password"] {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+.lock-error { color: #c0392b; font-size: 0.82rem; margin: 10px 0 0; }
+.lock-error.hidden { display: none; }
+.lock-hint { color: var(--text-muted); font-size: 0.72rem; margin-top: 18px; line-height: 1.5; }
+
+/* --- Formular --- */
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
+.field input, .field select {
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  color: var(--text);
+  background: #fff;
+}
+.field input:read-only { background: var(--soft-grey); color: var(--text-muted); }
+.field-hint { font-size: 0.72rem; color: var(--text-muted); }
+
+.geocode-row { display: flex; gap: 10px; align-items: flex-end; }
+.geocode-row .field { flex: 1; }
+
+.btn { font-family: var(--font-body); font-weight: 600; font-size: 0.88rem; border-radius: 8px; padding: 10px 18px; border: none; cursor: pointer; }
+.btn-primary { background: var(--tech-blue); color: #fff; }
+.btn-primary:hover { background: #1e4685; }
+.btn-primary:disabled { background: #a9b8cf; cursor: not-allowed; }
+.btn-secondary { background: var(--soft-grey); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: #e9ecf1; }
+.btn-cta { background: var(--neon-green); color: #003820; }
+.btn-cta:hover { background: #00b359; }
+.btn-cta:disabled { background: #a9d9c1; color: #4a6b5a; cursor: not-allowed; }
+.btn-danger-text { background: none; border: none; color: #c0392b; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 6px; }
+.btn-danger-text:hover { text-decoration: underline; }
+.btn-link-text { background: none; border: none; color: var(--tech-blue); font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 6px; }
+.btn-link-text:hover { text-decoration: underline; }
+
+.geocode-result {
+  background: var(--soft-grey);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  margin-top: 12px;
+}
+.geocode-result.hidden { display: none; }
+.geocode-result-address { font-weight: 600; color: var(--heading); margin-bottom: 2px; }
+.geocode-result-coords { color: var(--text-muted); font-size: 0.78rem; }
+.geocode-map { width: 100%; height: 200px; border-radius: 10px; margin-top: 10px; border: 1px solid var(--border); }
+
+.osm-attribution { font-size: 0.7rem; color: var(--text-muted); margin-top: 8px; }
+
+.form-actions { display: flex; gap: 10px; margin-top: 18px; }
+.form-status { font-size: 0.82rem; margin-top: 10px; }
+.form-status.error { color: #c0392b; }
+.form-status.success { color: #157347; }
+
+.type-toggle { display: flex; gap: 8px; }
+.type-toggle label {
+  flex: 1;
+  text-align: center;
+  padding: 9px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.type-toggle input { display: none; }
+.type-toggle input:checked + span { color: #fff; }
+.type-toggle label:has(input:checked),
+.type-toggle label.selected { background: var(--tech-blue); border-color: var(--tech-blue); color: #fff; }
+
+.hidden { display: none !important; }
