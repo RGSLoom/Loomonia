@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=10" />
+<link rel="stylesheet" href="css/style.css?v=11" />
 </head>
 <body>
 
@@ -59,9 +59,9 @@
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8Z"/><path d="M14 3v5h5M8 13h8M8 17h8M8 9h3"/></svg>
         <span class="nav-label">Abrechnungen</span>
       </button>
-      <button id="nav-reset-data" class="nav-item nav-danger">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg>
-        <span class="nav-label">Testdaten zurücksetzen</span>
+      <button class="nav-item" data-target="panel-einstellungen">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/></svg>
+        <span class="nav-label">Einstellungen</span>
       </button>
     </nav>
   </aside>
@@ -272,11 +272,40 @@
       </div>
     </section>
 
+    <!-- ============ EINSTELLUNGEN ============ -->
+    <section id="panel-einstellungen" class="view-panel">
+      <header class="content-header">
+        <div>
+          <h1>Einstellungen</h1>
+          <p class="content-sub">Verwaltung der Demo-Daten für diesen Store</p>
+        </div>
+      </header>
+
+      <div class="data-card">
+        <div class="data-card-title">Testdaten zurücksetzen</div>
+        <p class="data-card-sub">Setzt Spielerzahlen, vergebene Items, Bon-Scans und die daraus berechneten Umsatzzahlen auf null zurück — z.B. vor einem neuen Pitch. Betrifft ausschließlich Aktivitätsdaten. Angelegte Standorte (Standortverwaltung) bleiben davon in jedem Fall unberührt.</p>
+
+        <div id="reset-step-initial">
+          <button id="btn-reset-open" class="reset-btn">Testdaten zurücksetzen</button>
+        </div>
+
+        <div id="reset-step-confirm" class="reset-confirm-box hidden">
+          <p class="reset-confirm-text">Wirklich ALLE Aktivitätsdaten (Spieler, Items, Bon-Scans, Umsatz) unwiderruflich löschen? Store-Standorte bleiben in jedem Fall erhalten.</p>
+          <div class="reset-confirm-actions">
+            <button id="btn-reset-confirm" class="reset-btn-danger">Ja, zurücksetzen</button>
+            <button id="btn-reset-cancel" class="reset-btn-cancel">Abbrechen</button>
+          </div>
+        </div>
+
+        <div id="reset-status" class="reset-status"></div>
+      </div>
+    </section>
+
   </main>
 </section>
 
-<script src="../js/supabase-config.js?v=10"></script>
-<script src="js/stores-config.js?v=10"></script>
-<script src="js/dashboard.js?v=10"></script>
+<script src="../js/supabase-config.js?v=11"></script>
+<script src="js/stores-config.js?v=11"></script>
+<script src="js/dashboard.js?v=11"></script>
 </body>
 </html>

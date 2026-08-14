@@ -142,9 +142,6 @@ h1, h2, h3 { font-family: var(--font-heading); color: var(--heading); }
 .nav-item.active { background: var(--tech-blue); color: #fff; font-weight: 700; }
 .nav-item.nav-disabled { opacity: 0.55; cursor: not-allowed; }
 .nav-item.nav-disabled:hover { background: none; color: #cfdaea; }
-.nav-item.nav-danger { color: #f3b4b4; margin-top: auto; }
-.nav-item.nav-danger:hover { background: rgba(220,38,38,0.18); color: #fff; }
-.nav-item.nav-danger:disabled { opacity: 0.5; cursor: not-allowed; }
 .soon-tag {
   font-size: 0.62rem;
   font-weight: 700;
@@ -268,6 +265,59 @@ h1, h2, h3 { font-family: var(--font-heading); color: var(--heading); }
 .info-card-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
 
 .hidden { display: none !important; }
+
+.reset-btn {
+  background: #fff;
+  border: 1px solid #f3b4b4;
+  color: #c0392b;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.reset-btn:hover { background: #fdecea; }
+.reset-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.reset-confirm-box {
+  background: #fff5f5;
+  border: 1px solid #f3b4b4;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 12px;
+}
+.reset-confirm-text { color: var(--dark-navy); font-size: 0.88rem; margin: 0 0 14px; line-height: 1.5; }
+.reset-confirm-actions { display: flex; gap: 10px; }
+.reset-btn-danger {
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.reset-btn-danger:hover { background: #a93226; }
+.reset-btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+.reset-btn-cancel {
+  background: var(--soft-grey);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.reset-btn-cancel:hover { background: #e9ecf1; }
+
+.reset-status { font-size: 0.85rem; margin-top: 12px; }
+.reset-status.error { color: #c0392b; }
+.reset-status.success { color: #157347; }
 
 .data-card {
   background: var(--card);

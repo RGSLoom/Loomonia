@@ -426,23 +426,44 @@ function renderChart(svg, days, series) {
   svg.innerHTML = `${gridLines}${paths}${xLabels}`;
 }
 
-// Loescht ALLE Events (alle Stores, nicht nur den aktuell ausgewaehlten) —
-// gedacht, um vor einem echten Pitch die Test-/Demo-Daten aus den
-// vorherigen Testlaeufen zu entfernen, damit die Zahlen wieder bei Null
-// anfangen. ts=lt.<weit in der Zukunft> statt eines Primary-Key-Filters,
-// da wir den genauen Spaltennamen der ID nicht kennen, "ts" aber ueberall
-// sonst schon verwendet wird und garantiert auf jede Zeile zutrifft.
-async function resetTestData() {
-  const confirmed = confirm(
-    "Wirklich ALLE Test-Events (Spieler, Items, Bon-Scans, Umsatz) unwiderruflich löschen?\n\nBetrifft alle Stores, nicht nur den aktuell ausgewählten. Danach starten alle Zahlen wieder bei Null."
-  );
-  if (!confirmed) return;
+// Aktivitaets-Reset (Einstellungen-Panel): loescht AUSSCHLIESSLICH die
+// "events"-Tabelle (Spieler, Items, Bon-Scans, daraus berechneter Umsatz).
+// Die "locations"-Tabelle (Standortverwaltung, dashboard/standorte.html)
+// wird hier nie referenziert und bleibt in jedem Fall unangetastet — die
+// dort angelegten Standorte sind pro Pitch bewusst dauerhaft.
+//
+// Zweistufige Bestaetigung als eigenes UI-Element im Panel statt
+// window.confirm(): natives confirm() wird auf manchen Geraeten/Browsern
+// (z.B. eingebettete/PWA-Kontexte) automatisch verworfen, ohne dass der
+// Nutzer etwas davon sieht -> die Funktion brach dann lautlos ab, was wie
+// "Button tut nichts" wirkte. Mit einer eigenen Bestaetigungs-Box im Panel
+// gibt es dieses Risiko nicht mehr.
+//
+// ts=lt.<weit in der Zukunft> statt eines Primary-Key-Filters, da wir den
+// genauen Spaltennamen der ID nicht kennen, "ts" aber garantiert auf jede
+// Zeile zutrifft.
+function openResetConfirm() {
+  document.getElementById("reset-step-initial").classList.add("hidden");
+  document.getElementById("reset-step-confirm").classList.remove("hidden");
+  setResetStatus("", "");
+}
 
-  const btn = document.getElementById("nav-reset-data");
-  const label = btn.querySelector(".nav-label");
-  const originalText = label.textContent;
+function cancelResetConfirm() {
+  document.getElementById("reset-step-confirm").classList.add("hidden");
+  document.getElementById("reset-step-initial").classList.remove("hidden");
+}
+
+function setResetStatus(msg, kind) {
+  const el = document.getElementById("reset-status");
+  el.textContent = msg || "";
+  el.className = "reset-status" + (kind ? " " + kind : "");
+}
+
+async function confirmResetTestData() {
+  const btn = document.getElementById("btn-reset-confirm");
+  const originalText = btn.textContent;
   btn.disabled = true;
-  label.textContent = "Lösche…";
+  btn.textContent = "Lösche…";
 
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/events?ts=lt.2099-01-01T00:00:00Z`, {
@@ -458,16 +479,16 @@ async function resetTestData() {
       throw new Error(`${res.status} ${res.statusText}${body ? " – " + body : ""}`);
     }
     loadStats(sessionStorage.getItem(STORE_KEY) || "all");
-    alert("Testdaten wurden zurückgesetzt.");
+    cancelResetConfirm();
+    setResetStatus("Testdaten wurden zurückgesetzt.", "success");
   } catch (err) {
-    alert(
-      "Zurücksetzen fehlgeschlagen: " +
-        (err && err.message ? err.message : err) +
-        "\n\nMögliche Ursache: Die Supabase-Tabelle \"events\" erlaubt dem öffentlichen API-Key evtl. kein DELETE (Row-Level-Security-Policy) — das müsste einmalig in Supabase freigeschaltet werden."
+    setResetStatus(
+      "Zurücksetzen fehlgeschlagen: " + (err && err.message ? err.message : err),
+      "error"
     );
   } finally {
     btn.disabled = false;
-    label.textContent = originalText;
+    btn.textContent = originalText;
   }
 }
 
@@ -479,7 +500,9 @@ async function resetTestData() {
 // sammelt. Die Auswahl-Funktionen bleiben im Code fuer spaeter, werden nur
 // nicht mehr verdrahtet/angezeigt.
 function init() {
-  document.getElementById("nav-reset-data").onclick = resetTestData;
+  document.getElementById("btn-reset-open").onclick = openResetConfirm;
+  document.getElementById("btn-reset-confirm").onclick = confirmResetTestData;
+  document.getElementById("btn-reset-cancel").onclick = cancelResetConfirm;
   document.querySelectorAll(".nav-item[data-target]").forEach((btn) => {
     btn.onclick = () => {
       document.querySelectorAll(".nav-item[data-target]").forEach((b) => b.classList.remove("active"));
