@@ -1,20 +1,14 @@
-// Passwortsperre fuer dashboard/standorte.html. Nutzt denselben gemeinsamen
-// Passwort-Hash wie dashboard/index.html (siehe admin-auth-shared.js) --
-// einmal auf einem Geraet eingegeben, entsperrt es beide Dashboards.
-//
-// Ersetzt die fruehere "wer als Erstes kommt legt das Passwort fest"-Logik:
-// der Hash wird jetzt bei jedem Schreiben/Loeschen an die Edge Function
-// locations-admin geschickt und DORT serverseitig gegen das Secret
-// ADMIN_PASSWORD_HASH geprueft (siehe supabase/functions/_shared/admin-auth.ts).
-// Ein falsches Passwort kann also wirklich nichts mehr schreiben, nicht nur
-// die UI nicht sehen -- die zugrunde liegende Tabelle "locations" nimmt
-// Schreibzugriffe vom oeffentlichen anon-Key seit dem RLS-Lockdown gar
-// nicht mehr an (siehe supabase/rls_lockdown.sql).
+// Passwortsperre fuers Haupt-Dashboard (dashboard/index.html, Umsatz-/
+// Events-Ansicht) -- war bisher komplett ungeschuetzt und fuer jeden mit der
+// URL einsehbar. Nutzt denselben Mechanismus wie dashboard/standorte.html:
+// Passwort-Hash lokal merken, aber echte Pruefung passiert serverseitig in
+// den Edge Functions (siehe admin-auth-shared.js). Bewusst weiterhin KEIN
+// echtes Login-System mit eigenen Nutzerkonten -- das bleibt eine separate,
+// groessere Aufgabe.
 
 function showAdminScreen() {
   document.getElementById("screen-lock").style.display = "none";
-  document.getElementById("screen-admin").classList.remove("hidden");
-  document.dispatchEvent(new CustomEvent("standorte-unlocked"));
+  document.dispatchEvent(new CustomEvent("dashboard-unlocked"));
 }
 
 function setLockError(msg) {
@@ -24,9 +18,12 @@ function setLockError(msg) {
 }
 
 // Von fetchWithAdminAuth() aufgerufen, wenn eine Edge Function den
-// gespeicherten Hash ablehnt (401).
+// gespeicherten Hash ablehnt (401) -- Sperre wieder anzeigen, Store-
+// Auswahl/Dashboard-Screens verstecken, bis erneut ein (hoffentlich
+// richtiges) Passwort eingegeben wurde.
 window.reshowAdminLock = function (message) {
-  document.getElementById("screen-admin").classList.add("hidden");
+  document.getElementById("screen-select").style.display = "none";
+  document.getElementById("screen-dashboard").style.display = "none";
   document.getElementById("screen-lock").style.display = "flex";
   setLockError(message || "");
 };
@@ -50,4 +47,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (getAdminHash()) {
     showAdminScreen();
   }
+  // Ohne gespeicherten Hash bleibt #screen-lock einfach sichtbar (Standard-
+  // Zustand im HTML) -- kein extra Aufruf noetig.
 });

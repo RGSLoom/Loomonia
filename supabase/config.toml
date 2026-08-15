@@ -1,0 +1,7 @@
+project_id = "oztsymfskxaeonxqggfb"
+
+[functions.locations-admin]
+verify_jwt = false
+
+[functions.events-admin]
+verify_jwt = false

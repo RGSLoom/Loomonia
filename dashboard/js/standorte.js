@@ -183,12 +183,14 @@ async function onSaveClick() {
   btn.disabled = true;
   btn.textContent = "Speichere…";
   try {
-    const res = await fetch(LOCATIONS_TABLE_URL, {
+    // Schreibt ueber die Edge Function locations-admin (Service-Role-Key) statt
+    // direkt mit dem anon-Key -- die "locations"-Tabelle nimmt Schreibzugriffe
+    // vom anon-Key seit dem RLS-Lockdown nicht mehr an (siehe
+    // supabase/rls_lockdown.sql).
+    const res = await fetchWithAdminAuth(LOCATIONS_ADMIN_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         Prefer: "resolution=merge-duplicates,return=representation",
       },
       body: JSON.stringify(row),
@@ -238,13 +240,9 @@ async function onDeleteClick(row) {
   const confirmed = confirm(`„${row.name}“ (${row.id}) wirklich unwiderruflich löschen?`);
   if (!confirmed) return;
   try {
-    const res = await fetch(`${LOCATIONS_TABLE_URL}?id=eq.${encodeURIComponent(row.id)}`, {
+    const res = await fetchWithAdminAuth(`${LOCATIONS_ADMIN_URL}?id=eq.${encodeURIComponent(row.id)}`, {
       method: "DELETE",
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Prefer: "return=minimal",
-      },
+      headers: { Prefer: "return=minimal" },
     });
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     if (editingId === row.id) resetForm();

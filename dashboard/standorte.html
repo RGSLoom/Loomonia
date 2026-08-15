@@ -14,11 +14,11 @@
 </head>
 <body>
 
-<!-- Passwortsperre — siehe js/standorte-auth.js. Bewusst kein echtes Login-
-     system, nur eine Huerde gegen zufaelliges Finden dieser (nicht
-     verlinkten) Seite. Echter Schutz muss spaeter ueber Supabase RLS +
-     echte Nutzerrollen kommen, siehe Hinweis unten und in
-     supabase/locations_setup.sql. -->
+<!-- Passwortsperre — siehe js/standorte-auth.js. Der Hash wird serverseitig
+     in der Edge Function locations-admin geprueft (siehe
+     supabase/functions/README.md), ist also eine echte Zugriffskontrolle
+     fuer Schreibzugriffe -- aber weiterhin ein gemeinsames Passwort ohne
+     eigene Nutzerkonten, kein vollstaendiges Login-/Rollenkonzept. -->
 <section id="screen-lock" class="lock-screen">
   <div class="lock-card">
     <div class="select-logo">Loomonia</div>
@@ -27,7 +27,7 @@
     <input type="password" id="lock-password" placeholder="Passwort" autocomplete="off" />
     <button id="lock-submit" class="btn btn-primary" style="width:100%">Entsperren</button>
     <p id="lock-error" class="lock-error hidden"></p>
-    <p class="lock-hint">Nur ein einfacher Zugriffsschutz auf UI-Ebene, kein vollständiges Login-System — nicht für vertrauliche Daten geeignet.</p>
+    <p class="lock-hint">Gemeinsames Admin-Passwort für beide Dashboards, kein vollständiges Login-System mit eigenen Nutzerkonten.</p>
   </div>
 </section>
 
@@ -36,7 +36,7 @@
   <header class="admin-header">
     <h1>Standortverwaltung</h1>
     <p class="content-sub">Neue Store- und Orientierungs-Standorte anlegen — schreibt direkt in die Supabase-Tabelle „locations“, aus der das Spiel seine Kartenpunkte lädt.</p>
-    <div class="admin-warning">Nur für den internen Gebrauch. Diese Seite ist nicht in der Store-Partner-Navigation verlinkt und nur einfach passwortgeschützt — keine echte Zugriffskontrolle.</div>
+    <div class="admin-warning">Nur für den internen Gebrauch. Diese Seite ist nicht in der Store-Partner-Navigation verlinkt.</div>
   </header>
 
   <div class="data-card">
@@ -116,6 +116,7 @@
 
 <script src="../js/supabase-config.js?v=2"></script>
 <script src="js/stores-config.js?v=2"></script>
+<script src="js/admin-auth-shared.js?v=2"></script>
 <script src="js/standorte-auth.js?v=2"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="js/standorte.js?v=2"></script>

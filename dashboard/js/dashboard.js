@@ -104,25 +104,23 @@ function loadStoreIdentity() {
     .catch(() => {});
 }
 
+// Liest ueber die Edge Function events-admin statt direkt gegen die Tabelle
+// (siehe supabase/functions/events-admin/) -- der anon-Key darf events seit
+// dem RLS-Lockdown nicht mehr lesen, nur noch neue Zeilen anlegen.
 function fetchEvents(storeKey) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - (DAYS_WINDOW - 1));
   cutoff.setHours(0, 0, 0, 0);
 
   let url =
-    `${SUPABASE_URL}/rest/v1/events?select=type,player_id,ts,item_key,amount_cents` +
+    `${EVENTS_ADMIN_URL}?select=type,player_id,ts,item_key,amount_cents` +
     `&ts=gte.${encodeURIComponent(cutoff.toISOString())}&order=ts.asc&limit=10000`;
   if (storeKey !== "all") {
     url += `&category=eq.${encodeURIComponent(storeKey)}`;
   }
 
-  return fetch(url, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-  }).then((r) => {
-    if (!r.ok) throw new Error(`Supabase request failed: ${r.status}`);
+  return fetchWithAdminAuth(url).then((r) => {
+    if (!r.ok) throw new Error(`Events-Function-Aufruf fehlgeschlagen: ${r.status}`);
     return r.json();
   });
 }
@@ -133,19 +131,14 @@ function fetchEvents(storeKey) {
 // fetchEvents(), da dort nur die letzten DAYS_WINDOW Tage geladen werden.
 function fetchAllTimeTotals(storeKey) {
   let url =
-    `${SUPABASE_URL}/rest/v1/events?select=type,player_id,amount_cents` +
+    `${EVENTS_ADMIN_URL}?select=type,player_id,amount_cents` +
     `&type=in.(item_receipt_scanned,trophy_unlocked)&limit=50000`;
   if (storeKey !== "all") {
     url += `&category=eq.${encodeURIComponent(storeKey)}`;
   }
 
-  return fetch(url, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-  }).then((r) => {
-    if (!r.ok) throw new Error(`Supabase request failed: ${r.status}`);
+  return fetchWithAdminAuth(url).then((r) => {
+    if (!r.ok) throw new Error(`Events-Function-Aufruf fehlgeschlagen: ${r.status}`);
     return r.json();
   });
 }
@@ -466,13 +459,9 @@ async function confirmResetTestData() {
   btn.textContent = "Lösche…";
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/events?ts=lt.2099-01-01T00:00:00Z`, {
+    const res = await fetchWithAdminAuth(`${EVENTS_ADMIN_URL}?ts=lt.2099-01-01T00:00:00Z`, {
       method: "DELETE",
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Prefer: "return=minimal",
-      },
+      headers: { Prefer: "return=minimal" },
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
@@ -516,4 +505,6 @@ function init() {
   showDashboard("all");
 }
 
-document.addEventListener("DOMContentLoaded", init);
+// Erst nach Entsperren der Passwortsperre starten (siehe dashboard-auth.js) --
+// vorher darf gar nicht erst versucht werden, Daten zu laden.
+document.addEventListener("dashboard-unlocked", init);
