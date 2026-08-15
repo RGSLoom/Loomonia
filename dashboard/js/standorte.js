@@ -258,12 +258,144 @@ function formatUpdatedAt(ts) {
     " " + new Date(ts).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 }
 
+// Magic-Link-Zugangscodes fuer die rein lesende Store-Partner-Ansicht
+// (dashboard/store-view.html) -- komplett getrennte Tabelle/Functions, siehe
+// supabase/store_links_setup.sql und supabase/functions/store-links-admin/.
+// Einmal pro Laden der Standortliste komplett abgerufen (ein Request statt
+// einem pro Zeile) und ueber location_id nachgeschlagen.
+function buildStoreViewUrl(token) {
+  return new URL("store-view.html", window.location.href).href + `?token=${encodeURIComponent(token)}`;
+}
+
+// Darf die Standortliste nie blockieren, auch wenn store-links-admin gerade
+// nicht erreichbar ist (z.B. noch nicht deployed, kurz offline) -- dann
+// zeigt jede Store-Zeile einfach "Link erzeugen" statt eines bestehenden
+// Links, der Rest der Tabelle laedt trotzdem normal.
+async function fetchStoreLinks() {
+  try {
+    const res = await fetchWithAdminAuth(`${STORE_LINKS_ADMIN_URL}`, { method: "GET" });
+    if (!res.ok) return {};
+    const rows = await res.json();
+    const map = {};
+    rows.forEach((row) => { map[row.location_id] = row; });
+    return map;
+  } catch (err) {
+    return {};
+  }
+}
+
+async function generateStoreLink(locationId, btn) {
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Erzeuge…";
+  try {
+    const res = await fetchWithAdminAuth(STORE_LINKS_ADMIN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ location_id: locationId }),
+    });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    loadLocations();
+  } catch (err) {
+    alert("Link konnte nicht erzeugt werden: " + (err.message || err));
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+async function revokeStoreLink(locationId, name) {
+  const confirmed = confirm(`Link für „${name}“ wirklich deaktivieren? Der bisherige Link funktioniert danach nicht mehr.`);
+  if (!confirmed) return;
+  try {
+    const res = await fetchWithAdminAuth(`${STORE_LINKS_ADMIN_URL}?location_id=${encodeURIComponent(locationId)}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    loadLocations();
+  } catch (err) {
+    alert("Link konnte nicht deaktiviert werden: " + (err.message || err));
+  }
+}
+
+// Baut die "Link"-Zelle einer Store-Zeile: ohne Link ein einzelner
+// "Link erzeugen"-Button, mit Link die URL (zum manuellen Markieren/
+// Kopieren) plus "Kopieren"/"Neu erzeugen"/"Deaktivieren". Landmarks haben
+// keine Kategorie und damit keine sinnvolle Store-View -> immer "–".
+function buildLinkCell(row, linkInfo) {
+  const cell = document.createElement("div");
+  cell.style.display = "flex";
+  cell.style.flexDirection = "column";
+  cell.style.gap = "6px";
+  cell.style.alignItems = "flex-start";
+  cell.style.maxWidth = "220px";
+
+  if (row.type !== "store") {
+    cell.textContent = "–";
+    return cell;
+  }
+
+  if (!linkInfo) {
+    const genBtn = document.createElement("button");
+    genBtn.className = "btn-link-text";
+    genBtn.textContent = "Link erzeugen";
+    genBtn.onclick = () => generateStoreLink(row.id, genBtn);
+    cell.appendChild(genBtn);
+    return cell;
+  }
+
+  const url = buildStoreViewUrl(linkInfo.access_token);
+  const urlField = document.createElement("input");
+  urlField.type = "text";
+  urlField.readOnly = true;
+  urlField.value = url;
+  urlField.style.width = "100%";
+  urlField.style.fontSize = "0.75rem";
+  urlField.onclick = () => urlField.select();
+  cell.appendChild(urlField);
+
+  const actions = document.createElement("div");
+  actions.style.display = "flex";
+  actions.style.gap = "8px";
+
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "btn-link-text";
+  copyBtn.textContent = "Kopieren";
+  copyBtn.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      copyBtn.textContent = "Kopiert";
+      setTimeout(() => { copyBtn.textContent = "Kopieren"; }, 1500);
+    } catch (e) {
+      urlField.select();
+    }
+  };
+
+  const renewBtn = document.createElement("button");
+  renewBtn.className = "btn-link-text";
+  renewBtn.textContent = "Neu erzeugen";
+  renewBtn.onclick = () => generateStoreLink(row.id, renewBtn);
+
+  const revokeBtn = document.createElement("button");
+  revokeBtn.className = "btn-danger-text";
+  revokeBtn.textContent = "Deaktivieren";
+  revokeBtn.onclick = () => revokeStoreLink(row.id, row.name);
+
+  actions.appendChild(copyBtn);
+  actions.appendChild(renewBtn);
+  actions.appendChild(revokeBtn);
+  cell.appendChild(actions);
+  return cell;
+}
+
 async function loadLocations() {
   const body = document.getElementById("locations-body");
   try {
-    const res = await fetch(`${LOCATIONS_TABLE_URL}?select=*&order=updated_at.desc`, {
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
-    });
+    const [res, storeLinks] = await Promise.all([
+      fetch(`${LOCATIONS_TABLE_URL}?select=*&order=updated_at.desc`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+      }),
+      fetchStoreLinks(),
+    ]);
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     const rows = await res.json();
 
@@ -272,7 +404,7 @@ async function loadLocations() {
 
     body.innerHTML = "";
     if (rows.length === 0) {
-      body.innerHTML = `<tr><td colspan="7" class="empty-note">Noch keine Standorte in Supabase. Solange bleibt das Spiel bei der eingebauten Fallback-Liste (siehe js/data.js).</td></tr>`;
+      body.innerHTML = `<tr><td colspan="8" class="empty-note">Noch keine Standorte in Supabase. Solange bleibt das Spiel bei der eingebauten Fallback-Liste (siehe js/data.js).</td></tr>`;
       return;
     }
 
@@ -292,7 +424,11 @@ async function loadLocations() {
         <td>${coordsLabel}</td>
         <td>${formatUpdatedAt(row.updated_at)}</td>
         <td></td>
+        <td></td>
       `;
+      const linkCell = tr.children[6];
+      linkCell.appendChild(buildLinkCell(row, storeLinks[row.id]));
+
       const actionsCell = tr.lastElementChild;
       const editBtn = document.createElement("button");
       editBtn.className = "btn-link-text";
@@ -307,7 +443,7 @@ async function loadLocations() {
       body.appendChild(tr);
     });
   } catch (err) {
-    body.innerHTML = `<tr><td colspan="7" class="empty-note">Standorte konnten nicht geladen werden: ${err.message || err}. Prüfen, ob supabase/locations_setup.sql bereits ausgeführt wurde.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="8" class="empty-note">Standorte konnten nicht geladen werden: ${err.message || err}. Prüfen, ob supabase/locations_setup.sql bereits ausgeführt wurde.</td></tr>`;
   }
 }
 

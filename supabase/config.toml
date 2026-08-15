@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.events-admin]
 verify_jwt = false
+
+[functions.store-view]
+verify_jwt = false
+
+[functions.store-links-admin]
+verify_jwt = false

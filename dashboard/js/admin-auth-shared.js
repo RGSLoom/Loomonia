@@ -15,6 +15,7 @@
 const ADMIN_HASH_KEY = "loomonia_admin_pw_hash";
 const LOCATIONS_ADMIN_URL = `${SUPABASE_URL}/functions/v1/locations-admin`;
 const EVENTS_ADMIN_URL = `${SUPABASE_URL}/functions/v1/events-admin`;
+const STORE_LINKS_ADMIN_URL = `${SUPABASE_URL}/functions/v1/store-links-admin`;
 
 async function sha256Hex(text) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));

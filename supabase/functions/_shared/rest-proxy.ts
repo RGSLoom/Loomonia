@@ -44,7 +44,13 @@ export async function proxyToTable(
   });
 
   const body = await res.text();
-  return new Response(body, {
+  // 204 (z.B. DELETE mit "Prefer: return=minimal") ist ein "null body
+  // status" -- die Fetch-Spec verbietet dort JEDEN Body im Response-
+  // Konstruktor, auch einen leeren String. Wird das ignoriert, wirft
+  // new Response() eine TypeError und die Function antwortet mit 500 statt
+  // dem eigentlichen Status. Deshalb hier explizit null statt body.
+  const isNullBodyStatus = res.status === 204 || res.status === 205 || res.status === 304;
+  return new Response(isNullBodyStatus ? null : body, {
     status: res.status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
