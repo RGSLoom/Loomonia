@@ -407,7 +407,10 @@ const ITEMS = {
     name: "Lockduft-Flakon",
     rarity: "Episch",
     xp: 120,
-    icon: "assets/generated/item_lockduftflakon.svg",
+    // Ausschnitt aus der echten Karte (assets/items/Lockduft.png) statt des
+    // generischen Platzhalter-SVGs — gleiche Vorgehensweise wie bei den
+    // anderen "..._real.png"-Icons.
+    icon: "assets/generated/icon_lockduftflakon_real.png",
     card: "assets/items/Lockduft.png",
     effect: "Läuft 7 Tage lang, lockt mehr Loomas an",
   },
