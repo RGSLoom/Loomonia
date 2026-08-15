@@ -148,9 +148,9 @@ function attachItemGridHandlers() {
 function showItemDetail(key) {
   const item = ITEMS[key];
   const content = document.getElementById("items-content");
-  // Fuer die 8 Items mit echtem Referenzfoto zeigen wir die echte
-  // Detailkarte 1:1. Fuer neue Items ohne Foto (z.B. Lockduft-Flakon)
-  // bauen wir eine Karte im selben kosmischen Stil aus den Rohdaten.
+  // Fuer Items mit echtem Referenzfoto (item.card) zeigen wir die echte
+  // Detailkarte 1:1. Fuer Items ohne eigenes Kartenfoto bauen wir stattdessen
+  // eine Karte im selben kosmischen Stil aus den Rohdaten.
   const cardHtml = item.card
     ? `<img class="detail-card-full" src="${item.card}" alt="${item.name}" />`
     : `<div class="detail-card-synthetic">

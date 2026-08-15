@@ -408,11 +408,7 @@ const ITEMS = {
     rarity: "Episch",
     xp: 120,
     icon: "assets/generated/item_lockduftflakon.svg",
-    // Kein echtes Referenzfoto vorhanden (im Gegensatz zu den anderen 8
-    // Items) — showItemDetail() baut fuer dieses Item deshalb eine
-    // Detailkarte aus Name/Seltenheit/Effekt statt ein echtes Karten-Bild
-    // zu zeigen.
-    card: null,
+    card: "assets/items/Lockduft.png",
     effect: "Läuft 7 Tage lang, lockt mehr Loomas an",
   },
 };
