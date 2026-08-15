@@ -314,20 +314,43 @@ function attachTrophiesGridHandlers() {
   });
 }
 
+// Item-Belohnung einer Trophaee als Vorschau-Karte(n) — entweder ein festes
+// Item (trophy.itemKey) oder mehrere zufaellige Items aus einem Pool
+// (trophy.randomItemPool + randomItemCount, siehe claimTrophy() in
+// js/state.js und TROPHIES in js/data.js).
+function renderTrophyRewardHtml(trophy) {
+  if (trophy.itemKey) {
+    const item = ITEMS[trophy.itemKey];
+    return `<div class="trophy-reward-item">
+        <img src="${item.icon}" alt="${item.name}" />
+        <div class="trophy-reward-item-info">
+          <div class="trophy-reward-item-name">${item.name}</div>
+          <span class="rarity-pill" style="background:${RARITY_COLORS[item.rarity]}">${item.rarity}</span>
+        </div>
+      </div>`;
+  }
+  if (trophy.randomItemPool) {
+    const options = trophy.randomItemPool
+      .map((key) => {
+        const item = ITEMS[key];
+        return `<div class="trophy-reward-mini">
+          <img src="${item.icon}" alt="${item.name}" />
+          <span>${item.name}</span>
+        </div>`;
+      })
+      .join("");
+    return `<div class="trophy-reward-random">
+      <div class="trophy-reward-random-label">${trophy.randomItemCount}× zufällig aus:</div>
+      <div class="trophy-reward-random-options">${options}</div>
+    </div>`;
+  }
+  return "";
+}
+
 function showTrophyDetail(key) {
   const trophy = TROPHIES[key];
   const content = document.getElementById("trophies-content");
   const tierLabel = trophy.tier.charAt(0).toUpperCase() + trophy.tier.slice(1);
-  const rewardItem = trophy.itemKey ? ITEMS[trophy.itemKey] : null;
-  const itemRewardHtml = rewardItem
-    ? `<div class="trophy-reward-item">
-        <img src="${rewardItem.icon}" alt="${rewardItem.name}" />
-        <div class="trophy-reward-item-info">
-          <div class="trophy-reward-item-name">${rewardItem.name}</div>
-          <span class="rarity-pill" style="background:${RARITY_COLORS[rewardItem.rarity]}">${rewardItem.rarity}</span>
-        </div>
-      </div>`
-    : "";
   content.innerHTML = `
     <button class="back-btn" id="btn-trophy-detail-back" style="margin-bottom:12px;">← Übersicht</button>
     <div class="detail-card-synthetic">
@@ -336,7 +359,7 @@ function showTrophyDetail(key) {
       <svg class="icon detail-card-icon trophy-detail-icon" viewBox="0 0 24 24" aria-hidden="true" style="color:${TROPHY_TIER_COLORS[trophy.tier]}">${TROPHY_ICON_PATH}</svg>
       <div class="detail-card-effect">${trophy.description}</div>
       <div class="detail-card-hint">Belohnung: +${formatNumber(trophy.xp)} XP</div>
-      ${itemRewardHtml}
+      ${renderTrophyRewardHtml(trophy)}
     </div>`;
   document.getElementById("btn-trophy-detail-back").addEventListener("click", () => {
     content.innerHTML = renderTrophiesGrid();

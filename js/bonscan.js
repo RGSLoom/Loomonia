@@ -240,39 +240,29 @@ function grantReceiptItems(matches, categoryKey, storeText) {
     return { type: "item", itemKey, count, storeText };
   });
 
+  // Bestaetigter Kauf zaehlt fuers "treuer_shopper"-Ziel (5 Bon-Scans),
+  // unabhaengig davon, wie viele/welche Items dieser Scan bringt.
+  incrementReceiptScanCount();
+
   // Erste Tutorial-Quest ("Gehe in einen Laden und kaufe einen Gegenstand")
   // schaltet sich automatisch ueber den allerersten erfolgreichen Bon-Scan
-  // frei — unlockTrophy() ist idempotent, greift also nur einmal pro
-  // Spieler. Reihenfolge der Erfolgsmeldungen ist bewusst so: zuerst das/die
-  // normale(n) Item(s) aus dem Bon (bereits oben in entries), danach die
-  // Trophaee, danach erst deren Item-Belohnung — nicht vermischt.
-  const trophy = TROPHIES.erster_schritt;
-  if (unlockTrophy(trophy.key)) {
-    addXp(trophy.xp);
-    entries.push({ type: "trophy", trophyKey: trophy.key });
-    trackEvent("trophy_unlocked", {
-      storeId: "receipt_scan",
-      category: categoryKey,
-      itemKey: trophy.key,
-      rarity: trophy.tier,
-    });
-
-    const rewardItem = ITEMS[trophy.itemKey];
-    addItem(trophy.itemKey);
-    addXp(rewardItem.xp);
-    entries.push({
-      type: "item",
-      itemKey: trophy.itemKey,
-      count: 1,
-      storeText: `Belohnung der Trophäe „${trophy.name}“ 🏆`,
-    });
-    trackEvent("item_free_received", {
-      storeId: "trophy_reward",
-      category: categoryKey,
-      itemKey: trophy.itemKey,
-      rarity: rewardItem.rarity,
-    });
-
+  // frei — claimTrophy() ist idempotent, greift also nur einmal pro Spieler.
+  // Reihenfolge der Erfolgsmeldungen ist bewusst so: zuerst das/die
+  // normale(n) Item(s) aus dem Bon (bereits oben in entries), danach jede
+  // neu freigeschaltete Trophaee mitsamt ihrer Item-Belohnung.
+  const trophyEntries = [...claimTrophy("erster_schritt"), ...checkPurchaseTrophies()];
+  if (trophyEntries.length > 0) {
+    entries.push(...trophyEntries);
+    trophyEntries
+      .filter((e) => e.type === "trophy")
+      .forEach((e) => {
+        trackEvent("trophy_unlocked", {
+          storeId: "receipt_scan",
+          category: categoryKey,
+          itemKey: e.trophyKey,
+          rarity: TROPHIES[e.trophyKey].tier,
+        });
+      });
     updateCaughtCounter();
     updateQuestButtonVisibility();
   }

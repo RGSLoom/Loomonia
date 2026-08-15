@@ -5,6 +5,13 @@
 // entries: [{ itemKey, storeText }]
 let itemSuccessQueue = [];
 
+// Trophaeen-Erfolgsmeldungen, die nach dem AKTUELLEN Erfolgsscreen noch
+// angehaengt werden sollen — z.B. nach einem Fang (siehe onCatchSuccess()
+// in catchgame.js), dessen eigener Erfolgsscreen (#screen-catch-success)
+// keine eigene Queue hat. btn-catch-continue haengt sie stattdessen an die
+// Item-Erfolgsmeldungs-Queue (#screen-item-success) an.
+let pendingTrophyEntries = [];
+
 function renderItemSuccess(entry, position, total) {
   const progressEl = document.getElementById("item-success-progress");
   progressEl.textContent = total > 1 ? `${position} von ${total}` : "";
@@ -111,7 +118,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.querySelector('#screen-catch [data-close]').addEventListener("click", closeCatchScene);
   document.getElementById("btn-ar-toggle").addEventListener("click", toggleArCamera);
-  document.getElementById("btn-catch-continue").addEventListener("click", () => showScreen("screen-map"));
+  document.getElementById("btn-catch-continue").addEventListener("click", () => {
+    if (pendingTrophyEntries.length > 0) {
+      const entries = pendingTrophyEntries;
+      pendingTrophyEntries = [];
+      showItemSuccessQueue(entries);
+    } else {
+      showScreen("screen-map");
+    }
+  });
 
   // Nachmal-Minigame
   const drawSvg = document.getElementById("draw-svg");

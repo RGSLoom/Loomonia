@@ -36,6 +36,7 @@ function defaultState() {
     storePositions: null, // { [storeKey]: { lat, lon } } — einmalig gesetzt
     playerId: null, // anonyme ID fuers Haendler-Dashboard (siehe tracking.js)
     trophies: {}, // trophyKey -> Freischalt-Zeitstempel (siehe TROPHIES in data.js)
+    receiptScanCount: 0, // Anzahl bestaetigter Bon-Scans insgesamt (fuer "treuer_shopper")
   };
 }
 
@@ -167,6 +168,73 @@ function unlockTrophy(key) {
   gameState.trophies[key] = Date.now();
   saveState();
   return true;
+}
+
+function incrementReceiptScanCount() {
+  gameState.receiptScanCount = (gameState.receiptScanCount || 0) + 1;
+  saveState();
+}
+
+// Schaltet eine Trophaee frei (falls noch nicht geschehen) und vergibt ihre
+// Belohnung: XP immer, plus entweder ein festes Item (trophy.itemKey) oder
+// mehrere zufaellige Items aus einem Pool (trophy.randomItemPool +
+// randomItemCount, siehe TROPHIES in data.js). Gibt die Erfolgsmeldungs-
+// Eintraege zurueck (leer, falls die Trophaee schon freigeschaltet war) —
+// der Aufrufer haengt sie an seine eigene Item-Erfolgsmeldungs-Queue an
+// (siehe grantReceiptItems() bzw. onCatchSuccess()) und kuemmert sich
+// selbst um UI-Refresh/Tracking, damit state.js frei von UI-/Analytics-
+// Aufrufen bleibt.
+function claimTrophy(trophyKey) {
+  const trophy = TROPHIES[trophyKey];
+  if (!unlockTrophy(trophyKey)) return [];
+
+  addXp(trophy.xp);
+  const entries = [{ type: "trophy", trophyKey }];
+  const rewardText = `Belohnung der Trophäe „${trophy.name}“ 🏆`;
+
+  if (trophy.itemKey) {
+    addItem(trophy.itemKey);
+    addXp(ITEMS[trophy.itemKey].xp);
+    entries.push({ type: "item", itemKey: trophy.itemKey, count: 1, storeText: rewardText });
+  } else if (trophy.randomItemPool) {
+    // Mehrfachtreffer auf dasselbe Item zu einem Stapel zusammenfassen
+    // (analog zu grantReceiptItems() in bonscan.js), statt mehrere separate
+    // Erfolgsmeldungen fuer dasselbe Item zu zeigen.
+    const picks = {};
+    for (let i = 0; i < trophy.randomItemCount; i++) {
+      const key = randomChoice(trophy.randomItemPool);
+      picks[key] = (picks[key] || 0) + 1;
+    }
+    Object.entries(picks).forEach(([key, count]) => {
+      addItem(key, count);
+      addXp(ITEMS[key].xp * count);
+      entries.push({ type: "item", itemKey: key, count, storeText: rewardText });
+    });
+  }
+
+  return entries;
+}
+
+// Nach einem Fang zu pruefen: Anzahl gefangener Wesen je Seltenheitsstufe
+// (ueber alle Arten summiert, nicht verschiedene Arten) gegen die
+// Schwellenwerte der fang-bezogenen Trophaeen.
+function checkCatchTrophies() {
+  const caughtByRarity = (rarity) =>
+    Object.entries(gameState.caughtCreatures)
+      .filter(([key]) => CREATURES[key].rarity === rarity)
+      .reduce((sum, [, count]) => sum + count, 0);
+
+  let entries = [];
+  if (caughtByRarity("Gewöhnlich") >= 5) entries = entries.concat(claimTrophy("wesen_entdecker"));
+  if (caughtByRarity("Selten") >= 10) entries = entries.concat(claimTrophy("seltene_beute"));
+  return entries;
+}
+
+// Nach einem bestaetigten Bon-Scan zu pruefen: Gesamtzahl bestaetigter
+// Kaeufe gegen die Schwelle der kauf-bezogenen Trophaee.
+function checkPurchaseTrophies() {
+  if (gameState.receiptScanCount >= 5) return claimTrophy("treuer_shopper");
+  return [];
 }
 
 // Anonyme, geraetelokale Spieler-ID fuers Haendler-Dashboard (Zaehlung

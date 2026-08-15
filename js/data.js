@@ -114,6 +114,40 @@ const TROPHIES = {
     // diese Trophaee erreichbar statt zufaellig ueber normale Drops.
     itemKey: "armband",
   },
+  wesen_entdecker: {
+    key: "wesen_entdecker",
+    name: "Wesen-Entdecker",
+    tier: "bronze",
+    description: "Fange 5 gewöhnliche Loomas.",
+    xp: 800,
+    // 3 zufaellige Ungewoehnlich-Items statt eines festen (nur 2 Items
+    // dieser Seltenheit existieren, siehe ITEMS) — Dopplungen sind ok und
+    // werden beim Verleihen zu einem Stapel zusammengefasst, siehe
+    // claimTrophy() in js/state.js.
+    randomItemPool: ["energiesnack", "gesundheitspaket"],
+    randomItemCount: 3,
+  },
+  treuer_shopper: {
+    key: "treuer_shopper",
+    name: "Treuer Shopper",
+    tier: "silber",
+    description: "Schließe 5 bestätigte Käufe ab.",
+    xp: 1500,
+    // Episch/Legendaer sind laut Spielspezifikation keine Zufalls-Drops aus
+    // Stores (siehe Kommentar bei ITEMS unten) — hoodie ist deshalb bislang
+    // keinem Store-/Bon-Pool zugeordnet und nur ueber diese Trophaee
+    // erreichbar.
+    itemKey: "hoodie",
+  },
+  seltene_beute: {
+    key: "seltene_beute",
+    name: "Seltene Beute",
+    tier: "gold",
+    description: "Fange 10 seltene Loomas.",
+    xp: 3000,
+    // Ebenfalls bislang keinem Store-/Bon-Pool zugeordnet, siehe oben.
+    itemKey: "lockduftflakon",
+  },
 };
 
 const CREATURES = {

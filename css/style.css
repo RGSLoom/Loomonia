@@ -1053,6 +1053,19 @@ html, body {
 }
 .trophy-reward-item-info { min-width: 0; }
 .trophy-reward-item-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.trophy-reward-random {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--glass-border);
+  text-align: left;
+}
+.trophy-reward-random-label { font-size: 12px; font-weight: 700; opacity: 0.8; margin-bottom: 10px; }
+.trophy-reward-random-options { display: flex; gap: 14px; flex-wrap: wrap; }
+.trophy-reward-mini { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 60px; }
+.trophy-reward-mini img { width: 40px; height: 40px; object-fit: contain; }
+.trophy-reward-mini span { font-size: 10px; text-align: center; opacity: 0.85; line-height: 1.2; }
 
 .danger-btn, .secondary-btn {
   display: block;
