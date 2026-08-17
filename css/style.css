@@ -193,6 +193,29 @@ html, body {
   border: 2px solid var(--cosmic-dark);
 }
 .icon-btn-badge.hidden { display: none; }
+
+/* Muenzen-Zaehler direkt am Avatar (siehe addCoins() in state.js) — bewusst
+   IMMER sichtbar (kein .hidden-Toggle wie beim Rucksack-Badge), da Muenzen
+   im Gegensatz zu Items keine eigene Inventaransicht haben, in der man den
+   Stand sonst nachsehen koennte. */
+.coins-badge {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(10,7,24,0.85);
+  border: 1.5px solid #fbbf24;
+  color: #fbbf24;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
 .hud-icon-decorative { opacity: 0.6; cursor: default; }
 
 .hud-title {
@@ -652,6 +675,14 @@ html, body {
   text-align: center;
   white-space: nowrap;
 }
+.catch-item-btn {
+  position: absolute;
+  top: calc(74% + 54px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+}
+.catch-item-btn.hidden { display: none; }
 
 /* ============ Draw / Nachmal-Minigame ============ */
 .draw-stage {
@@ -820,6 +851,7 @@ html, body {
 }
 .success-trophy-icon svg { width: 72px; height: 72px; color: var(--trophy-color); stroke-width: 1.4; }
 .success-trophy-icon.hidden { display: none; }
+.success-coins-icon { --trophy-color: #fbbf24; font-size: 68px; line-height: 1; }
 .success-progress {
   font-size: 12px;
   font-weight: 600;
@@ -1058,6 +1090,18 @@ html, body {
   object-fit: contain;
   margin-bottom: 18px;
   filter: drop-shadow(0 0 16px rgba(192,132,252,0.5));
+}
+.detail-card-type {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 3px 10px;
+  margin-bottom: 14px;
 }
 .detail-card-effect { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
 .detail-card-hint { font-size: 12px; opacity: 0.7; line-height: 1.4; }

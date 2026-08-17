@@ -157,8 +157,9 @@ function showItemDetail(key) {
         <div class="detail-card-name">${item.name}</div>
         <div class="detail-card-rarity" style="color:${RARITY_COLORS[item.rarity]}">${item.rarity}</div>
         <img src="${item.icon}" alt="${item.name}" class="detail-card-icon" />
+        ${item.type ? `<div class="detail-card-type">${item.type}</div>` : ""}
         <div class="detail-card-effect">${item.effect}</div>
-        <div class="detail-card-hint">Dieses Item kann durch reale Käufe im Handel aktiviert werden.</div>
+        <div class="detail-card-hint">${item.unlockText || "Dieses Item kann durch reale Käufe im Handel aktiviert werden."}</div>
       </div>`;
   const owned = gameState.inventory[key] || 0;
   let deleteBtnHtml = "";

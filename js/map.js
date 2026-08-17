@@ -517,4 +517,6 @@ function updateCaughtCounter() {
   const energy = getEnergy();
   document.getElementById("hud-energy-label").textContent = energy;
   document.getElementById("hud-energy-fill").style.width = `${(energy / ENERGY_MAX) * 100}%`;
+
+  document.getElementById("hud-coins-count").textContent = formatNumber(gameState.coins || 0);
 }

@@ -25,6 +25,11 @@ const BAR_DURATION_MS_BY_RARITY = {
   "Selten": 620,
 };
 
+// Ruhepulver (siehe ITEMS.ruhepulver): verlangsamt die Fangleiste fuer den
+// Rest der aktuellen Fangbegegnung um diesen Faktor (>1 = langsamer = mehr
+// Reaktionszeit), siehe useRuhepulver() in js/catchgame.js.
+const RUHEPULVER_SLOWDOWN_FACTOR = 1.6;
+
 const DRAW_CONFIG = {
   viewBox: 220,
   toleranceRadius: 32,
@@ -414,7 +419,304 @@ const ITEMS = {
     card: "assets/items/Lockduft.png",
     effect: "Läuft 7 Tage lang, lockt mehr Loomas an",
   },
+
+  // ============ Item-Briefing (18 neue Items) ============
+  // Ab hier: neue Felder gegenueber den 9 Bestandsitems oben (die laut
+  // Briefing in dieser Runde unveraendert bleiben):
+  //   type        "Verbrauchbar" | "Anlegbar"
+  //   unlockType  "standort" (kostenloser Drop, Zeichen-Minispiel) |
+  //               "kauf" (nur per Bon-Scan/echtem Kauf)
+  //   unlockText  Anzeigetext fuer die Item-Detailkarte (siehe profile.js)
+  // Die urspruenglich hier geplante "Gluecksmuenze" ist KEIN Item mehr,
+  // sondern die neue Waehrung "Muenzen" (siehe addCoins() in js/state.js,
+  // BANK_DROP_COINS_MIN/MAX + BONSCAN_COINS_MIN/MAX unten) — HUD-Anzeige am
+  // Avatar statt Inventar-Karte.
+  // Icons sind bewusst ein gemeinsames generisches Platzhalter-SVG — jedes
+  // Item hat sein eigenes `icon`-Feld, finale Grafiken lassen sich also pro
+  // Item einzeln eintragen, ohne die Datenstruktur anzufassen. `card` bleibt
+  // absichtlich weg, damit die synthetische Detailkarte (profile.js
+  // showItemDetail) genutzt wird statt eines Kartenfotos.
+  wasserflasche: {
+    key: "wasserflasche",
+    name: "Wasserflasche",
+    rarity: "Gewöhnlich",
+    xp: 15,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "+10 % Energie sofort wiederherstellen",
+    unlockType: "standort",
+    unlockText: "Kostenloser Drop an Standorten",
+  },
+  energieriegel: {
+    key: "energieriegel",
+    name: "Energieriegel",
+    rarity: "Gewöhnlich",
+    xp: 15,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "+5 % XP-Boost für 10 Minuten",
+    unlockType: "standort",
+    unlockText: "Kostenloser Drop an Standorten",
+  },
+  kaffeebecher: {
+    key: "kaffeebecher",
+    name: "Kaffeebecher",
+    rarity: "Gewöhnlich",
+    xp: 15,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "Zeigt Loomas in der Nähe für 10 Minuten an",
+    unlockType: "standort",
+    unlockText: "Kostenloser Drop an Standorten",
+  },
+  schuhe: {
+    key: "schuhe",
+    name: "Schuhe",
+    rarity: "Gewöhnlich",
+    xp: 15,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Anlegbar",
+    effect: "+5 % Fangchance beim Anlegen",
+    unlockType: "standort",
+    unlockText: "Kostenloser Drop an Standorten",
+  },
+  uhr: {
+    key: "uhr",
+    name: "Uhr",
+    rarity: "Gewöhnlich",
+    xp: 15,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Anlegbar",
+    effect: "+5 % XP beim Anlegen",
+    unlockType: "standort",
+    unlockText: "Kostenloser Drop an Standorten",
+  },
+  frischedeo: {
+    key: "frischedeo",
+    name: "Frischedeo",
+    rarity: "Gewöhnlich",
+    xp: 15,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "Lockt 5 Minuten lang leicht mehr Loomas an",
+    unlockType: "standort",
+    unlockText: "Kostenloser Drop an Standorten",
+  },
+  futterportion: {
+    key: "futterportion",
+    name: "Futterportion",
+    rarity: "Gewöhnlich",
+    xp: 15,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "+10 % Fangchance für 5 Minuten",
+    unlockType: "standort",
+    unlockText: "Kostenloser Drop an Standorten",
+  },
+  snackpaket: {
+    key: "snackpaket",
+    name: "Snackpaket",
+    rarity: "Gewöhnlich",
+    xp: 15,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "+5 % XP-Boost für 10 Minuten",
+    unlockType: "standort",
+    unlockText: "Kostenloser Drop an Standorten",
+  },
+  ruhepulver: {
+    key: "ruhepulver",
+    name: "Ruhepulver",
+    rarity: "Gewöhnlich",
+    xp: 15,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "Verlangsamt den Loomas für einen Fangversuch",
+    unlockType: "standort",
+    unlockText: "Kostenloser Drop an Standorten",
+    // Einziges Item mit aktiver UI-Auswahl direkt in der Fangszene (siehe
+    // btn-use-ruhepulver in index.html + useRuhepulver() in catchgame.js)
+    // statt passiver Inventar-Aktivierung wie alle anderen Verbrauchsitems.
+    catchModeItem: true,
+  },
+
+  vitaminsaft: {
+    key: "vitaminsaft",
+    name: "Vitaminsaft",
+    rarity: "Ungewöhnlich",
+    xp: 30,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "+50 % Energie sofort wiederherstellen",
+    unlockType: "kauf",
+    unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+  },
+  energieriegel_plus: {
+    key: "energieriegel_plus",
+    name: "Energieriegel Plus",
+    rarity: "Ungewöhnlich",
+    xp: 30,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "+15 % XP-Boost für 30 Minuten",
+    unlockType: "kauf",
+    unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+  },
+  hose: {
+    key: "hose",
+    name: "Hose",
+    rarity: "Ungewöhnlich",
+    xp: 30,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Anlegbar",
+    effect: "+10 % Fangchance beim Anlegen",
+    unlockType: "kauf",
+    unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+  },
+  oberteil: {
+    key: "oberteil",
+    name: "Oberteil",
+    rarity: "Ungewöhnlich",
+    xp: 30,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Anlegbar",
+    effect: "+10 % XP beim Anlegen",
+    unlockType: "kauf",
+    unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+  },
+  wasserflasche_plus: {
+    key: "wasserflasche_plus",
+    name: "Wasserflasche Plus",
+    rarity: "Ungewöhnlich",
+    xp: 30,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "+30 % Energie sofort wiederherstellen",
+    unlockType: "kauf",
+    unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+  },
+
+  suessigkeit: {
+    key: "suessigkeit",
+    name: "Süßigkeit",
+    rarity: "Selten",
+    xp: 60,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "+20 % XP-Boost für 30 Minuten",
+    unlockType: "kauf",
+    unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+  },
+  stylische_kappe: {
+    key: "stylische_kappe",
+    name: "Stylische Kappe",
+    rarity: "Selten",
+    xp: 60,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Anlegbar",
+    effect: "+10 % Fangchance dauerhaft beim Anlegen",
+    unlockType: "kauf",
+    unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+  },
+  kraeuterelixier: {
+    key: "kraeuterelixier",
+    name: "Kräuterelixier",
+    rarity: "Selten",
+    xp: 60,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Verbrauchbar",
+    effect: "+15 % Fangchance für 30 Minuten",
+    unlockType: "kauf",
+    unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+  },
 };
+
+// ============ Item-Drop-Konfiguration (Standort) ============
+// Zentral konfigurierbare Gewichtung je Seltenheitsstufe fuer den
+// kostenlosen Standort-Drop (Zeichen-Minispiel, siehe grantRandomItemFromStore
+// in drawgame.js).
+const LOCATION_DROP_RARITY_WEIGHTS = {
+  "Gewöhnlich": 55,
+  "Ungewöhnlich": 40,
+  "Selten": 4.9,
+  "Episch": 0.1,
+};
+
+// Bank-Standorte (STORE_CATEGORIES/locations mit categoryKey "bank") geben
+// statt eines normalen Items direkt Muenzen (siehe addCoins() in state.js) —
+// thematisch passender als ein Item und deckt sich mit "Muenzen als
+// zukuenftige Zahlungswaehrung".
+const BANK_DROP_COINS_MIN = 3;
+const BANK_DROP_COINS_MAX = 8;
+
+// Episch/Legendaer-Items, die laut Spielspezifikation NICHT ueber
+// Zufalls-Drops erreichbar sind, sondern exklusiv ueber Trophaeen (siehe
+// TROPHIES oben) — bleiben deshalb aus dem Drop-Pool aussen vor.
+const TROPHY_EXCLUSIVE_ITEM_KEYS = ["armband", "hoodie", "lockduftflakon"];
+
+// Die 9 Bestandsitems haben (bewusst unveraendert) noch kein `unlockType`-
+// Feld — hier per Key-Liste nachgetragen, damit Weiss/Gruen weiterhin wie
+// bisher ueber das Zeichen-Minispiel (Standort) droppen.
+const LEGACY_LOCATION_ITEM_KEYS = ["fruchtkorb", "sprachbuch", "energiesnack", "gesundheitspaket"];
+
+function pickWeightedRarity(weights) {
+  const total = Object.values(weights).reduce((sum, w) => sum + w, 0);
+  let roll = Math.random() * total;
+  for (const [rarity, weight] of Object.entries(weights)) {
+    if (roll < weight) return rarity;
+    roll -= weight;
+  }
+  return Object.keys(weights)[0];
+}
+
+// Seltenheit fuer einen kostenlosen Standort-Drop wuerfeln.
+function getDropRarityStandort() {
+  return pickWeightedRarity(LOCATION_DROP_RARITY_WEIGHTS);
+}
+
+function buildDropPoolByRarity(unlockType, legacyKeys) {
+  const pool = {};
+  Object.values(ITEMS).forEach((item) => {
+    if (TROPHY_EXCLUSIVE_ITEM_KEYS.includes(item.key)) return;
+    if (item.unlockType !== unlockType) return;
+    (pool[item.rarity] = pool[item.rarity] || []).push(item.key);
+  });
+  legacyKeys.forEach((key) => {
+    const item = ITEMS[key];
+    const list = (pool[item.rarity] = pool[item.rarity] || []);
+    if (!list.includes(key)) list.push(key);
+  });
+  return pool;
+}
+
+const LOCATION_DROP_ITEM_POOL = buildDropPoolByRarity("standort", LEGACY_LOCATION_ITEM_KEYS);
+
+// Faellt auf die naechstniedrigere Seltenheitsstufe zurueck, wenn die
+// gewuerfelte Stufe (noch) keine droppfaehigen Items enthaelt (z.B. Episch/
+// Selten aktuell leer im Standort-Pool, siehe TROPHY_EXCLUSIVE_ITEM_KEYS) —
+// damit eine leere Stufe nie zu einem ausbleibenden Drop fuehrt.
+const RARITY_FALLBACK_ORDER = ["Episch", "Selten", "Ungewöhnlich", "Gewöhnlich"];
+function pickItemFromPool(pool, rarity) {
+  let startIdx = RARITY_FALLBACK_ORDER.indexOf(rarity);
+  if (startIdx === -1) startIdx = RARITY_FALLBACK_ORDER.length - 1;
+  for (let i = startIdx; i < RARITY_FALLBACK_ORDER.length; i++) {
+    const candidates = pool[RARITY_FALLBACK_ORDER[i]];
+    if (candidates && candidates.length > 0) return randomChoice(candidates);
+  }
+  return null;
+}
+
+// ============ Bon-Scan-Bonus (nicht eindeutig erkannter Bon) ============
+// Wird kein Store/Artikel-Stichwort auf dem Bon eindeutig erkannt, gibt es
+// statt eines einzelnen Zufalls-Items ein kleines, hart begrenztes
+// Bonuspaket (siehe grantReceiptItems in js/bonscan.js):
+// BONSCAN_UNCLEAR_BONUS_SLOT_COUNT Slots insgesamt, davon IMMER genau einer
+// Muenzen (Zufallsbetrag), der Rest zufaellige weisse Items — bewusst
+// klein/vorhersehbar statt an den Kaufbetrag gekoppelt zu skalieren.
+const BONSCAN_WHITE_BONUS_ITEM_POOL = LOCATION_DROP_ITEM_POOL["Gewöhnlich"];
+const BONSCAN_UNCLEAR_BONUS_SLOT_COUNT = 4;
+const BONSCAN_COINS_MIN = 1;
+const BONSCAN_COINS_MAX = 5;
 
 // Episch/Legendaer sind laut Original-Kartentexten KEINE Zufalls-Drops aus
 // Stores, sondern Belohnungen fuer Trophaeen/seltene Quests (siehe

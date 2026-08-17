@@ -10,7 +10,7 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Store Walk</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.css" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=71" />
+<link rel="stylesheet" href="css/style.css?v=74" />
 </head>
 <body>
 <div id="app">
@@ -27,6 +27,7 @@
         <span class="avatar-dummy">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
         </span>
+        <span id="hud-coins-badge" class="coins-badge" title="Münzen">🪙 <span id="hud-coins-count">0</span></span>
       </button>
       <div class="hud-title">Store Walk</div>
       <button id="btn-quest" class="icon-btn glass action quest-btn" title="Aufgabe">
@@ -109,6 +110,7 @@
         <div id="catch-bar-marker" class="catch-bar-marker"></div>
       </div>
       <div class="catch-hint">Irgendwo tippen zum Fangen!</div>
+      <button id="btn-use-ruhepulver" class="ar-toggle-btn catch-item-btn hidden">💤 Ruhepulver</button>
     </div>
   </section>
 
@@ -161,6 +163,7 @@
       <div id="item-success-trophy-icon" class="success-trophy-icon hidden">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4Z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/></svg>
       </div>
+      <div id="item-success-coins-icon" class="success-trophy-icon success-coins-icon hidden">🪙</div>
       <div id="item-success-name" class="success-name"></div>
       <div id="item-success-rarity" class="success-meta"></div>
       <div id="item-success-store" class="success-store"></div>
@@ -267,18 +270,18 @@
 
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.js"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="js/data.js?v=71"></script>
-<script src="js/utils.js?v=71"></script>
-<script src="js/state.js?v=71"></script>
-<script src="js/supabase-config.js?v=71"></script>
-<script src="js/mapbox-config.js?v=71"></script>
-<script src="js/tracking.js?v=71"></script>
-<script src="js/locations.js?v=71"></script>
-<script src="js/map.js?v=71"></script>
-<script src="js/catchgame.js?v=71"></script>
-<script src="js/drawgame.js?v=71"></script>
-<script src="js/bonscan.js?v=71"></script>
-<script src="js/profile.js?v=71"></script>
-<script src="js/main.js?v=71"></script>
+<script src="js/data.js?v=74"></script>
+<script src="js/utils.js?v=74"></script>
+<script src="js/state.js?v=74"></script>
+<script src="js/supabase-config.js?v=74"></script>
+<script src="js/mapbox-config.js?v=74"></script>
+<script src="js/tracking.js?v=74"></script>
+<script src="js/locations.js?v=74"></script>
+<script src="js/map.js?v=74"></script>
+<script src="js/catchgame.js?v=74"></script>
+<script src="js/drawgame.js?v=74"></script>
+<script src="js/bonscan.js?v=74"></script>
+<script src="js/profile.js?v=74"></script>
+<script src="js/main.js?v=74"></script>
 </body>
 </html>

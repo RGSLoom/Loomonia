@@ -12,6 +12,8 @@ function openCatchSceneForCreature(entry) {
     rafId: null,
     startTime: null,
     isTest: !!entry.isTest,
+    slowFactor: 1,
+    usedRuhepulver: false,
   };
   const creature = CREATURES[creatureKey];
 
@@ -22,8 +24,31 @@ function openCatchSceneForCreature(entry) {
 
   document.getElementById("catch-attempt-label").textContent = "Versuch 1 von 2";
   setupCatchBackground(creature);
+  updateRuhepulverButtonUI();
 
   showScreen("screen-catch");
+  startBarLoop();
+}
+
+// Ruhepulver ist das einzige Item mit aktiver Auswahl direkt in der
+// Fangszene (siehe ITEMS.ruhepulver in js/data.js) — einmal pro Begegnung
+// nutzbar, verlangsamt die Leiste sofort fuer den laufenden Versuch.
+function updateRuhepulverButtonUI() {
+  const btn = document.getElementById("btn-use-ruhepulver");
+  const owned = (gameState.inventory.ruhepulver || 0) > 0;
+  const usable = !!catchState && !catchState.usedRuhepulver && owned;
+  btn.classList.toggle("hidden", !usable);
+  btn.textContent = `💤 Ruhepulver (${gameState.inventory.ruhepulver || 0})`;
+}
+
+function useRuhepulver() {
+  if (!catchState || catchState.usedRuhepulver) return;
+  if ((gameState.inventory.ruhepulver || 0) < 1) return;
+  removeItem("ruhepulver");
+  catchState.usedRuhepulver = true;
+  catchState.slowFactor = RUHEPULVER_SLOWDOWN_FACTOR;
+  updateRuhepulverButtonUI();
+  stopBarLoop();
   startBarLoop();
 }
 
@@ -145,7 +170,8 @@ function startBarLoop() {
   catchState.startTime = performance.now();
   const marker = document.getElementById("catch-bar-marker");
   const creature = CREATURES[catchState.creatureKey];
-  const durationMs = BAR_DURATION_MS_BY_RARITY[creature.rarity] || BAR_CONFIG.durationMs;
+  const baseDurationMs = BAR_DURATION_MS_BY_RARITY[creature.rarity] || BAR_CONFIG.durationMs;
+  const durationMs = baseDurationMs * (catchState.slowFactor || 1);
   const cycleMs = durationMs * 2;
 
   function frame(now) {
@@ -251,6 +277,7 @@ function onCatchSuccess() {
 
   showScreen("screen-catch-success");
   catchState = null;
+  updateRuhepulverButtonUI();
 }
 
 function onCatchFail() {
@@ -258,11 +285,13 @@ function onCatchFail() {
     removeCreature(catchState.entry);
   }
   catchState = null;
+  updateRuhepulverButtonUI();
   showScreen("screen-map");
 }
 
 function closeCatchScene() {
   stopBarLoop();
   catchState = null;
+  updateRuhepulverButtonUI();
   showScreen("screen-map");
 }

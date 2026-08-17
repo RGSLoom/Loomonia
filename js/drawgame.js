@@ -187,7 +187,24 @@ function showDrawFeedback(text, success) {
 function grantRandomItemFromStore(locationId) {
   const location = STORE_LOCATIONS.find((l) => l.id === locationId);
   const category = STORE_CATEGORIES[location.categoryKey];
-  const itemKey = randomChoice(category.itemPool);
+
+  // Sonderregel: Bank-Standorte geben ausschliesslich Muenzen (neue
+  // Waehrung, siehe addCoins() in state.js), nie ein normales Item — alle
+  // anderen Standorttypen ziehen aus einem gemeinsamen, globalen Pool nach
+  // Seltenheit (getDropRarityStandort()) statt aus dem frueheren
+  // branchenspezifischen category.itemPool.
+  if (location.categoryKey === "bank") {
+    const coinAmount = Math.round(randomBetween(BANK_DROP_COINS_MIN, BANK_DROP_COINS_MAX));
+    addCoins(coinAmount);
+    updateCaughtCounter();
+    trackEvent("coins_received", { storeId: locationId, category: location.categoryKey, amount: coinAmount });
+    showItemSuccessQueue([
+      { type: "coins", amount: coinAmount, storeText: `Ihre Bank-Filiale bei ${category.name}` },
+    ]);
+    return;
+  }
+
+  const itemKey = pickItemFromPool(LOCATION_DROP_ITEM_POOL, getDropRarityStandort());
   const item = ITEMS[itemKey];
 
   addItem(itemKey);

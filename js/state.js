@@ -22,6 +22,11 @@ function defaultState() {
     caughtCreatures: {}, // key -> count
     inventory: {}, // itemKey -> count
     shadowEssence: 0,
+    // Neue Waehrung "Muenzen" (siehe addCoins() unten) — bewusst KEIN
+    // Inventar-Item, sondern ein eigener Zaehler mit HUD-Anzeige am Avatar
+    // (siehe hud-coins-badge in index.html), da Muenzen spaeter als
+    // Zahlungswaehrung dienen sollen statt als sammelbares Item.
+    coins: 0,
     settings: {
       skipMinigame: false,
       // AR-Kamera-Hintergrund in der Fangszene — Default aus (Privacy-
@@ -52,6 +57,11 @@ function saveState() {
 
 function addXp(amount) {
   gameState.xp += amount;
+  saveState();
+}
+
+function addCoins(amount) {
+  gameState.coins = (gameState.coins || 0) + amount;
   saveState();
 }
 

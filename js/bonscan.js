@@ -269,34 +269,31 @@ function matchReceiptText(text) {
     matches[hit].lineTexts.push(cleanedLine || null);
   }
 
-  if (Object.keys(matches).length === 0) {
-    // Kein Store und/oder kein Fantasie-Item-Stichwort getroffen — fuer den
-    // Pitch soll das trotzdem ein erfolgreicher Scan sein (Filialen/
-    // Retailer-Zuordnung ist fuer die Demo zweitrangig, siehe Absprache
-    // mit Dirk). Zufaelliges Item aus dem passenden Pool. Fuers Dashboard
-    // trotzdem noch die erste plausible echte Artikelzeile MIT ihrem
-    // eigenen Preis suchen (die Fantasie-Stichwortliste ist eng auf
-    // Spiel-Items zugeschnitten, echte Kassenbons — Markennamen,
-    // Lebensmittel — matchen davon oft nichts, obwohl OCR die Zeile
-    // technisch einwandfrei gelesen hat).
-    const bestLine = findBestProductLine(text);
-    matches[randomChoice(pool)] = {
-      count: 1,
-      amounts: [bestLine ? bestLine.amountCents : null],
-      lineTexts: [bestLine ? bestLine.text : null],
-    };
-  }
-
-  // Kein einziger Preis auf irgendeiner Treffer-Zeile gefunden -> die Bon-
-  // Summe (falls lesbar) EINMALIG dem ersten Item zuschreiben, statt den
-  // Scan ganz ohne Umsatz zu lassen. Nicht auf jedes Item verteilen, sonst
-  // wuerde der Umsatz bei mehreren Treffern vervielfacht.
-  const anyAmountFound = Object.values(matches).some((m) => m.amounts.some((a) => a !== null));
-  if (!anyAmountFound) {
-    const total = findReceiptTotalCents(text);
-    if (total !== null) {
-      const firstKey = Object.keys(matches)[0];
-      matches[firstKey].amounts[0] = total;
+  // Kein Store und/oder kein Fantasie-Item-Stichwort getroffen — die
+  // Artikel auf dem Bon sind damit "nicht eindeutig" identifiziert. Statt
+  // eines starren Fallback-Items gibt es dafuer unten in grantReceiptItems()
+  // ein kleines Zufalls-Bonuspaket (Muenzen + weisse Items, siehe
+  // BONSCAN_UNCLEAR_BONUS_SLOT_COUNT in js/data.js). Fuers Dashboard trotzdem
+  // noch die erste plausible echte Artikelzeile MIT ihrem eigenen Preis
+  // suchen (die Fantasie-Stichwortliste ist eng auf Spiel-Items zugeschnitten,
+  // echte Kassenbons — Markennamen, Lebensmittel — matchen davon oft nichts,
+  // obwohl OCR die Zeile technisch einwandfrei gelesen hat).
+  const isUnclear = Object.keys(matches).length === 0;
+  let bestLine = null;
+  if (isUnclear) {
+    bestLine = findBestProductLine(text);
+  } else {
+    // Kein einziger Preis auf irgendeiner Treffer-Zeile gefunden -> die Bon-
+    // Summe (falls lesbar) EINMALIG dem ersten Item zuschreiben, statt den
+    // Scan ganz ohne Umsatz zu lassen. Nicht auf jedes Item verteilen, sonst
+    // wuerde der Umsatz bei mehreren Treffern vervielfacht.
+    const anyAmountFound = Object.values(matches).some((m) => m.amounts.some((a) => a !== null));
+    if (!anyAmountFound) {
+      const total = findReceiptTotalCents(text);
+      if (total !== null) {
+        const firstKey = Object.keys(matches)[0];
+        matches[firstKey].amounts[0] = total;
+      }
     }
   }
 
@@ -305,15 +302,14 @@ function matchReceiptText(text) {
     : `Echter Kauf erkannt (Retailer nicht gelistet) 🧾`;
 
   setScanStatus("");
-  grantReceiptItems(matches, categoryKey, storeText);
+  grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine);
 }
 
-function grantReceiptItems(matches, categoryKey, storeText) {
+function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine) {
   const entries = Object.entries(matches).map(([itemKey, { count, amounts, lineTexts }]) => {
     const item = ITEMS[itemKey];
     addItem(itemKey, count);
     addXp(item.xp * count);
-    updateCaughtCounter();
     for (let i = 0; i < count; i++) {
       trackEvent("item_receipt_scanned", {
         storeId: "receipt_scan",
@@ -326,6 +322,44 @@ function grantReceiptItems(matches, categoryKey, storeText) {
     }
     return { type: "item", itemKey, count, storeText };
   });
+
+  // Nicht eindeutiger Bon (kein Store/Stichwort erkannt) -> statt eines
+  // einzelnen Zufalls-Items gibt es ein kleines Bonuspaket: ein Slot ist
+  // IMMER Muenzen (neue Waehrung, siehe addCoins() in state.js + HUD-Anzeige
+  // am Avatar), der Rest zufaellige weisse Items (siehe
+  // BONSCAN_WHITE_BONUS_ITEM_POOL in js/data.js). Gleiche Items werden zu
+  // einem Stapel zusammengefasst statt einzeln in der Erfolgs-Queue zu
+  // erscheinen.
+  if (isUnclear) {
+    const coinAmount = Math.round(randomBetween(BONSCAN_COINS_MIN, BONSCAN_COINS_MAX));
+    addCoins(coinAmount);
+    trackEvent("coins_received", { storeId: "receipt_scan", category: categoryKey, amount: coinAmount });
+    entries.push({ type: "coins", amount: coinAmount, storeText: "Bonus für deinen Einkauf 🧾" });
+
+    const bonusCounts = {};
+    for (let i = 0; i < BONSCAN_UNCLEAR_BONUS_SLOT_COUNT - 1; i++) {
+      const key = randomChoice(BONSCAN_WHITE_BONUS_ITEM_POOL);
+      bonusCounts[key] = (bonusCounts[key] || 0) + 1;
+    }
+    let isFirstBonusItem = true;
+    Object.entries(bonusCounts).forEach(([itemKey, count]) => {
+      const item = ITEMS[itemKey];
+      addItem(itemKey, count);
+      addXp(item.xp * count);
+      trackEvent("item_receipt_scanned", {
+        storeId: "receipt_scan",
+        category: categoryKey,
+        itemKey,
+        rarity: item.rarity,
+        amountCents: isFirstBonusItem && bestLine ? bestLine.amountCents : null,
+        productText: isFirstBonusItem && bestLine ? bestLine.text : null,
+      });
+      isFirstBonusItem = false;
+      entries.push({ type: "item", itemKey, count, storeText: "Bonus für deinen Einkauf 🧾" });
+    });
+  }
+
+  updateCaughtCounter();
 
   // Bestaetigter Kauf zaehlt fuers "treuer_shopper"-Ziel (5 Bon-Scans),
   // unabhaengig davon, wie viele/welche Items dieser Scan bringt.

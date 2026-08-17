@@ -19,11 +19,13 @@ function renderItemSuccess(entry, position, total) {
 
   const img = document.getElementById("item-success-img");
   const trophyIcon = document.getElementById("item-success-trophy-icon");
+  const coinsIcon = document.getElementById("item-success-coins-icon");
 
   if (entry.type === "trophy") {
     const trophy = TROPHIES[entry.trophyKey];
     document.getElementById("item-success-banner").textContent = "🏆 Trophäe freigeschaltet!";
     img.classList.add("hidden");
+    coinsIcon.classList.add("hidden");
     trophyIcon.classList.remove("hidden");
     trophyIcon.style.setProperty("--trophy-color", TROPHY_TIER_COLORS[trophy.tier]);
     document.getElementById("item-success-name").textContent = trophy.name;
@@ -36,8 +38,25 @@ function renderItemSuccess(entry, position, total) {
     return;
   }
 
+  // Muenzen sind bewusst KEIN Inventar-Item (siehe addCoins() in state.js) —
+  // eigener Zweig statt einer ITEMS-Karte, Anzeige oben am Avatar-HUD statt
+  // im Rucksack (siehe hud-coins-badge in index.html).
+  if (entry.type === "coins") {
+    document.getElementById("item-success-banner").textContent = "🪙 Münzen erhalten!";
+    img.classList.add("hidden");
+    trophyIcon.classList.add("hidden");
+    coinsIcon.classList.remove("hidden");
+    document.getElementById("item-success-name").textContent = `+${entry.amount} Münzen`;
+    document.getElementById("item-success-rarity").textContent = "";
+    document.getElementById("item-success-store").textContent = entry.storeText || "";
+    document.getElementById("item-success-effect").textContent = `Gesamt: ${formatNumber(gameState.coins || 0)} Münzen`;
+    document.getElementById("item-success-xp").textContent = "";
+    return;
+  }
+
   document.getElementById("item-success-banner").textContent = "✅ Item erhalten!";
   trophyIcon.classList.add("hidden");
+  coinsIcon.classList.add("hidden");
   img.classList.remove("hidden");
   const item = ITEMS[entry.itemKey];
   const count = entry.count || 1;
@@ -113,11 +132,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // Button), das fuehlt sich beim echten Fangen natuerlicher an. Der
   // Schliessen-Button (X) ist davon ausgenommen.
   document.getElementById("screen-catch").addEventListener("click", (e) => {
-    if (e.target.closest(".btn-close") || e.target.closest("#btn-ar-toggle")) return;
+    if (e.target.closest(".btn-close") || e.target.closest("#btn-ar-toggle") || e.target.closest("#btn-use-ruhepulver")) return;
     handleFangenClick();
   });
   document.querySelector('#screen-catch [data-close]').addEventListener("click", closeCatchScene);
   document.getElementById("btn-ar-toggle").addEventListener("click", toggleArCamera);
+  document.getElementById("btn-use-ruhepulver").addEventListener("click", useRuhepulver);
   document.getElementById("btn-catch-continue").addEventListener("click", () => {
     if (pendingTrophyEntries.length > 0) {
       const entries = pendingTrophyEntries;
