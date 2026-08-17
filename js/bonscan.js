@@ -122,6 +122,23 @@ function extractLineAmountCents(line) {
   return Math.round(value * 100);
 }
 
+// Schneidet den Preis (und alles danach, z.B. eine folgende MwSt-Kennung
+// wie "A"/"B") vom Zeilenende ab, bevor eine Zeile als "Produktname" fuers
+// Dashboard gespeichert wird — der Preis steht dort schon separat als
+// Umsatzanteil, im Artikelnamen selbst waere er nur Rauschen (z.B. "Red
+// Bull 250ml 1,99 A" -> "Red Bull 250ml"). Steht der Preis ganz am
+// Zeilenanfang (nichts zum Abschneiden uebrig), bleibt die Zeile
+// unveraendert statt eines leeren Strings.
+function cleanProductNameText(line) {
+  const priceMatches = line.match(RECEIPT_AMOUNT_PATTERN);
+  if (!priceMatches || priceMatches.length === 0) return line;
+  const lastPrice = priceMatches[priceMatches.length - 1];
+  const idx = line.lastIndexOf(lastPrice);
+  if (idx === -1) return line;
+  const before = line.slice(0, idx).trim();
+  return before || line;
+}
+
 // Fuers Pitch/Demo zaehlt vor allem: JEDER lesbare Bon soll erfolgreich
 // scannen und moeglichst einen Preis mitbringen — unabhaengig davon, ob
 // Store oder Artikel-Stichwort erkannt wurden. Bevorzugt die Zeile mit
@@ -180,7 +197,7 @@ function findBestProductLine(text) {
       extractLineAmountCents(lines[i - 1] || "") ??
       extractLineAmountCents(lines[i + 1] || "");
     if (amountCents === null) continue;
-    return { text: line.slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH), amountCents };
+    return { text: cleanProductNameText(line).slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH), amountCents };
   }
   return null;
 }
@@ -236,12 +253,14 @@ function matchReceiptText(text) {
       extractLineAmountCents(lines[i - 1] || "") ??
       extractLineAmountCents(lines[i + 1] || "");
     matches[hit].amounts.push(amount);
-    // Roher, tatsaechlich erkannter Zeilentext fuers Dashboard (Artikel-
-    // Ansicht, siehe grantReceiptItems) — nur die Treffer-Zeile selbst
-    // (nicht die Nachbarzeile wie beim Preis), da das der tatsaechliche
-    // Produktname/-hinweis ist. Gekappt als Schutz gegen ausufernden
+    // Tatsaechlich erkannter Zeilentext fuers Dashboard (Artikel-Ansicht,
+    // siehe grantReceiptItems) — nur die Treffer-Zeile selbst (nicht die
+    // Nachbarzeile wie beim Preis), da das der tatsaechliche Produktname/
+    // -hinweis ist. Preis (falls auf derselben Zeile) wird abgeschnitten —
+    // der steht im Dashboard schon separat als Umsatzanteil, siehe
+    // cleanProductNameText(). Gekappt als Schutz gegen ausufernden
     // OCR-Muell auf schlecht lesbaren Bons.
-    const cleanedLine = line.trim().slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH);
+    const cleanedLine = cleanProductNameText(line.trim()).slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH);
     matches[hit].lineTexts.push(cleanedLine || null);
   }
 
