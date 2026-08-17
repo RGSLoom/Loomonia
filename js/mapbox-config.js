@@ -7,12 +7,25 @@
 // nur eine einzige Anfrage rausgeht.
 const MAPBOX_TOKEN_URL = `${SUPABASE_URL}/functions/v1/mapbox-token`;
 
-// Beide Stile stehen zur Wahl -- aktiv ist aktuell "dunkel" (passt zur
-// bestehenden violett/cyanen "Cosmic"-Bildsprache des Spiels). Zum Wechseln
-// einfach MAP_STYLE auf MAP_STYLE_LIGHT setzen.
+// Automatische Wahl zwischen hell/dunkel anhand der lokalen Geraete-Uhrzeit
+// -- bewusst eine einfache Stundengrenze statt echter Sonnenauf-/
+// -untergangsberechnung (kein Standort/keine zusaetzliche API dafuer noetig,
+// reicht fuer den gewuenschten Tageszeit-Effekt). Wird nur beim Aufbau der
+// Karte einmal ausgewertet (siehe initMap()/initGeocodeMap()) -- ein
+// Stilwechsel waehrend einer laufenden Sitzung wuerde ueber setStyle() einen
+// kompletten Stil-Neuladen ausloesen, der laut Mapbox vermutlich als neuer
+// Kartenaufruf zaehlt (siehe supabase/functions/README.md), das wollen wir
+// nicht ungefragt provozieren.
 const MAP_STYLE_DARK = "mapbox://styles/mapbox/dark-v11";
 const MAP_STYLE_LIGHT = "mapbox://styles/mapbox/light-v11";
-const MAP_STYLE = MAP_STYLE_DARK;
+const DAY_START_HOUR = 6;
+const DAY_END_HOUR = 19;
+
+function currentMapStyle() {
+  const hour = new Date().getHours();
+  const isDay = hour >= DAY_START_HOUR && hour < DAY_END_HOUR;
+  return isDay ? MAP_STYLE_LIGHT : MAP_STYLE_DARK;
+}
 
 let mapboxTokenPromise = null;
 

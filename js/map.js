@@ -25,7 +25,7 @@ async function initMap() {
   // fuer den Pokemon-Go-artigen Effekt (siehe Referenz-Screenshots).
   mapboxMap = new mapboxgl.Map({
     container: "map",
-    style: MAP_STYLE, // js/mapbox-config.js -- hell/dunkel dort umschaltbar
+    style: currentMapStyle(), // js/mapbox-config.js -- automatisch hell/dunkel je nach Uhrzeit
     center: [13.405, 52.52], // Mapbox nutzt [lng, lat], nicht [lat, lng] wie Leaflet
     zoom: 16,
     pitch: 45,

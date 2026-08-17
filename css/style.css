@@ -434,7 +434,14 @@ html, body {
 }
 
 .store-marker {
-  position: relative;
+  /* KEIN eigenes "position" hier setzen: Mapbox haengt jedem Marker-
+     Wurzelelement die Klasse .mapboxgl-marker an (position: absolute, aus
+     mapbox-gl.css), die fuers Positionieren/Verschieben beim Zoomen/Pannen
+     zwingend noetig ist. Ein eigenes position:relative auf demselben
+     Element (gleiche CSS-Spezifitaet, unser Stylesheet laedt spaeter)
+     wuerde das ueberschreiben und die Marker beim Zoomen "wandern" lassen
+     -- absolute ist trotzdem ein gueltiger Bezugsrahmen fuer die absolut
+     positionierten Kinder .store-marker-badge/.marker-tooltip weiter unten. */
   width: 54px;
   height: 54px;
   border-radius: 50%;

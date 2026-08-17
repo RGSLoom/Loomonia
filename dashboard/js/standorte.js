@@ -90,7 +90,7 @@ function initGeocodeMap() {
       mapboxgl.accessToken = token;
       geocodeMap = new mapboxgl.Map({
         container: "geocode-map",
-        style: MAP_STYLE,
+        style: currentMapStyle(),
         center: [7.8496, 48.1198], // Mapbox nutzt [lng, lat], nicht [lat, lng] wie Leaflet
         zoom: 15,
       });
