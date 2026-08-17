@@ -383,6 +383,11 @@ html, body {
 .dev-btn-center { left: 50%; transform: translateX(-50%); }
 .dev-btn-center:active { transform: translateX(-50%) scale(0.9); }
 
+/* Ein-Finger-Halten-und-Ziehen zum Kippen/Drehen (siehe setupOneFingerLook()
+   in js/map.js) -- Cursor-Feedback fuer Desktop-Tests, auf Touch ohne
+   sichtbaren Cursor unschaedlich. */
+.mapboxgl-canvas-container.map-looking { cursor: grabbing; }
+
 /* Mapbox marker helpers */
 /* Spieler-Standort: Punkt + drehbarer Blickrichtungs-Kegel (Pokemon-Go-
    artig). Der Wrapper wird per JS auf playerHeading rotiert (siehe

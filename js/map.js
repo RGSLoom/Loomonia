@@ -36,6 +36,7 @@ async function initMap() {
     new mapboxgl.NavigationControl({ showZoom: false, showCompass: true, visualizePitch: true }),
     "top-right"
   );
+  setupOneFingerLook(mapboxMap);
 
   // Leichter Farbwasch in den App-eigenen Violett-/Cyan-Toenen (siehe
   // .profile-screen), damit die Karte zur restlichen Cosmic-Bildsprache
@@ -52,6 +53,79 @@ async function initMap() {
   storeLocationsReady = loadStoreLocations();
   startGeolocation();
   preloadCreatureIcons();
+}
+
+// Ein-Finger-Geste zum Kippen/Drehen: kurz halten (HOLD_MS, ohne zu
+// verschieben), danach Ziehen -> horizontal dreht (Bearing), vertikal kippt
+// (Pitch). Ersetzt/ergaenzt Mapboxens Standard-Zwei-Finger-Geste, die auf
+// dem Handy nicht selbsterklaerend ist. Normales Ein-Finger-Antippen/
+// -Wischen (ohne vorheriges Halten) bleibt unveraendert normales Pannen,
+// da wir erst NACH Ablauf des Hold-Timers eingreifen. Kommt waehrend des
+// Haltens ein zweiter Finger dazu, brechen wir sofort ab und ueberlassen
+// Mapboxens eigenen Zwei-Finger-Gesten das Feld (Pinch-Zoom etc.).
+function setupOneFingerLook(map) {
+  const canvas = map.getCanvasContainer();
+  const HOLD_MS = 300;
+  const MOVE_CANCEL_PX = 8;
+  const ROTATE_SENSITIVITY = 0.4; // Grad pro Pixel horizontal
+  const PITCH_SENSITIVITY = 0.3; // Grad pro Pixel vertikal
+  const MAX_PITCH = 70;
+
+  const activePointers = new Set();
+  let holdTimer = null;
+  let looking = false;
+  let trackedId = null;
+  let startX, startY, startBearing, startPitch;
+
+  function cancelLook() {
+    clearTimeout(holdTimer);
+    if (looking) {
+      map.dragPan.enable();
+      canvas.classList.remove("map-looking");
+    }
+    looking = false;
+    trackedId = null;
+  }
+
+  function onPointerDown(e) {
+    activePointers.add(e.pointerId);
+    if (activePointers.size > 1) {
+      cancelLook();
+      return;
+    }
+    trackedId = e.pointerId;
+    startX = e.clientX;
+    startY = e.clientY;
+    startBearing = map.getBearing();
+    startPitch = map.getPitch();
+    holdTimer = setTimeout(() => {
+      if (activePointers.size !== 1) return;
+      looking = true;
+      map.dragPan.disable();
+      canvas.classList.add("map-looking");
+    }, HOLD_MS);
+  }
+
+  function onPointerMove(e) {
+    if (e.pointerId !== trackedId || !looking) {
+      if (e.pointerId === trackedId && Math.hypot(e.clientX - startX, e.clientY - startY) > MOVE_CANCEL_PX) {
+        clearTimeout(holdTimer); // normal weiter-gewischt statt gehalten -> kein Kipp-/Dreh-Modus
+      }
+      return;
+    }
+    map.setBearing(startBearing - (e.clientX - startX) * ROTATE_SENSITIVITY);
+    map.setPitch(Math.min(MAX_PITCH, Math.max(0, startPitch - (e.clientY - startY) * PITCH_SENSITIVITY)));
+  }
+
+  function onPointerUp(e) {
+    activePointers.delete(e.pointerId);
+    if (e.pointerId === trackedId) cancelLook();
+  }
+
+  canvas.addEventListener("pointerdown", onPointerDown);
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerup", onPointerUp);
+  canvas.addEventListener("pointercancel", onPointerUp);
 }
 
 function preloadCreatureIcons() {
