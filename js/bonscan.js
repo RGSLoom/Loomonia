@@ -171,6 +171,12 @@ function findReceiptTotalCents(text) {
 // Artikelzeile sind (Summe, Steuer, Zahlungsart, Beleg-Metadaten, DE/EN/NL)
 // — die duerfen nicht als "erkannter Produktname" in der Artikel-Ansicht
 // landen.
+// Adresszeilen (Strasse/PLZ+Ort) stehen auf echten Bons fast immer direkt
+// unter dem Store-Namen, VOR dem ersten echten Artikel — ohne eigenen Preis
+// wuerden sie sonst per Nachbarzeilen-Preis-Heuristik (siehe unten) faelschlich
+// den Preis des naechsten echten Artikels "erben" und als Produktname
+// durchgehen (gleiche Fehlerklasse wie die Store-Kopfzeile selbst).
+const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|\bstr\.|\b\d{5}\s+[a-zA-ZÀ-ÿ]/i;
 const RECEIPT_NON_PRODUCT_LINE = /summe|gesamtbetrag|zu zahlen|total|totaal|amount due|mwst|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|trace|terminal|posten|artikel:?\s*\d/i;
 
 // Muss echte Wortbestandteile enthalten (nicht nur Ziffern/Symbole) --
@@ -196,7 +202,13 @@ function findBestProductLine(text) {
     const line = lines[i];
     if (line.length < 3) continue;
     if (RECEIPT_NON_PRODUCT_LINE.test(line)) continue;
+    if (RECEIPT_ADDRESS_LINE.test(line)) continue;
     if (!RECEIPT_LINE_HAS_WORD.test(line)) continue;
+    // Store-Kopfzeile (z.B. "EDEKA MARKT") ist kein Artikel — nutzt dieselben
+    // Retailer-Muster wie die Store-Erkennung oben, damit der Ladenname nie
+    // als "erkannter Produktname" durchgeht (betrifft v.a. die erste
+    // Bon-Zeile, die haeufig der Store-Header ist).
+    if (RECEIPT_STORE_PATTERNS.some((entry) => entry.pattern.test(line))) continue;
     const amountCents =
       extractLineAmountCents(line) ??
       extractLineAmountCents(lines[i - 1] || "") ??
