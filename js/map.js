@@ -1,8 +1,8 @@
 // Karte, echte GPS-Anbindung, Store-Platzierung, Wesen-Spawn-Logik
 
-let leafletMap = null;
+let mapboxMap = null;
 let playerMarker = null;
-let playerAccuracyCircle = null;
+let playerAccuracySourceReady = false; // GeoJSON-Source/Layer fuer den Genauigkeits-Kreis erst nach Style-Load anlegbar
 let playerPos = null; // { lat, lon }
 let firstFixHandled = false;
 
@@ -15,23 +15,27 @@ let activeCreatures = []; // { id, key, lat, lon, marker }
 const creatureIconCache = {}; // key -> cutout data URL
 let storeLocationsReady = null; // Promise aus loadStoreLocations() (js/locations.js)
 
-function initMap() {
-  leafletMap = L.map("map", {
-    zoomControl: false,
-    attributionControl: true,
-  }).setView([52.52, 13.405], 16);
+async function initMap() {
+  const token = await getMapboxToken();
+  mapboxgl.accessToken = token;
 
-  // CARTO Voyager ohne Labels: bunter, spielerischer Kartenstil (farbige
-  // Strassen, erkennbare Park-/Wasserflaechen, Gebaeude-Umrisse), aber ohne
-  // Strassennamen/POI-Icons/Ortsschilder — reduziert die visuelle Dichte
-  // deutlich, ganz ohne eigenen Kartenanbieter-Account/API-Key. Fuer eine
-  // feiner abgestufte Reduzierung (z.B. nur Hauptstrassen-Namen) braeuchte
-  // es einen eigenen Vektor-Stil (Mapbox/MapTiler).
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png", {
-    maxZoom: 20,
-    subdomains: "abcd",
-    attribution: '&copy; OpenStreetMap-Mitwirkende &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  }).addTo(leafletMap);
+  // pitch/bearing als Standard gesetzt (nicht erst per Geste) -- Mapbox GL
+  // JS erlaubt Kippen/Drehen anders als Leaflet ohnehin per Default per
+  // Touch/Drag, hier zusaetzlich direkt mit einer gekippten Ansicht starten,
+  // fuer den Pokemon-Go-artigen Effekt (siehe Referenz-Screenshots).
+  mapboxMap = new mapboxgl.Map({
+    container: "map",
+    style: MAP_STYLE, // js/mapbox-config.js -- hell/dunkel dort umschaltbar
+    center: [13.405, 52.52], // Mapbox nutzt [lng, lat], nicht [lat, lng] wie Leaflet
+    zoom: 16,
+    pitch: 45,
+    bearing: 0,
+    attributionControl: true,
+  });
+  mapboxMap.addControl(
+    new mapboxgl.NavigationControl({ showZoom: false, showCompass: true, visualizePitch: true }),
+    "top-right"
+  );
 
   // Leichter Farbwasch in den App-eigenen Violett-/Cyan-Toenen (siehe
   // .profile-screen), damit die Karte zur restlichen Cosmic-Bildsprache
@@ -39,7 +43,7 @@ function initMap() {
   // bewusst erkennbar (siehe .map-tint in style.css).
   const tint = document.createElement("div");
   tint.className = "map-tint";
-  leafletMap.getContainer().appendChild(tint);
+  mapboxMap.getContainer().appendChild(tint);
 
   // Laeuft parallel zur (nutzerseitig oft erst nach Erlaubnis-Dialog
   // eintreffenden) Geolocation-Anfrage -> in der Praxis meist laengst
@@ -136,7 +140,7 @@ function updatePlayerHeading(gpsHeading) {
 }
 
 async function onFirstFix() {
-  leafletMap.setView([playerPos.lat, playerPos.lon], 17);
+  mapboxMap.jumpTo({ center: [playerPos.lon, playerPos.lat], zoom: 17 });
   await storeLocationsReady;
   ensureStorePositions();
   renderStoreMarkers();
@@ -161,30 +165,67 @@ const PLAYER_MARKER_ICON_HTML = `
   </div>`;
 
 function updatePlayerMarker(accuracy) {
-  const latlng = [playerPos.lat, playerPos.lon];
+  const lngLat = [playerPos.lon, playerPos.lat];
   if (!playerMarker) {
-    const icon = L.divIcon({
-      className: "",
-      html: PLAYER_MARKER_ICON_HTML,
-      iconSize: [60, 60],
-      iconAnchor: [30, 30],
-    });
-    playerMarker = L.marker(latlng, { icon, zIndexOffset: 1000 }).addTo(leafletMap);
-    playerAccuracyCircle = L.circle(latlng, {
-      radius: accuracy || 20,
-      color: "#4ade80",
-      weight: 1,
-      fillOpacity: 0.08,
-    }).addTo(leafletMap);
+    // Eigener Container als Marker-Wurzel, damit Mapbox dessen transform
+    // exklusiv fuer die Positionierung nutzen kann -- die Drehung des
+    // Blickrichtungs-Kegels passiert eine Ebene tiefer, auf .player-marker-wrap.
+    const container = document.createElement("div");
+    container.innerHTML = PLAYER_MARKER_ICON_HTML;
+    container.style.zIndex = "1000";
+    playerMarker = new mapboxgl.Marker({ element: container }).setLngLat(lngLat).addTo(mapboxMap);
   } else {
-    playerMarker.setLatLng(latlng);
-    playerAccuracyCircle.setLatLng(latlng);
-    if (accuracy) playerAccuracyCircle.setRadius(accuracy);
+    playerMarker.setLngLat(lngLat);
   }
 
-  const el = playerMarker.getElement();
-  const wrap = el && el.querySelector(".player-marker-wrap");
+  updatePlayerAccuracyCircle(accuracy || 20, lngLat);
+
+  const wrap = playerMarker.getElement().querySelector(".player-marker-wrap");
   if (wrap) wrap.style.transform = `rotate(${playerHeading}deg)`;
+}
+
+// Legt Source + Fill-/Outline-Layer fuer den GPS-Genauigkeits-Kreis einmalig
+// an, sobald der Kartenstil geladen ist (addSource/addLayer schlagen vorher
+// fehl). Bis dahin wird jeder Aufruf einfach uebersprungen -- der naechste
+// GPS-Tick (typischerweise Sekundenbruchteile spaeter) versucht es erneut.
+function ensurePlayerAccuracySource() {
+  if (playerAccuracySourceReady || !mapboxMap.isStyleLoaded()) return;
+  mapboxMap.addSource("player-accuracy", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  mapboxMap.addLayer({
+    id: "player-accuracy-fill",
+    type: "fill",
+    source: "player-accuracy",
+    paint: { "fill-color": "#4ade80", "fill-opacity": 0.08 },
+  });
+  mapboxMap.addLayer({
+    id: "player-accuracy-outline",
+    type: "line",
+    source: "player-accuracy",
+    paint: { "line-color": "#4ade80", "line-width": 1 },
+  });
+  playerAccuracySourceReady = true;
+}
+
+// Baut ein Vieleck mit "steps" Ecken im angegebenen Meter-Radius um (lat,lon)
+// -- Mapbox GL JS hat anders als Leaflet (L.circle) keinen eingebauten
+// Kreis mit echtem Meter-Radius, deshalb hier per destinationPoint()
+// (js/utils.js, gleiche Formel wie fuer die Wesen-Spawn-Streuung) selbst
+// nachgebaut statt eine zusaetzliche Turf.js-Abhaengigkeit einzubinden.
+function metersCircleGeoJSON(lat, lon, radiusMeters, steps = 48) {
+  const coords = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (360 / steps) * i;
+    const p = destinationPoint(lat, lon, radiusMeters, angle);
+    coords.push([p.lon, p.lat]);
+  }
+  return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [coords] } };
+}
+
+function updatePlayerAccuracyCircle(radiusMeters, lngLat) {
+  ensurePlayerAccuracySource();
+  if (!playerAccuracySourceReady) return;
+  const feature = metersCircleGeoJSON(lngLat[1], lngLat[0], radiusMeters);
+  mapboxMap.getSource("player-accuracy").setData({ type: "FeatureCollection", features: [feature] });
 }
 
 // ---------- Stores ----------
@@ -248,26 +289,27 @@ function renderStoreMarkers() {
     if (!pos) return;
 
     const isLandmark = location.type === "landmark";
-    let html, tooltip;
+    let html;
     if (isLandmark) {
       html = `<div class="store-marker store-marker-landmark" data-store="${location.id}">
           <span class="store-marker-badge">${location.landmarkIcon || "📍"}</span>
+          <span class="marker-tooltip">${location.name || "Ort"}</span>
         </div>`;
-      tooltip = location.name || "Ort";
     } else {
       const category = STORE_CATEGORIES[location.categoryKey];
       html = `<div class="store-marker" data-store="${location.id}" style="background-image:url('${category.scene}')">
           <span class="store-marker-badge">${STORE_EMOJI[location.categoryKey] || "🏬"}</span>
+          <span class="marker-tooltip">${category.name}</span>
         </div>`;
-      tooltip = category.name;
     }
 
-    const icon = L.divIcon({ className: "", html, iconSize: [56, 56] });
-    const marker = L.marker([pos.lat, pos.lon], { icon }).addTo(leafletMap);
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const el = container.firstElementChild;
     if (!isLandmark) {
-      marker.on("click", () => onStoreMarkerClick(location.id));
+      el.addEventListener("click", () => onStoreMarkerClick(location.id));
     }
-    marker.bindTooltip(tooltip, { direction: "top", offset: [0, -20] });
+    const marker = new mapboxgl.Marker({ element: el }).setLngLat([pos.lon, pos.lat]).addTo(mapboxMap);
     storeMarkers[location.id] = { marker, lat: pos.lat, lon: pos.lon, categoryKey: location.categoryKey, type: location.type };
   });
 }
@@ -312,20 +354,24 @@ function spawnCreature() {
   const iconHtml = `<div class="creature-marker" data-id="${id}" style="color:${creature.color}">
       <img src="${creatureIconCache[key] || creature.icon}" alt="${creature.name}" />
     </div>`;
-  const icon = L.divIcon({ className: "", html: iconHtml, iconSize: [56, 56] });
-  const marker = L.marker([lat, lon], { icon }).addTo(leafletMap);
+  const container = document.createElement("div");
+  container.innerHTML = iconHtml;
+  const el = container.firstElementChild;
+  const marker = new mapboxgl.Marker({ element: el }).setLngLat([lon, lat]).addTo(mapboxMap);
 
   const entry = { id, key, lat, lon, marker };
-  marker.on("click", () => onCreatureMarkerClick(entry));
+  el.addEventListener("click", () => onCreatureMarkerClick(entry));
   activeCreatures.push(entry);
 }
 
+// Tauscht nur das Bild im bestehenden Marker-Element statt es komplett neu
+// aufzubauen (anders als Leaflets marker.setIcon()) -- ein Mapbox-Marker ist
+// direkt das uebergebene DOM-Element, ein Austausch der Wurzel wuerde den
+// bereits daran haengenden Klick-Listener verlieren.
 function updateCreatureMarkerIcon(entry) {
   const creature = CREATURES[entry.key];
-  const iconHtml = `<div class="creature-marker" data-id="${entry.id}" style="color:${creature.color}">
-      <img src="${creatureIconCache[entry.key] || creature.icon}" alt="${creature.name}" />
-    </div>`;
-  entry.marker.setIcon(L.divIcon({ className: "", html: iconHtml, iconSize: [56, 56] }));
+  const img = entry.marker.getElement().querySelector("img");
+  if (img) img.src = creatureIconCache[entry.key] || creature.icon;
 }
 
 function onCreatureMarkerClick(entry) {
@@ -338,7 +384,7 @@ function onCreatureMarkerClick(entry) {
 }
 
 function removeCreature(entry) {
-  leafletMap.removeLayer(entry.marker);
+  entry.marker.remove();
   activeCreatures = activeCreatures.filter((c) => c.id !== entry.id);
   const delay = randomBetween(CREATURE_RESPAWN_MIN_MS, CREATURE_RESPAWN_MAX_MS);
   setTimeout(() => {
@@ -362,21 +408,15 @@ function refreshDistancesAndHud() {
     const d = distanceMeters(playerPos.lat, playerPos.lon, c.lat, c.lon);
     const el = c.marker.getElement();
     if (el) {
-      const inner = el.querySelector(".creature-marker");
-      if (inner) {
-        inner.classList.toggle("out-of-range", d > CATCH_RADIUS_M);
-        inner.classList.toggle("in-range", d <= CATCH_RADIUS_M);
-      }
+      el.classList.toggle("out-of-range", d > CATCH_RADIUS_M);
+      el.classList.toggle("in-range", d <= CATCH_RADIUS_M);
     }
   });
 
   Object.entries(storeMarkers).forEach(([key, s]) => {
     const d = distanceMeters(playerPos.lat, playerPos.lon, s.lat, s.lon);
     const el = s.marker.getElement();
-    if (el) {
-      const inner = el.querySelector(".store-marker");
-      if (inner) inner.classList.toggle("out-of-range", d > CATCH_RADIUS_M);
-    }
+    if (el) el.classList.toggle("out-of-range", d > CATCH_RADIUS_M);
   });
 }
 

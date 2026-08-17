@@ -383,7 +383,7 @@ html, body {
 .dev-btn-center { left: 50%; transform: translateX(-50%); }
 .dev-btn-center:active { transform: translateX(-50%) scale(0.9); }
 
-/* Leaflet marker helpers */
+/* Mapbox marker helpers */
 /* Spieler-Standort: Punkt + drehbarer Blickrichtungs-Kegel (Pokemon-Go-
    artig). Der Wrapper wird per JS auf playerHeading rotiert (siehe
    updatePlayerMarker() in map.js); da Punkt und Kegel-Spitze exakt im
@@ -477,12 +477,28 @@ html, body {
   font-size: 12px;
 }
 
-.leaflet-popup-content-wrapper {
+/* Ersetzt Leaflets bindTooltip() -- reines CSS-:hover-Tooltip statt einer
+   eigenen mapboxgl.Popup-Instanz pro Marker (guenstiger bei vielen
+   Store-/Wesen-Markern). Nur auf Store-Markern verwendet, siehe
+   renderStoreMarkers() in js/map.js. */
+.marker-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -8px);
   background: var(--cosmic-mid);
   color: var(--text-light);
-  border-radius: 10px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  z-index: 10;
 }
-.leaflet-popup-tip { background: var(--cosmic-mid); }
+.store-marker:hover .marker-tooltip { opacity: 1; }
 
 /* ============ FULLSCREEN SCENES (Fang/Draw/Success) ============ */
 .fullscreen-scene {

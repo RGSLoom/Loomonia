@@ -79,7 +79,7 @@ function showScreen(id) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  initMap();
+  initMap(); // async (holt erst den Mapbox-Token) -- bewusst nicht awaited, blockiert den Rest der Initialisierung hier nicht
   updateCaughtCounter();
   // Energie regeneriert passiv mit echter Zeit — Anzeige alle 30s
   // auffrischen, damit man das Auffuellen auch bei offener App mitbekommt.

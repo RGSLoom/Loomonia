@@ -79,26 +79,39 @@ function clearGeocodeResult() {
   document.getElementById("btn-save").disabled = true;
 }
 
+let geocodeMapPromise = null;
+
+// Mapbox verlangt anders als Leaflet/OSM eine sichtbare Attribution (siehe
+// Mapbox-ToS) -- attributionControl bleibt deshalb hier aktiv, obwohl die
+// Leaflet-Fassung sie fuer dieses kleine Vorschaukaertchen ausgeblendet hatte.
 function initGeocodeMap() {
-  geocodeMap = L.map("geocode-map", { zoomControl: false, attributionControl: false }).setView([48.1198, 7.8496], 15);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png", {
-    maxZoom: 20,
-    subdomains: "abcd",
-  }).addTo(geocodeMap);
+  if (!geocodeMapPromise) {
+    geocodeMapPromise = getMapboxToken().then((token) => {
+      mapboxgl.accessToken = token;
+      geocodeMap = new mapboxgl.Map({
+        container: "geocode-map",
+        style: MAP_STYLE,
+        center: [7.8496, 48.1198], // Mapbox nutzt [lng, lat], nicht [lat, lng] wie Leaflet
+        zoom: 15,
+      });
+      return geocodeMap;
+    });
+  }
+  return geocodeMapPromise;
 }
 
-function showGeocodeResult(lat, lon, displayName) {
+async function showGeocodeResult(lat, lon, displayName) {
   document.getElementById("geocode-result").classList.remove("hidden");
   document.getElementById("geocode-address").textContent = displayName;
   document.getElementById("geocode-coords").textContent = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
 
-  if (!geocodeMap) initGeocodeMap();
-  geocodeMap.setView([lat, lon], 17);
+  await initGeocodeMap();
+  geocodeMap.jumpTo({ center: [lon, lat], zoom: 17 });
   // Map-Container ist bis zum ersten Ergebnis via .hidden ausgeblendet
-  // gewesen -> Leaflet kennt seine Groesse erst jetzt korrekt.
-  setTimeout(() => geocodeMap.invalidateSize(), 50);
-  if (geocodeMarker) geocodeMap.removeLayer(geocodeMarker);
-  geocodeMarker = L.marker([lat, lon]).addTo(geocodeMap);
+  // gewesen -> Mapbox kennt seine Groesse erst jetzt korrekt.
+  setTimeout(() => geocodeMap.resize(), 50);
+  if (geocodeMarker) geocodeMarker.remove();
+  geocodeMarker = new mapboxgl.Marker().setLngLat([lon, lat]).addTo(geocodeMap);
 }
 
 async function geocodeAddress(address) {
@@ -129,7 +142,7 @@ async function onGeocodeClick() {
   try {
     const result = await geocodeAddress(address);
     resolvedCoords = { lat: result.lat, lon: result.lon };
-    showGeocodeResult(result.lat, result.lon, result.displayName);
+    await showGeocodeResult(result.lat, result.lon, result.displayName);
     document.getElementById("btn-save").disabled = !canSave();
   } catch (err) {
     clearGeocodeResult();

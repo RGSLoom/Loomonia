@@ -90,3 +90,53 @@ curl -s "https://oztsymfskxaeonxqggfb.supabase.co/functions/v1/events-admin?sele
 
 Sag mir kurz Bescheid, sobald Schritt 1–4 erledigt sind (oder schick mir die
 Ausgabe der Verifikations-Aufrufe) — dann kann ich das nochmal gegenprüfen.
+
+## mapbox-token
+
+Liefert den Mapbox-Access-Token an die Karte (Spielkarte + Standortverwaltung)
+aus, ohne ihn im Repo zu hinterlegen. Bewusst öffentlich/ohne Admin-Check,
+siehe Kommentar in `mapbox-token/index.ts` — Schutz kommt hier nicht aus
+Geheimhaltung, sondern aus der URL-Einschränkung im Mapbox-Konto (siehe unten).
+
+### 1. Mapbox-Konto + Token
+
+- Konto auf mapbox.com anlegen.
+- Einen **öffentlichen** Token (`pk.…`) erzeugen oder den Default-Token nutzen.
+- Im Mapbox-Konto unter "URL restrictions" die erlaubten Domains eintragen,
+  z.B. `https://app.retailgs.de/*` und `http://localhost:8080/*` — damit
+  funktioniert der Token ausschließlich auf diesen Seiten, selbst wenn ihn
+  jemand aus dem Seitenquelltext kopiert.
+- Empfehlenswert: in den Mapbox-Kontoeinstellungen ein monatliches Budget-
+  Limit bzw. eine Alert-Mail konfigurieren (Mapbox → Account → Billing/
+  Usage), damit ein unerwarteter Kostenanstieg auffällt, bevor er teuer wird.
+  Das kostenlose Kontingent liegt aktuell bei 50.000 Kartenaufrufen/Monat,
+  danach 5 USD pro weitere 1.000 Aufrufe — vor Produktivsetzung nochmal auf
+  der offiziellen Mapbox-Preisseite verifizieren, da sich Konditionen ändern
+  können.
+
+### 2. Deploy + Secret setzen
+
+```bash
+npx supabase functions deploy mapbox-token --project-ref oztsymfskxaeonxqggfb
+npx supabase secrets set MAPBOX_ACCESS_TOKEN=<dein pk.-Token> --project-ref oztsymfskxaeonxqggfb
+```
+
+### 3. Verifizieren
+
+```bash
+curl -s "https://oztsymfskxaeonxqggfb.supabase.co/functions/v1/mapbox-token"
+```
+
+Sollte `{"token":"pk...."}` liefern.
+
+### Warum keine neuen Kartenaufrufe durch Fangmodus/Nachmal-Minigame entstehen
+
+Ein Kartenaufruf bei Mapbox GL JS zählt beim Neu-Initialisieren der Karte
+(z.B. Seitenaufruf/Reload), nicht bei Zoom/Pan/Rotieren oder dem Öffnen von
+Overlays — eine Sitzung gilt bis zu 12 Stunden. Fangszene (`js/catchgame.js`)
+und Nachmal-Minigame (`js/drawgame.js`) sind reine `<section>`-Overlays, die
+per CSS-Klasse ein-/ausgeblendet werden (`showScreen()` in `js/main.js`);
+die darunterliegende Mapbox-Karte (`#screen-map`) wird dabei nie entfernt
+oder neu erzeugt (kein `map.remove()`/Neuaufruf von `initMap()` beim
+Wechseln). Ein normaler Spieldurchlauf verursacht dadurch nur einen einzigen
+Kartenaufruf pro Sitzung, unabhängig davon, wie oft gefangen/gemalt wird.
