@@ -151,24 +151,36 @@ function findReceiptTotalCents(text) {
 // landen.
 const RECEIPT_NON_PRODUCT_LINE = /summe|gesamtbetrag|zu zahlen|total|totaal|amount due|mwst|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|trace|terminal|posten|artikel:?\s*\d/i;
 
-// Sucht die erste plausible ECHTE Artikelzeile samt ihrem eigenen Preis
-// (hat einen Preis, ist keine Summen-/Steuer-/Zahlungszeile) — unabhaengig
+// Muss echte Wortbestandteile enthalten (nicht nur Ziffern/Symbole) --
+// verhindert, dass reine Artikelnummer-/Codezeilen (z.B. "1 1034320 1 |39
+// |03|0| 49,99") als "Produktname" durchgehen, sobald auch Nachbarzeilen
+// nach einem Preis durchsucht werden.
+const RECEIPT_LINE_HAS_WORD = /[a-zA-ZÀ-ÿ]{3,}/;
+
+// Sucht die erste plausible ECHTE Artikelzeile samt ihrem Preis — unabhaengig
 // davon, ob sie auf ein Fantasie-Item-Stichwort passt. Fuer die Artikel-
 // Ansicht im Dashboard reicht "sieht wie ein Produkt aus", waehrend
 // RECEIPT_ITEM_KEYWORDS gezielt auf die deutlich engere Fantasie-Item-
 // Zuordnung zielt — echte Kassenbons (Markennamen, Lebensmittel) matchen
 // davon oft gar nichts, obwohl OCR die Zeile technisch einwandfrei gelesen
-// hat. Gibt Text UND Preis DERSELBEN Zeile zurueck (nicht den Preis der
-// Bon-Summe), damit Artikelname und ausgewiesener Umsatz zusammenpassen.
+// hat. Genau wie beim Stichwort-Abgleich oben steht der Preis auf echten
+// Bons oft NICHT auf derselben Zeile wie der Produktname (z.B. Deichmann:
+// Artikelnummer+Preis auf einer Zeile, Markenname "Bench" separat direkt
+// darunter) — deshalb auch hier Nachbarzeile vor/nach pruefen, nicht nur
+// die Treffer-Zeile selbst.
 function findBestProductLine(text) {
-  const lines = text.split(/\r?\n/);
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.length < 3) continue;
-    if (RECEIPT_NON_PRODUCT_LINE.test(trimmed)) continue;
-    const amountCents = extractLineAmountCents(trimmed);
+  const lines = text.split(/\r?\n/).map((l) => l.trim());
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.length < 3) continue;
+    if (RECEIPT_NON_PRODUCT_LINE.test(line)) continue;
+    if (!RECEIPT_LINE_HAS_WORD.test(line)) continue;
+    const amountCents =
+      extractLineAmountCents(line) ??
+      extractLineAmountCents(lines[i - 1] || "") ??
+      extractLineAmountCents(lines[i + 1] || "");
     if (amountCents === null) continue;
-    return { text: trimmed.slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH), amountCents };
+    return { text: line.slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH), amountCents };
   }
   return null;
 }
