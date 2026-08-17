@@ -632,9 +632,16 @@ const ITEMS = {
 };
 
 // ============ Item-Drop-Konfiguration (Standort) ============
-// Zentral konfigurierbare Gewichtung je Seltenheitsstufe fuer den
-// kostenlosen Standort-Drop (Zeichen-Minispiel, siehe grantRandomItemFromStore
-// in drawgame.js).
+// Gewicht PRO EINZELNEM ITEM (nicht pro Seltenheitsstufe insgesamt!) fuer
+// den kostenlosen Standort-Drop (Zeichen-Minispiel, siehe
+// grantRandomItemFromStore in drawgame.js + pickWeightedItemFromPool unten).
+// Bewusst pro Item statt als feste Gruppen-Summe (55/40/4,9/0,1%), weil die
+// Pools unterschiedlich gross sind (aktuell 11 Gewoehnlich- vs. nur 2
+// Ungewoehnlich-Items) — eine feste Gruppen-Summe wuerde die 2 Ungewoehnlich-
+// Items dadurch einzeln unverhaeltnismaessig oft droppen lassen (~22% pro
+// Item statt ~5% bei den Gewoehnlichen). Mit Pro-Item-Gewichten bleibt jedes
+// einzelne Gewoehnlich-Item spuerbar wahrscheinlicher als jedes einzelne
+// Ungewoehnlich-Item, unabhaengig von der Pool-Groesse.
 const LOCATION_DROP_RARITY_WEIGHTS = {
   "Gewöhnlich": 55,
   "Ungewöhnlich": 40,
@@ -659,21 +666,6 @@ const TROPHY_EXCLUSIVE_ITEM_KEYS = ["armband", "hoodie", "lockduftflakon"];
 // bisher ueber das Zeichen-Minispiel (Standort) droppen.
 const LEGACY_LOCATION_ITEM_KEYS = ["fruchtkorb", "sprachbuch", "energiesnack", "gesundheitspaket"];
 
-function pickWeightedRarity(weights) {
-  const total = Object.values(weights).reduce((sum, w) => sum + w, 0);
-  let roll = Math.random() * total;
-  for (const [rarity, weight] of Object.entries(weights)) {
-    if (roll < weight) return rarity;
-    roll -= weight;
-  }
-  return Object.keys(weights)[0];
-}
-
-// Seltenheit fuer einen kostenlosen Standort-Drop wuerfeln.
-function getDropRarityStandort() {
-  return pickWeightedRarity(LOCATION_DROP_RARITY_WEIGHTS);
-}
-
 function buildDropPoolByRarity(unlockType, legacyKeys) {
   const pool = {};
   Object.values(ITEMS).forEach((item) => {
@@ -691,19 +683,27 @@ function buildDropPoolByRarity(unlockType, legacyKeys) {
 
 const LOCATION_DROP_ITEM_POOL = buildDropPoolByRarity("standort", LEGACY_LOCATION_ITEM_KEYS);
 
-// Faellt auf die naechstniedrigere Seltenheitsstufe zurueck, wenn die
-// gewuerfelte Stufe (noch) keine droppfaehigen Items enthaelt (z.B. Episch/
-// Selten aktuell leer im Standort-Pool, siehe TROPHY_EXCLUSIVE_ITEM_KEYS) —
-// damit eine leere Stufe nie zu einem ausbleibenden Drop fuehrt.
-const RARITY_FALLBACK_ORDER = ["Episch", "Selten", "Ungewöhnlich", "Gewöhnlich"];
-function pickItemFromPool(pool, rarity) {
-  let startIdx = RARITY_FALLBACK_ORDER.indexOf(rarity);
-  if (startIdx === -1) startIdx = RARITY_FALLBACK_ORDER.length - 1;
-  for (let i = startIdx; i < RARITY_FALLBACK_ORDER.length; i++) {
-    const candidates = pool[RARITY_FALLBACK_ORDER[i]];
-    if (candidates && candidates.length > 0) return randomChoice(candidates);
+// Waehlt ein Item aus `pool` (Seltenheit -> [Keys]), gewichtet nach dem
+// Pro-Item-Gewicht der jeweiligen Seltenheit aus `rarityWeights` (siehe
+// LOCATION_DROP_RARITY_WEIGHTS oben) — jedes Item wird einzeln gewichtet,
+// nicht die Seltenheitsstufe als Ganzes. Leere Stufen (z.B. Episch/Selten
+// aktuell ohne droppfaehige Items, siehe TROPHY_EXCLUSIVE_ITEM_KEYS) tragen
+// dadurch automatisch 0 Gewicht bei, ganz ohne gesonderte Fallback-Logik.
+function pickWeightedItemFromPool(pool, rarityWeights) {
+  const entries = [];
+  Object.entries(pool).forEach(([rarity, keys]) => {
+    const weight = rarityWeights[rarity] || 0;
+    if (weight <= 0) return;
+    keys.forEach((key) => entries.push({ key, weight }));
+  });
+  const total = entries.reduce((sum, e) => sum + e.weight, 0);
+  if (total <= 0) return null;
+  let roll = Math.random() * total;
+  for (const e of entries) {
+    if (roll < e.weight) return e.key;
+    roll -= e.weight;
   }
-  return null;
+  return entries[entries.length - 1].key;
 }
 
 // ============ Bon-Scan-Bonus (nicht eindeutig erkannter Bon) ============
