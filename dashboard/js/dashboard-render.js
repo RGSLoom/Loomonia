@@ -31,6 +31,39 @@ function aggregateAllTimeTotals(events) {
   };
 }
 
+// Gruppiert item_receipt_scanned-Events nach dem rohen, per OCR erkannten
+// Produkttext (product_text, siehe js/bonscan.js/js/tracking.js) statt
+// nach dem festen Fantasie-Item-Katalog wie countByItemKey() — fuers
+// "Artikel"-Panel im Store Manager Dashboard (echte Produktnamen statt
+// Spiel-Items). Case-insensitiv gruppiert (OCR liest Gross-/Kleinschreibung
+// nicht zuverlaessig), Anzeige nutzt die zuerst gesehene Schreibweise.
+// Events ohne erkannten Produkttext (product_text null/leer) tauchen hier
+// bewusst NICHT auf -- kein erfundener "Unbekannt"-Artikel, siehe
+// renderTopArticles(). sharePct bezieht sich auf den Umsatz ALLER
+// item_receipt_scanned-Events im Fenster (nicht nur der benannten), damit
+// der Anteil wirklich "Anteil am Gesamtumsatz" bedeutet.
+function countByProductText(receiptEvents) {
+  const totalRevenueCents = receiptEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
+  const buckets = {};
+  receiptEvents.forEach((e) => {
+    const raw = (e.product_text || "").trim();
+    if (!raw) return;
+    const key = raw.toLowerCase();
+    if (!buckets[key]) buckets[key] = { displayText: raw, count: 0, revenueCents: 0 };
+    buckets[key].count++;
+    buckets[key].revenueCents += e.amount_cents || 0;
+  });
+  return Object.values(buckets)
+    .map((b) => ({
+      productText: b.displayText,
+      count: b.count,
+      revenueCents: b.revenueCents,
+      sharePct: totalRevenueCents > 0 ? Math.round((b.revenueCents / totalRevenueCents) * 1000) / 10 : null,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+}
+
 // Baut aus den rohen Supabase-Zeilen dieselbe Struktur, die renderStats()
 // erwartet (Tage-Liste, Top-Items, KPIs) — Aggregation laeuft komplett
 // client-seitig, da GitHub Pages keinen eigenen Server ausfuehren kann.
@@ -80,7 +113,9 @@ function aggregateEvents(events, daysWindow) {
   };
 
   const topItems = countByItemKey(events.filter((e) => e.type === "item_free_received"));
-  const topReceiptItems = countByItemKey(events.filter((e) => e.type === "item_receipt_scanned"));
+  const receiptScannedEvents = events.filter((e) => e.type === "item_receipt_scanned");
+  const topReceiptItems = countByItemKey(receiptScannedEvents);
+  const topArticles = countByProductText(receiptScannedEvents);
 
   // events ist ts-aufsteigend sortiert (order=ts.asc) -> letztes Element je
   // Typ ist das juengste Event dieses Typs.
@@ -105,6 +140,7 @@ function aggregateEvents(events, daysWindow) {
     days,
     topItems,
     topReceiptItems,
+    topArticles,
     kpis: {
       playersToday: todayStat.playersSelected,
       itemsToday: todayStat.freeItemsReceived,
@@ -161,6 +197,47 @@ function renderTopItems(bodyId, topItems, emptyText) {
       <td><span class="rarity-pill" style="background:${color}">${meta.rarity}</span></td>
       <td>${entry.count}</td>
     `;
+    body.appendChild(row);
+  });
+}
+
+// Anders als renderTopItems() kommt der Artikelname hier NICHT aus dem
+// festen DASHBOARD_ITEMS-Katalog, sondern ist roher, per OCR erkannter Text
+// von einem Kassenbon-Foto (product_text) — also im Kern nutzerbeeinflusster
+// Inhalt. Die Namens-Zelle deshalb bewusst per textContent statt per
+// innerHTML-Template gesetzt, damit ein praeparierter Bon (z.B. mit
+// "<img onerror=...>" als Produktname) niemals als HTML interpretiert
+// werden kann.
+function renderTopArticles(bodyId, articles, emptyText) {
+  const body = document.getElementById(bodyId);
+  // dashboard-render.js wird auch von store-view.html genutzt, das (noch)
+  // keinen Artikel-Reiter hat -> dort existiert die Tabelle nicht, dann
+  // einfach nichts tun statt eines Fehlers, der renderStats() abbrechen
+  // wuerde.
+  if (!body) return;
+  body.innerHTML = "";
+
+  if (articles.length === 0) {
+    body.innerHTML = `<tr><td colspan="4" class="empty-note">${emptyText}</td></tr>`;
+    return;
+  }
+
+  articles.forEach((entry, i) => {
+    const row = document.createElement("tr");
+
+    const rankTd = document.createElement("td");
+    rankTd.textContent = String(i + 1);
+
+    const nameTd = document.createElement("td");
+    nameTd.textContent = entry.productText;
+
+    const countTd = document.createElement("td");
+    countTd.textContent = String(entry.count);
+
+    const shareTd = document.createElement("td");
+    shareTd.textContent = entry.sharePct === null ? "–" : `${entry.sharePct} %`;
+
+    row.append(rankTd, nameTd, countTd, shareTd);
     body.appendChild(row);
   });
 }
@@ -237,6 +314,7 @@ function renderStats(data) {
 
   renderTopItems("top-items-body", data.topItems || [], "Noch keine Items vergeben.");
   renderTopItems("top-purchase-items-body", data.topReceiptItems || [], "Noch keine Bon-Scans erfasst.");
+  renderTopArticles("top-articles-body", data.topArticles || [], "Noch keine Artikel erkannt.");
 }
 
 function renderAllTimeStats(totals) {

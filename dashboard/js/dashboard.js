@@ -113,7 +113,7 @@ function fetchEvents(storeKey) {
   cutoff.setHours(0, 0, 0, 0);
 
   let url =
-    `${EVENTS_ADMIN_URL}?select=type,player_id,ts,item_key,amount_cents` +
+    `${EVENTS_ADMIN_URL}?select=type,player_id,ts,item_key,amount_cents,product_text` +
     `&ts=gte.${encodeURIComponent(cutoff.toISOString())}&order=ts.asc&limit=10000`;
   if (storeKey !== "all") {
     url += `&category=eq.${encodeURIComponent(storeKey)}`;

@@ -182,19 +182,21 @@
       </div>
     </section>
 
-    <!-- ============ ARTIKEL (Platzhalter) ============ -->
+    <!-- ============ ARTIKEL ============ -->
     <section id="panel-artikel" class="view-panel">
       <header class="content-header">
         <div>
           <h1>Artikel</h1>
-          <p class="content-sub">Übersicht und Performance aller Produkte</p>
+          <p class="content-sub">Produktnamen werden automatisch per Texterkennung (OCR) aus dem Kassenbon-Foto gelesen und können in Schreibweise, Abkürzung oder Vollständigkeit vom Original abweichen — keine Gewähr für exakte Erkennung. Zeilen ohne erkennbaren Produktnamen fließen zwar in Umsatz/Käufe ein, tauchen aber bewusst nicht als benannter Artikel auf.</p>
         </div>
       </header>
-      <div class="placeholder-view">
-        <div class="placeholder-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div>
-        <h3>Artikel-Übersicht</h3>
-        <p>Diese Ansicht ist in Vorbereitung. Hier siehst du bald Performance, Kategorien und Belohnungen je Artikel.</p>
-        <span class="soon-tag">Bald verfügbar</span>
+
+      <div class="top-items-card">
+        <div class="card-title">Top Artikel <span class="card-title-sub">Letzte 14 Tage · aus erkannten Bon-Zeilen</span></div>
+        <table class="top-items-table">
+          <thead><tr><th>#</th><th>Artikel (erkannt)</th><th>Käufe</th><th>Umsatzanteil</th></tr></thead>
+          <tbody id="top-articles-body"></tbody>
+        </table>
       </div>
     </section>
 
@@ -323,11 +325,11 @@
   </main>
 </section>
 
-<script src="../js/supabase-config.js?v=12"></script>
-<script src="js/stores-config.js?v=12"></script>
-<script src="js/admin-auth-shared.js?v=12"></script>
-<script src="js/dashboard-render.js?v=12"></script>
-<script src="js/dashboard-auth.js?v=12"></script>
-<script src="js/dashboard.js?v=12"></script>
+<script src="../js/supabase-config.js?v=13"></script>
+<script src="js/stores-config.js?v=13"></script>
+<script src="js/admin-auth-shared.js?v=13"></script>
+<script src="js/dashboard-render.js?v=13"></script>
+<script src="js/dashboard-auth.js?v=13"></script>
+<script src="js/dashboard.js?v=13"></script>
 </body>
 </html>

@@ -16,6 +16,7 @@ function trackEvent(type, payload) {
       item_key: payload.itemKey || null,
       rarity: payload.rarity || null,
       amount_cents: payload.amountCents ?? null,
+      product_text: payload.productText || null,
     });
     fetch(`${SUPABASE_URL}/rest/v1/events`, {
       method: "POST",

@@ -109,6 +109,11 @@ async function processReceiptImage(imageSource) {
 // "geschaetzt").
 const RECEIPT_AMOUNT_PATTERN = /\d{1,4}[.,]\d{2}/g;
 
+// Maximale Laenge fuer den rohen OCR-Zeilentext, der als "Produktname" ans
+// Dashboard (Artikel-Ansicht) durchgereicht wird — echte Bon-Zeilen sind
+// kurz, das kappt nur ausufernden OCR-Muell bei schlecht lesbaren Fotos.
+const RECEIPT_PRODUCT_TEXT_MAX_LENGTH = 120;
+
 function extractLineAmountCents(line) {
   const matches = line.match(RECEIPT_AMOUNT_PATTERN);
   if (!matches || matches.length === 0) return null;
@@ -171,7 +176,7 @@ function matchReceiptText(text) {
   // wird PRO ZEILE erkannt (nicht die Bon-Gesamtsumme), damit jedes Item
   // seinen eigenen Wert traegt statt eines gemeinsamen Bon-Betrags.
   const lines = text.split(/\r?\n/);
-  const matches = {}; // itemKey -> { count, amounts: [cents|null, ...] }
+  const matches = {}; // itemKey -> { count, amounts: [cents|null, ...], lineTexts: [string|null, ...] }
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const hit = pool.find((itemKey) => {
@@ -179,7 +184,7 @@ function matchReceiptText(text) {
       return patterns.some((p) => p.test(line));
     });
     if (!hit) continue;
-    if (!matches[hit]) matches[hit] = { count: 0, amounts: [] };
+    if (!matches[hit]) matches[hit] = { count: 0, amounts: [], lineTexts: [] };
     matches[hit].count++;
     // Der Preis steht nicht immer auf exakt derselben Zeile wie das
     // Stichwort — z.B. steht bei Deichmann-Bons Artikelnummer+Preis auf
@@ -191,14 +196,23 @@ function matchReceiptText(text) {
       extractLineAmountCents(lines[i - 1] || "") ??
       extractLineAmountCents(lines[i + 1] || "");
     matches[hit].amounts.push(amount);
+    // Roher, tatsaechlich erkannter Zeilentext fuers Dashboard (Artikel-
+    // Ansicht, siehe grantReceiptItems) — nur die Treffer-Zeile selbst
+    // (nicht die Nachbarzeile wie beim Preis), da das der tatsaechliche
+    // Produktname/-hinweis ist. Gekappt als Schutz gegen ausufernden
+    // OCR-Muell auf schlecht lesbaren Bons.
+    const cleanedLine = line.trim().slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH);
+    matches[hit].lineTexts.push(cleanedLine || null);
   }
 
   if (Object.keys(matches).length === 0) {
     // Kein Store und/oder kein Artikel-Stichwort getroffen — fuer den
     // Pitch soll das trotzdem ein erfolgreicher Scan sein (Filialen/
     // Retailer-Zuordnung ist fuer die Demo zweitrangig, siehe Absprache
-    // mit Dirk). Zufaelliges Item aus dem passenden Pool.
-    matches[randomChoice(pool)] = { count: 1, amounts: [null] };
+    // mit Dirk). Zufaelliges Item aus dem passenden Pool, kein erfundener
+    // Produkttext (lineTexts bleibt null -> Artikel-Ansicht zeigt diese
+    // Einheit ehrlich nicht als benannten Artikel an).
+    matches[randomChoice(pool)] = { count: 1, amounts: [null], lineTexts: [null] };
   }
 
   // Kein einziger Preis auf irgendeiner Treffer-Zeile gefunden -> die Bon-
@@ -223,7 +237,7 @@ function matchReceiptText(text) {
 }
 
 function grantReceiptItems(matches, categoryKey, storeText) {
-  const entries = Object.entries(matches).map(([itemKey, { count, amounts }]) => {
+  const entries = Object.entries(matches).map(([itemKey, { count, amounts, lineTexts }]) => {
     const item = ITEMS[itemKey];
     addItem(itemKey, count);
     addXp(item.xp * count);
@@ -235,6 +249,7 @@ function grantReceiptItems(matches, categoryKey, storeText) {
         itemKey,
         rarity: item.rarity,
         amountCents: amounts[i] ?? null,
+        productText: (lineTexts && lineTexts[i]) || null,
       });
     }
     return { type: "item", itemKey, count, storeText };
