@@ -145,6 +145,34 @@ function findReceiptTotalCents(text) {
   return max;
 }
 
+// Zeilen, die zwar einen Preis enthalten koennen, aber keine echte
+// Artikelzeile sind (Summe, Steuer, Zahlungsart, Beleg-Metadaten, DE/EN/NL)
+// — die duerfen nicht als "erkannter Produktname" in der Artikel-Ansicht
+// landen.
+const RECEIPT_NON_PRODUCT_LINE = /summe|gesamtbetrag|zu zahlen|total|totaal|amount due|mwst|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|trace|terminal|posten|artikel:?\s*\d/i;
+
+// Sucht die erste plausible ECHTE Artikelzeile samt ihrem eigenen Preis
+// (hat einen Preis, ist keine Summen-/Steuer-/Zahlungszeile) — unabhaengig
+// davon, ob sie auf ein Fantasie-Item-Stichwort passt. Fuer die Artikel-
+// Ansicht im Dashboard reicht "sieht wie ein Produkt aus", waehrend
+// RECEIPT_ITEM_KEYWORDS gezielt auf die deutlich engere Fantasie-Item-
+// Zuordnung zielt — echte Kassenbons (Markennamen, Lebensmittel) matchen
+// davon oft gar nichts, obwohl OCR die Zeile technisch einwandfrei gelesen
+// hat. Gibt Text UND Preis DERSELBEN Zeile zurueck (nicht den Preis der
+// Bon-Summe), damit Artikelname und ausgewiesener Umsatz zusammenpassen.
+function findBestProductLine(text) {
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.length < 3) continue;
+    if (RECEIPT_NON_PRODUCT_LINE.test(trimmed)) continue;
+    const amountCents = extractLineAmountCents(trimmed);
+    if (amountCents === null) continue;
+    return { text: trimmed.slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH), amountCents };
+  }
+  return null;
+}
+
 function matchReceiptText(text) {
   const trimmed = text.trim();
   if (trimmed.length < 3) {
@@ -206,13 +234,21 @@ function matchReceiptText(text) {
   }
 
   if (Object.keys(matches).length === 0) {
-    // Kein Store und/oder kein Artikel-Stichwort getroffen — fuer den
+    // Kein Store und/oder kein Fantasie-Item-Stichwort getroffen — fuer den
     // Pitch soll das trotzdem ein erfolgreicher Scan sein (Filialen/
     // Retailer-Zuordnung ist fuer die Demo zweitrangig, siehe Absprache
-    // mit Dirk). Zufaelliges Item aus dem passenden Pool, kein erfundener
-    // Produkttext (lineTexts bleibt null -> Artikel-Ansicht zeigt diese
-    // Einheit ehrlich nicht als benannten Artikel an).
-    matches[randomChoice(pool)] = { count: 1, amounts: [null], lineTexts: [null] };
+    // mit Dirk). Zufaelliges Item aus dem passenden Pool. Fuers Dashboard
+    // trotzdem noch die erste plausible echte Artikelzeile MIT ihrem
+    // eigenen Preis suchen (die Fantasie-Stichwortliste ist eng auf
+    // Spiel-Items zugeschnitten, echte Kassenbons — Markennamen,
+    // Lebensmittel — matchen davon oft nichts, obwohl OCR die Zeile
+    // technisch einwandfrei gelesen hat).
+    const bestLine = findBestProductLine(text);
+    matches[randomChoice(pool)] = {
+      count: 1,
+      amounts: [bestLine ? bestLine.amountCents : null],
+      lineTexts: [bestLine ? bestLine.text : null],
+    };
   }
 
   // Kein einziger Preis auf irgendeiner Treffer-Zeile gefunden -> die Bon-
