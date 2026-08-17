@@ -88,6 +88,11 @@ async function processReceiptImage(imageSource) {
     // allerersten Scan bricht ab) — sonst bleibt der Screen fuer immer auf
     // "Bon wird gelesen…" stehen.
     const result = await withTimeout(Tesseract.recognize(normalized, "deu+eng+nld"), 45000, "OCR");
+    // Immer in die Konsole loggen (nicht nur bei Fehlern) -- einzige
+    // Moeglichkeit, bei einem "Preis erkannt, aber falscher/fehlender
+    // Artikel"-Fall nachzuvollziehen, was die OCR tatsaechlich gelesen hat,
+    // ohne dass extra ein Fehlerzustand ausgeloest werden muss.
+    console.log("Bon-OCR-Text:", result.data.text);
     matchReceiptText(result.data.text || "");
   } catch (err) {
     console.warn("OCR fehlgeschlagen:", err && err.message ? err.message : err);
