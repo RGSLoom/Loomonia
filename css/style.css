@@ -778,8 +778,14 @@ html, body {
   width: min(80vw, 320px);
 }
 .scan-btn.secondary {
-  background: rgba(0,0,0,0.5);
+  /* War rein optisch (nicht wirklich) deaktiviert: dunkler Hintergrund
+     ohne eigene Textfarbe -> dunkler Text (von .primary-btn geerbt) auf
+     dunklem Grund, kaum lesbar. Jetzt wie der etablierte Sekundär-Button-
+     Stil der App (.secondary-btn/.ar-toggle-btn): helles, halbtransparentes
+     Glas + heller Text. */
+  background: rgba(255,255,255,0.1);
   border: 1px solid rgba(255,255,255,0.3);
+  color: var(--text-light);
   box-shadow: none;
 }
 

@@ -177,7 +177,13 @@ function findReceiptTotalCents(text) {
 // den Preis des naechsten echten Artikels "erben" und als Produktname
 // durchgehen (gleiche Fehlerklasse wie die Store-Kopfzeile selbst).
 const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|\bstr\.|\b\d{5}\s+[a-zA-ZÀ-ÿ]/i;
-const RECEIPT_NON_PRODUCT_LINE = /summe|gesamtbetrag|zu zahlen|total|totaal|amount due|mwst|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|trace|terminal|posten|artikel:?\s*\d/i;
+// \bpreis\b: Spaltenkopf wie "Preis EUR" (steht meist ganz ohne eigenen
+// Preis ueber der ersten Artikelzeile) — ohne diese Ausnahme wuerde die
+// Nachbarzeilen-Preis-Heuristik unten den Preis der naechsten echten
+// Artikelzeile "erben" und als eigenen (falschen, doppelt gezaehlten)
+// Artikel ausgeben. Wortgrenze, damit z.B. "Preiselbeeren" nicht
+// faelschlich mitgetroffen wird.
+const RECEIPT_NON_PRODUCT_LINE = /summe|gesamtbetrag|zu zahlen|total|totaal|amount due|mwst|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|trace|terminal|posten|artikel:?\s*\d|\bpreis\b/i;
 
 // Muss echte Wortbestandteile enthalten (nicht nur Ziffern/Symbole) --
 // verhindert, dass reine Artikelnummer-/Codezeilen (z.B. "1 1034320 1 |39
@@ -185,22 +191,30 @@ const RECEIPT_NON_PRODUCT_LINE = /summe|gesamtbetrag|zu zahlen|total|totaal|amou
 // nach einem Preis durchsucht werden.
 const RECEIPT_LINE_HAS_WORD = /[a-zA-ZÀ-ÿ]{3,}/;
 
-// Sucht die erste plausible ECHTE Artikelzeile samt ihrem Preis — unabhaengig
-// davon, ob sie auf ein Fantasie-Item-Stichwort passt. Fuer die Artikel-
-// Ansicht im Dashboard reicht "sieht wie ein Produkt aus", waehrend
-// RECEIPT_ITEM_KEYWORDS gezielt auf die deutlich engere Fantasie-Item-
-// Zuordnung zielt — echte Kassenbons (Markennamen, Lebensmittel) matchen
-// davon oft gar nichts, obwohl OCR die Zeile technisch einwandfrei gelesen
-// hat. Genau wie beim Stichwort-Abgleich oben steht der Preis auf echten
-// Bons oft NICHT auf derselben Zeile wie der Produktname (z.B. Deichmann:
-// Artikelnummer+Preis auf einer Zeile, Markenname "Bench" separat direkt
-// darunter) — deshalb auch hier Nachbarzeile vor/nach pruefen, nicht nur
-// die Treffer-Zeile selbst.
-function findBestProductLine(text) {
+// Sucht ALLE plausiblen echten Artikelzeilen (nicht nur die erste) samt
+// jeweils eigenem Preis — unabhaengig davon, ob eine Zeile auf ein
+// Fantasie-Item-Stichwort passt. RECEIPT_ITEM_KEYWORDS zielt gezielt auf
+// die deutlich engere Fantasie-Item-Zuordnung (bestimmt, WELCHES Spiel-Item
+// vergeben wird); diese Funktion ist bewusst breiter und dient nur der
+// Artikel-Ansicht im Dashboard — dort soll JEDE erkennbare Bon-Position
+// auftauchen, auch wenn der Text kryptisch ist (z.B. Kassensystem-Kuerzel
+// wie "CC EW 0,33L FL"), denn ein Store-Partner kennt seine eigenen
+// Kuerzel. Vollstaendigkeit ist hier wichtiger als lesbare Namen fuer
+// Aussenstehende. excludeLines: bereits anderweitig verwendete Roh-Zeilen
+// (z.B. schon als Fantasie-Item gezaehlt), damit dieselbe Zeile nicht
+// doppelt landet. Genau wie beim Stichwort-Abgleich oben steht der Preis
+// auf echten Bons oft NICHT auf derselben Zeile wie der Produktname (z.B.
+// Deichmann: Artikelnummer+Preis auf einer Zeile, Markenname "Bench"
+// separat direkt darunter) — deshalb auch hier Nachbarzeile vor/nach
+// pruefen, nicht nur die Treffer-Zeile selbst.
+function findAllProductLines(text, excludeLines) {
   const lines = text.split(/\r?\n/).map((l) => l.trim());
+  const found = [];
+  const seenText = new Set();
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line.length < 3) continue;
+    if (excludeLines && excludeLines.has(line)) continue;
     if (RECEIPT_NON_PRODUCT_LINE.test(line)) continue;
     if (RECEIPT_ADDRESS_LINE.test(line)) continue;
     if (!RECEIPT_LINE_HAS_WORD.test(line)) continue;
@@ -214,9 +228,13 @@ function findBestProductLine(text) {
       extractLineAmountCents(lines[i - 1] || "") ??
       extractLineAmountCents(lines[i + 1] || "");
     if (amountCents === null) continue;
-    return { text: cleanProductNameText(line).slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH), amountCents };
+    const cleaned = cleanProductNameText(line).slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH);
+    const dedupeKey = cleaned.toLowerCase();
+    if (seenText.has(dedupeKey)) continue; // z.B. dieselbe Zeile doppelt ueber Preis-Lookaround erreicht
+    seenText.add(dedupeKey);
+    found.push({ text: cleaned, amountCents });
   }
-  return null;
+  return found;
 }
 
 function matchReceiptText(text) {
@@ -251,6 +269,7 @@ function matchReceiptText(text) {
   // seinen eigenen Wert traegt statt eines gemeinsamen Bon-Betrags.
   const lines = text.split(/\r?\n/);
   const matches = {}; // itemKey -> { count, amounts: [cents|null, ...], lineTexts: [string|null, ...] }
+  const usedLines = new Set(); // rohe, getrimmte Zeilen, die bereits einem Fantasie-Item zugeordnet wurden
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const hit = pool.find((itemKey) => {
@@ -279,7 +298,18 @@ function matchReceiptText(text) {
     // OCR-Muell auf schlecht lesbaren Bons.
     const cleanedLine = cleanProductNameText(line.trim()).slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH);
     matches[hit].lineTexts.push(cleanedLine || null);
+    usedLines.add(line.trim());
   }
+
+  // Alle uebrigen, noch nicht per Fantasie-Item-Stichwort verwendeten
+  // plausiblen Artikelzeilen — Produktentscheidung: JEDE erkennbare
+  // Bon-Position soll in der Dashboard-Artikel-Ansicht auftauchen, auch
+  // wenn sie keinem Spiel-Item entspricht (z.B. Kassensystem-Kuerzel wie
+  // "CC EW 0,33L FL"), statt sie stillschweigend zu verwerfen. Betrifft
+  // NUR die Dashboard-Anzeige/Umsatzerfassung, siehe grantReceiptItems()
+  // weiter unten — die Spiel-Item-Vergabe (Fantasie-Stichworte oben bzw.
+  // das Muenzen-/Bonuspaket unten) bleibt davon komplett unberuehrt.
+  const remainingLines = findAllProductLines(text, usedLines);
 
   // Kein Store und/oder kein Fantasie-Item-Stichwort getroffen — die
   // Artikel auf dem Bon sind damit "nicht eindeutig" identifiziert. Statt
@@ -287,13 +317,13 @@ function matchReceiptText(text) {
   // ein kleines Zufalls-Bonuspaket (Muenzen + weisse Items, siehe
   // BONSCAN_UNCLEAR_BONUS_SLOT_COUNT in js/data.js). Fuers Dashboard trotzdem
   // noch die erste plausible echte Artikelzeile MIT ihrem eigenen Preis
-  // suchen (die Fantasie-Stichwortliste ist eng auf Spiel-Items zugeschnitten,
+  // nehmen (die Fantasie-Stichwortliste ist eng auf Spiel-Items zugeschnitten,
   // echte Kassenbons — Markennamen, Lebensmittel — matchen davon oft nichts,
   // obwohl OCR die Zeile technisch einwandfrei gelesen hat).
   const isUnclear = Object.keys(matches).length === 0;
   let bestLine = null;
   if (isUnclear) {
-    bestLine = findBestProductLine(text);
+    bestLine = remainingLines.shift() || null; // entfernt die erste Zeile aus remainingLines, damit sie nicht doppelt landet
   } else {
     // Kein einziger Preis auf irgendeiner Treffer-Zeile gefunden -> die Bon-
     // Summe (falls lesbar) EINMALIG dem ersten Item zuschreiben, statt den
@@ -308,16 +338,17 @@ function matchReceiptText(text) {
       }
     }
   }
+  const extraArticles = remainingLines;
 
   const storeText = category
     ? `Echter Kauf erkannt bei ${category.name} 🧾`
     : `Echter Kauf erkannt (Retailer nicht gelistet) 🧾`;
 
   setScanStatus("");
-  grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine);
+  grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine, extraArticles);
 }
 
-function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine) {
+function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine, extraArticles) {
   const entries = Object.entries(matches).map(([itemKey, { count, amounts, lineTexts }]) => {
     const item = ITEMS[itemKey];
     addItem(itemKey, count);
@@ -370,6 +401,29 @@ function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine)
       entries.push({ type: "item", itemKey, count, storeText: "Bonus für deinen Einkauf 🧾" });
     });
   }
+
+  // Weitere erkannte Artikelzeilen, die keinem Fantasie-Item-Stichwort
+  // entsprachen (und beim unklaren Bon nicht schon als bestLine verwendet
+  // wurden) — nur fuers Dashboard (Artikel-Ansicht/Umsatz), OHNE
+  // zusaetzliches Spiel-Item/XP (kein addItem/addXp, taucht nicht in der
+  // Erfolgsmeldung auf) und ohne itemKey/rarity, damit sie in den
+  // Fantasie-Item-Auswertungen (Top Items, "Items aus echten Kaeufen")
+  // nicht mitgezaehlt werden — siehe dashboard-render.js (dort nach
+  // item_key gefiltert). Produktentscheidung: Vollstaendigkeit der
+  // Bon-Positionen im Dashboard ist wichtiger als nur die Zeilen zu
+  // zeigen, die zufaellig ein Spiel-Item ausgeloest haben. Ob/welche
+  // Spiel-Belohnung solche Positionen kuenftig zusaetzlich bekommen
+  // sollen, ist bewusst noch offen und hier NICHT entschieden.
+  (extraArticles || []).forEach((article) => {
+    trackEvent("item_receipt_scanned", {
+      storeId: "receipt_scan",
+      category: categoryKey,
+      itemKey: null,
+      rarity: null,
+      amountCents: article.amountCents,
+      productText: article.text,
+    });
+  });
 
   updateCaughtCounter();
 

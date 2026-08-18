@@ -95,7 +95,12 @@ function aggregateEvents(events, daysWindow) {
       playersSelected: distinctPlayers,
       freeItemsReceived: items.length,
       realBuyers: distinctBuyers,
-      realItemsReceived: receiptEvents.length,
+      // Nur Zeilen mit echtem item_key zaehlen als "vergebenes Spiel-Item"
+      // -- seit js/bonscan.js auch reine Artikel-Info-Zeilen ohne Item-
+      // Vergabe sendet (item_key: null, siehe grantReceiptItems()), wuerde
+      // receiptEvents.length sonst mehr "Items" zeigen, als tatsaechlich
+      // im Inventar gelandet sind.
+      realItemsReceived: receiptEvents.filter((e) => e.item_key).length,
       revenueCents,
       provisionCents,
     };
@@ -114,7 +119,11 @@ function aggregateEvents(events, daysWindow) {
 
   const topItems = countByItemKey(events.filter((e) => e.type === "item_free_received"));
   const receiptScannedEvents = events.filter((e) => e.type === "item_receipt_scanned");
-  const topReceiptItems = countByItemKey(receiptScannedEvents);
+  // Fuer die Fantasie-Item-Liste ("Top Artikel aus echten Kaeufen" im
+  // Umsatz-Panel) nur Zeilen mit echtem item_key beruecksichtigen -- sonst
+  // wuerde ein "null"-Eintrag als Item-Name auftauchen (DASHBOARD_ITEMS-
+  // Lookup faellt bei einem "null"-Schluessel auf den Rohwert zurueck).
+  const topReceiptItems = countByItemKey(receiptScannedEvents.filter((e) => e.item_key));
   const topArticles = countByProductText(receiptScannedEvents);
 
   // events ist ts-aufsteigend sortiert (order=ts.asc) -> letztes Element je
