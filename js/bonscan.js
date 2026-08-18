@@ -434,12 +434,19 @@ function matchReceiptText(text) {
   grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine, extraArticles);
 }
 
-function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine, extraArticles) {
-  let levelRewardEntries = [];
-  const entries = Object.entries(matches).map(([itemKey, { count, amounts, lineTexts }]) => {
+// Dashboard-Tracking (Artikel-Ansicht/Umsatz) fuer die eindeutig erkannten
+// Positionen -- LAEUFT BEWUSST GETRENNT von der eigentlichen Item-/XP-/
+// Trophaeen-Vergabe unten (siehe grantReceiptItems). Vorher lagen beide
+// Dinge in einer einzigen Funktion verschachtelt: eine Exception in der
+// Belohnungs-/Trophaeen-Logik (z.B. der von aussen ergaenzten Level-Up-
+// Funktion) brach die GESAMTE Funktion vorzeitig ab, NACHDEM das Item
+// schon lokal vergeben war (addItem laeuft vor addXp/Trophaeen), aber
+// BEVOR irgendein trackEvent() lief -- der Scan landete dann nie im
+// Dashboard, obwohl der Spieler sein Item bekam. Jetzt laeuft das
+// Tracking zuerst und kann durch nichts danach mehr verhindert werden.
+function trackReceiptScanForDashboard(matches, categoryKey, extraArticles) {
+  Object.entries(matches).forEach(([itemKey, { count, amounts, lineTexts }]) => {
     const item = ITEMS[itemKey];
-    addItem(itemKey, count);
-    levelRewardEntries = levelRewardEntries.concat(addXp(item.xp * count));
     for (let i = 0; i < count; i++) {
       trackEvent("item_receipt_scanned", {
         storeId: "receipt_scan",
@@ -450,6 +457,35 @@ function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine,
         productText: (lineTexts && lineTexts[i]) || null,
       });
     }
+  });
+  (extraArticles || []).forEach((article) => {
+    trackEvent("item_receipt_scanned", {
+      storeId: "receipt_scan",
+      category: categoryKey,
+      itemKey: null,
+      rarity: null,
+      amountCents: article.amountCents,
+      productText: article.text,
+    });
+  });
+}
+
+function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine, extraArticles) {
+  trackReceiptScanForDashboard(matches, categoryKey, extraArticles);
+
+  // Ab hier: die eigentliche Spiel-Belohnung (Item/XP/Muenzen/Trophaeen)
+  // und die Erfolgs-Anzeige -- bewusst in try/catch, damit ein Fehler hier
+  // (z.B. in der Level-Up-/Trophaeen-Logik) das oben bereits sicher
+  // verschickte Dashboard-Tracking nicht mehr rueckwirkend "mitreissen"
+  // kann. Im Fehlerfall bleibt das schon vergebene Item einfach ohne
+  // Erfolgs-Animation/Trophaeen-Check dieses eine Mal -- besser als ein
+  // Scan, der weder im Dashboard noch fuer den Spieler sichtbar ankommt.
+  try {
+  let levelRewardEntries = [];
+  const entries = Object.entries(matches).map(([itemKey, { count }]) => {
+    const item = ITEMS[itemKey];
+    addItem(itemKey, count);
+    levelRewardEntries = levelRewardEntries.concat(addXp(item.xp * count));
     return { type: "item", itemKey, count, storeText };
   });
 
@@ -489,29 +525,6 @@ function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine,
     });
   }
 
-  // Weitere erkannte Artikelzeilen, die keinem Fantasie-Item-Stichwort
-  // entsprachen (und beim unklaren Bon nicht schon als bestLine verwendet
-  // wurden) — nur fuers Dashboard (Artikel-Ansicht/Umsatz), OHNE
-  // zusaetzliches Spiel-Item/XP (kein addItem/addXp, taucht nicht in der
-  // Erfolgsmeldung auf) und ohne itemKey/rarity, damit sie in den
-  // Fantasie-Item-Auswertungen (Top Items, "Items aus echten Kaeufen")
-  // nicht mitgezaehlt werden — siehe dashboard-render.js (dort nach
-  // item_key gefiltert). Produktentscheidung: Vollstaendigkeit der
-  // Bon-Positionen im Dashboard ist wichtiger als nur die Zeilen zu
-  // zeigen, die zufaellig ein Spiel-Item ausgeloest haben. Ob/welche
-  // Spiel-Belohnung solche Positionen kuenftig zusaetzlich bekommen
-  // sollen, ist bewusst noch offen und hier NICHT entschieden.
-  (extraArticles || []).forEach((article) => {
-    trackEvent("item_receipt_scanned", {
-      storeId: "receipt_scan",
-      category: categoryKey,
-      itemKey: null,
-      rarity: null,
-      amountCents: article.amountCents,
-      productText: article.text,
-    });
-  });
-
   updateCaughtCounter();
 
   // Bestaetigter Kauf zaehlt fuers "treuer_shopper"-Ziel (5 Bon-Scans),
@@ -543,4 +556,10 @@ function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine,
 
   entries.push(...levelRewardEntries);
   showItemSuccessQueue(entries);
+  } catch (err) {
+    console.error(
+      "Item-/Trophaeen-Vergabe nach einem Bon-Scan fehlgeschlagen (Dashboard-Tracking ist bereits erfolgt):",
+      err
+    );
+  }
 }
