@@ -12,7 +12,16 @@ function trackEvent(type, payload) {
       player_id: getPlayerId(),
       ts: new Date().toISOString(),
       store_id: payload.storeId,
-      category: payload.category,
+      // "unbekannt" statt null: die Spalte "category" hat serverseitig eine
+      // NOT-NULL-Bedingung. Bon-Scans bei nicht gelisteten Retailern (siehe
+      // ANY_STORE_ITEM_POOL/"Retailer nicht gelistet" in js/bonscan.js)
+      // senden bewusst payload.category=null -- das liess bisher JEDEN
+      // einzelnen Datensatz dieses Scans lautlos mit HTTP 400 an der
+      // Datenbank abprallen (fetch().catch() faengt nur Netzwerkfehler ab,
+      // keine 4xx-Antworten), obwohl das Spiel-Item lokal trotzdem vergeben
+      // wurde. Betraf jeden nicht im Store-Katalog hinterlegten Laden --
+      // real beobachtet bei einem Rossmann-Bon.
+      category: payload.category || "unbekannt",
       item_key: payload.itemKey || null,
       rarity: payload.rarity || null,
       amount_cents: payload.amountCents ?? null,
