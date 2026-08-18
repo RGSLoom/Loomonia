@@ -185,6 +185,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("scan-camera-input").addEventListener("change", handleScanFileInput);
   document.getElementById("scan-file-input").addEventListener("change", handleScanFileInput);
+  document.getElementById("btn-scan-copy-text").addEventListener("click", copyBonOcrText);
   // Profil-Unterseiten (Outfit/Items/Trophäen/Loomas/Habitat/Einstellungen)
   // — eigene Vollbild-Screens, Zurück fuehrt immer zum Profil-Hub.
   document.querySelectorAll(".sub-back-btn").forEach((btn) => {

@@ -774,6 +774,17 @@ html, body {
   text-align: left;
 }
 .scan-status.hidden, .scan-error.hidden { display: none; }
+.scan-debug-copy {
+  font-size: 12px;
+  color: var(--text-light);
+  background: transparent;
+  border: 1px dashed rgba(255,255,255,0.35);
+  border-radius: 20px;
+  padding: 6px 14px;
+  opacity: 0.75;
+  cursor: pointer;
+}
+.scan-debug-copy.hidden { display: none; }
 .scan-btn {
   width: min(80vw, 320px);
 }

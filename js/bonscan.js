@@ -48,6 +48,47 @@ function openScanScreen() {
 function resetScanUI() {
   setScanStatus("");
   setScanError("");
+  lastBonOcrText = "";
+  const copyBtn = document.getElementById("btn-scan-copy-text");
+  if (copyBtn) {
+    copyBtn.classList.add("hidden");
+    copyBtn.textContent = "📋 Erkannten Bon-Text kopieren";
+  }
+}
+
+// Merkt sich den zuletzt per OCR erkannten Rohtext eines Scans, damit er
+// ueber den "Erkannten Bon-Text kopieren"-Button direkt aus dem Spiel heraus
+// weitergegeben werden kann -- ohne Entwicklerkonsole, die auf dem Handy
+// praktisch nicht erreichbar ist. Vorher gab es dafuer nur console.log(),
+// was auf Mobilgeraeten fuer Fehlerdiagnosen (z.B. neue, noch nicht
+// erkannte Filialen) faktisch nutzlos war.
+let lastBonOcrText = "";
+
+function showBonOcrCopyButton(text) {
+  lastBonOcrText = text || "";
+  const copyBtn = document.getElementById("btn-scan-copy-text");
+  if (copyBtn && lastBonOcrText) copyBtn.classList.remove("hidden");
+}
+
+function copyBonOcrText() {
+  const copyBtn = document.getElementById("btn-scan-copy-text");
+  if (!copyBtn || !lastBonOcrText) return;
+  const showCopied = () => {
+    copyBtn.textContent = "✅ Kopiert!";
+    setTimeout(() => {
+      copyBtn.textContent = "📋 Erkannten Bon-Text kopieren";
+    }, 2000);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(lastBonOcrText).then(showCopied).catch(() => {
+      // Clipboard-API vom Browser verweigert (z.B. fehlende Berechtigung) --
+      // Fallback zeigt den Text direkt an, damit er manuell markiert/kopiert
+      // werden kann statt komplett zu scheitern.
+      window.prompt("Erkannter Bon-Text (manuell kopieren):", lastBonOcrText);
+    });
+  } else {
+    window.prompt("Erkannter Bon-Text (manuell kopieren):", lastBonOcrText);
+  }
 }
 
 function setScanStatus(text) {
@@ -93,6 +134,7 @@ async function processReceiptImage(imageSource) {
     // Artikel"-Fall nachzuvollziehen, was die OCR tatsaechlich gelesen hat,
     // ohne dass extra ein Fehlerzustand ausgeloest werden muss.
     console.log("Bon-OCR-Text:", result.data.text);
+    showBonOcrCopyButton(result.data.text);
     matchReceiptText(result.data.text || "");
   } catch (err) {
     console.warn("OCR fehlgeschlagen:", err && err.message ? err.message : err);
