@@ -14,6 +14,15 @@ const storeMarkers = {}; // storeKey -> { marker, lat, lon }
 let activeCreatures = []; // { id, key, lat, lon, marker }
 const creatureIconCache = {}; // key -> cutout data URL
 let storeLocationsReady = null; // Promise aus loadStoreLocations() (js/locations.js)
+let spawnBoostUntil = null; // Timestamp (ms), bis zu dem der Einstiegs-Spawn-Boost laeuft -- gesetzt in onFirstFix()
+
+// Session-gebunden (nicht am Spieler-Account/gameState haengend): laeuft bei
+// JEDEM App-Start fuer SPAWN_BOOST_DURATION_MS ab dem ersten GPS-Fix, auch
+// bei wiederkehrenden Spielern -- kein neuer persistenter State noetig,
+// siehe SPAWN_BOOST_*-Kommentar in data.js.
+function isSpawnBoostActive() {
+  return spawnBoostUntil !== null && Date.now() < spawnBoostUntil;
+}
 
 async function initMap() {
   const token = await getMapboxToken();
@@ -215,6 +224,7 @@ function updatePlayerHeading(gpsHeading) {
 
 async function onFirstFix() {
   mapboxMap.jumpTo({ center: [playerPos.lon, playerPos.lat], zoom: 17 });
+  spawnBoostUntil = Date.now() + SPAWN_BOOST_DURATION_MS;
   await storeLocationsReady;
   ensureStorePositions();
   renderStoreMarkers();
@@ -400,7 +410,8 @@ function onStoreMarkerClick(locationId) {
 // ---------- Wesen-Spawns ----------
 
 function fillCreatureSpawns() {
-  while (activeCreatures.length < MAX_ACTIVE_CREATURES) {
+  const maxActive = isSpawnBoostActive() ? SPAWN_BOOST_MAX_ACTIVE_CREATURES : MAX_ACTIVE_CREATURES;
+  while (activeCreatures.length < maxActive) {
     spawnCreature();
   }
 }
@@ -408,17 +419,20 @@ function fillCreatureSpawns() {
 function spawnCreature() {
   if (!playerPos) return;
   const key = randomChoice(SPAWNABLE_CREATURE_KEYS);
+  const boost = isSpawnBoostActive();
+  const storeSpawnRadius = boost ? SPAWN_BOOST_STORE_SPAWN_RADIUS_M : CREATURE_STORE_SPAWN_RADIUS_M;
+  const freeSpawnRadius = boost ? SPAWN_BOOST_FREE_SPAWN_RADIUS_M : CREATURE_FREE_SPAWN_RADIUS_M;
   let lat, lon;
 
   const nearStore = Math.random() < CREATURE_STORE_SPAWN_WEIGHT && Object.keys(storeMarkers).length > 0;
   if (nearStore) {
     const storeKeys = Object.keys(storeMarkers);
     const chosenStore = storeMarkers[randomChoice(storeKeys)];
-    const p = randomPointAround(chosenStore.lat, chosenStore.lon, CREATURE_STORE_SPAWN_RADIUS_M);
+    const p = randomPointAround(chosenStore.lat, chosenStore.lon, storeSpawnRadius);
     lat = p.lat;
     lon = p.lon;
   } else {
-    const p = randomPointAround(playerPos.lat, playerPos.lon, CREATURE_FREE_SPAWN_RADIUS_M);
+    const p = randomPointAround(playerPos.lat, playerPos.lon, freeSpawnRadius);
     lat = p.lat;
     lon = p.lon;
   }
@@ -460,7 +474,9 @@ function onCreatureMarkerClick(entry) {
 function removeCreature(entry) {
   entry.marker.remove();
   activeCreatures = activeCreatures.filter((c) => c.id !== entry.id);
-  const delay = randomBetween(CREATURE_RESPAWN_MIN_MS, CREATURE_RESPAWN_MAX_MS);
+  const delay = isSpawnBoostActive()
+    ? randomBetween(SPAWN_BOOST_RESPAWN_MIN_MS, SPAWN_BOOST_RESPAWN_MAX_MS)
+    : randomBetween(CREATURE_RESPAWN_MIN_MS, CREATURE_RESPAWN_MAX_MS);
   setTimeout(() => {
     if (document.getElementById("screen-map").classList.contains("active") || true) {
       spawnCreature();

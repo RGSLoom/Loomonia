@@ -349,10 +349,11 @@ function matchReceiptText(text) {
 }
 
 function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine, extraArticles) {
+  let levelRewardEntries = [];
   const entries = Object.entries(matches).map(([itemKey, { count, amounts, lineTexts }]) => {
     const item = ITEMS[itemKey];
     addItem(itemKey, count);
-    addXp(item.xp * count);
+    levelRewardEntries = levelRewardEntries.concat(addXp(item.xp * count));
     for (let i = 0; i < count; i++) {
       trackEvent("item_receipt_scanned", {
         storeId: "receipt_scan",
@@ -388,7 +389,7 @@ function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine,
     Object.entries(bonusCounts).forEach(([itemKey, count]) => {
       const item = ITEMS[itemKey];
       addItem(itemKey, count);
-      addXp(item.xp * count);
+      levelRewardEntries = levelRewardEntries.concat(addXp(item.xp * count));
       trackEvent("item_receipt_scanned", {
         storeId: "receipt_scan",
         category: categoryKey,
@@ -454,5 +455,6 @@ function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine,
     updateQuestButtonVisibility();
   }
 
+  entries.push(...levelRewardEntries);
   showItemSuccessQueue(entries);
 }

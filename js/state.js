@@ -47,6 +47,16 @@ function defaultState() {
 
 const gameState = Object.assign(defaultState(), loadState() || {});
 
+// Migration fuers Level-Reward-System (siehe claimLevelRewards() unten):
+// Bestandsspielstaende, die vor Einfuehrung dieses Systems schon ein hohes
+// Level erreicht hatten, sollen nicht rueckwirkend ALLE laengst passierten
+// Level-Belohnungen auf einmal bekommen — nur echte NEUE Levelaufstiege ab
+// jetzt zaehlen. Neue Spielstaende starten dadurch automatisch korrekt bei
+// Level 1 (xpToLevel(0) === 1).
+if (gameState.lastRewardedLevel === undefined) {
+  gameState.lastRewardedLevel = xpToLevel(gameState.xp);
+}
+
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
@@ -58,6 +68,37 @@ function saveState() {
 function addXp(amount) {
   gameState.xp += amount;
   saveState();
+  return claimLevelRewards();
+}
+
+// Vergibt die garantierten Level-Belohnungen (siehe LEVEL_REWARDS-Kommentar
+// in data.js) fuer jedes seit dem letzten Aufruf neu erreichte Level.
+// Idempotent ueber gameState.lastRewardedLevel — sicher aus addXp() bei
+// jedem XP-Gewinn aufrufbar, auch mehrfach pro Spielaktion (z.B. Item-XP
+// gefolgt von Trophaeen-XP), ohne doppelt zu vergeben. Gibt die
+// Erfolgsmeldungs-Eintraege zurueck (leer, wenn kein neues Level erreicht
+// wurde) — der Aufrufer haengt sie an seine eigene Erfolgsmeldungs-Queue an,
+// analog zu claimTrophy() oben.
+function claimLevelRewards() {
+  const currentLevel = xpToLevel(gameState.xp);
+  const lastRewarded = gameState.lastRewardedLevel;
+  if (currentLevel <= lastRewarded) return [];
+
+  const entries = [];
+  for (let level = lastRewarded + 1; level <= currentLevel; level++) {
+    const reward = levelRewardForLevel(level);
+    const rewardText = `Level-Aufstieg auf Level ${level}! 🎉`;
+    addCoins(reward.coins);
+    entries.push({ type: "coins", amount: reward.coins, storeText: rewardText });
+    if (reward.itemPool && reward.itemPool.length > 0) {
+      const itemKey = randomChoice(reward.itemPool);
+      addItem(itemKey);
+      entries.push({ type: "item", itemKey, count: 1, storeText: rewardText });
+    }
+  }
+  gameState.lastRewardedLevel = currentLevel;
+  saveState();
+  return entries;
 }
 
 function addCoins(amount) {
@@ -198,13 +239,17 @@ function claimTrophy(trophyKey) {
   const trophy = TROPHIES[trophyKey];
   if (!unlockTrophy(trophyKey)) return [];
 
-  addXp(trophy.xp);
+  // Level-Belohnungen, die durch die Trophaeen-XP selbst ausgeloest werden,
+  // muessen mit zurueckgegeben werden (sonst wuerde addXp() sie zwar still
+  // vergeben, aber nie in der Erfolgsmeldung anzeigen) — daher jeden
+  // addXp()-Rueckgabewert hier einsammeln statt zu verwerfen.
+  let levelRewardEntries = addXp(trophy.xp);
   const entries = [{ type: "trophy", trophyKey }];
   const rewardText = `Belohnung der Trophäe „${trophy.name}“ 🏆`;
 
   if (trophy.itemKey) {
     addItem(trophy.itemKey);
-    addXp(ITEMS[trophy.itemKey].xp);
+    levelRewardEntries = levelRewardEntries.concat(addXp(ITEMS[trophy.itemKey].xp));
     entries.push({ type: "item", itemKey: trophy.itemKey, count: 1, storeText: rewardText });
   } else if (trophy.randomItemPool) {
     // Mehrfachtreffer auf dasselbe Item zu einem Stapel zusammenfassen
@@ -217,11 +262,12 @@ function claimTrophy(trophyKey) {
     }
     Object.entries(picks).forEach(([key, count]) => {
       addItem(key, count);
-      addXp(ITEMS[key].xp * count);
+      levelRewardEntries = levelRewardEntries.concat(addXp(ITEMS[key].xp * count));
       entries.push({ type: "item", itemKey: key, count, storeText: rewardText });
     });
   }
 
+  entries.push(...levelRewardEntries);
   return entries;
 }
 

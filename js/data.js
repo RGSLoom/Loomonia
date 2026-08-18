@@ -9,6 +9,22 @@ const CREATURE_RESPAWN_MIN_MS = 3500;
 const CREATURE_RESPAWN_MAX_MS = 6000;
 const MAX_ACTIVE_CREATURES = 4;
 
+// ============ Einstiegs-Spawn-Boost ============
+// Direkt nach dem ersten GPS-Fix (siehe onFirstFix() in map.js) gab es zu
+// wenige Wesen in unmittelbarer Naehe -- schlechter erster Eindruck, kaum
+// sofortige Fangmoeglichkeiten. Fuer die ersten Minuten JEDER Session (nicht
+// nur beim allerersten App-Start ueberhaupt) laufen deshalb mehr aktive
+// Wesen, in einem groesseren Radius und mit kuerzerem Respawn -- danach
+// automatisch zurueck auf die regulaeren Werte oben, betrifft also nur den
+// Einstieg, nicht die dauerhafte Spielbalance. Siehe isSpawnBoostActive()
+// in map.js.
+const SPAWN_BOOST_DURATION_MS = 3 * 60 * 1000;
+const SPAWN_BOOST_MAX_ACTIVE_CREATURES = 8;
+const SPAWN_BOOST_STORE_SPAWN_RADIUS_M = 90;
+const SPAWN_BOOST_FREE_SPAWN_RADIUS_M = 260;
+const SPAWN_BOOST_RESPAWN_MIN_MS = 1200;
+const SPAWN_BOOST_RESPAWN_MAX_MS = 2500;
+
 const BAR_CONFIG = {
   durationMs: 1050,
   greenHalfWidth: 10,
@@ -211,8 +227,8 @@ const CREATURES = {
   wollypig: {
     key: "wollypig",
     name: "Wolly Pig",
-    element: "Natur",
-    elementIcon: "🌿",
+    element: "Erde",
+    elementIcon: "🌍",
     color: "#d4a574",
     rarity: "Gewöhnlich",
     xp: 150,
@@ -660,6 +676,46 @@ const BANK_DROP_COINS_MAX = 8;
 // Zufalls-Drops erreichbar sind, sondern exklusiv ueber Trophaeen (siehe
 // TROPHIES oben) — bleiben deshalb aus dem Drop-Pool aussen vor.
 const TROPHY_EXCLUSIVE_ITEM_KEYS = ["armband", "hoodie", "lockduftflakon"];
+
+// ============ Level-Up-Belohnungen ============
+// Eigene Level-Reward-Tabelle (bewusst getrennt von den Store-/Bon-Drop-
+// Pools oben) — Level-Belohnungen sind IMMER garantiert (kein Zufall OB es
+// etwas gibt), nur WELCHES Item bei den Item-Stufen wird zufaellig aus dem
+// jeweiligen Rarity-Pool gezogen. Level 1 bekommt nichts (Startlevel).
+const LEVEL_REWARD_COINS_BASE = 10;
+const LEVEL_REWARD_COINS_PER_LEVEL = 2;
+
+function levelRewardCoins(level) {
+  return LEVEL_REWARD_COINS_BASE + level * LEVEL_REWARD_COINS_PER_LEVEL;
+}
+
+// Eigene Item-Pools nur fuer Level-Belohnungen (alle Items der jeweiligen
+// Seltenheit, nicht nur die per Standort-Minigame droppfaehigen) — dadurch
+// sind hierueber z.B. auch sonst kauf-exklusive Items erreichbar, als
+// Fortschritts-Belohnung statt nur per echtem Einkauf. Episch/Legendaer
+// bleiben aussen vor, die sind laut Spezifikation Trophaeen vorbehalten
+// (siehe TROPHY_EXCLUSIVE_ITEM_KEYS oben).
+function buildLevelRewardPool(rarity) {
+  return Object.values(ITEMS)
+    .filter((item) => item.rarity === rarity && !TROPHY_EXCLUSIVE_ITEM_KEYS.includes(item.key))
+    .map((item) => item.key);
+}
+const LEVEL_REWARD_ITEM_POOL_GRUEN = buildLevelRewardPool("Ungewöhnlich");
+const LEVEL_REWARD_ITEM_POOL_BLAU = buildLevelRewardPool("Selten");
+
+// Bestimmt die Belohnung fuer genau EIN Level (nicht kumulativ). Alle 10
+// Level zaehlt nur die groessere Blau-Stufe (kein zusaetzliches Gruen-Item
+// obendrauf), alle 5 Level (die nicht durch 10 teilbar sind) ein
+// Gruen-Item, sonst nur die garantierten Coins.
+function levelRewardForLevel(level) {
+  if (level % 10 === 0) {
+    return { coins: levelRewardCoins(level), itemPool: LEVEL_REWARD_ITEM_POOL_BLAU };
+  }
+  if (level % 5 === 0) {
+    return { coins: levelRewardCoins(level), itemPool: LEVEL_REWARD_ITEM_POOL_GRUEN };
+  }
+  return { coins: levelRewardCoins(level), itemPool: null };
+}
 
 // Die 9 Bestandsitems haben (bewusst unveraendert) noch kein `unlockType`-
 // Feld — hier per Key-Liste nachgetragen, damit Weiss/Gruen weiterhin wie

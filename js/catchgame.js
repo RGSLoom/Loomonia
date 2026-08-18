@@ -223,14 +223,15 @@ function onCatchSuccess() {
   const creature = isShiny ? CREATURES[shinyInfo.key] : baseCreature;
 
   addCaughtCreature(creature.key);
-  addXp(creature.xp);
+  const levelRewardEntries = addXp(creature.xp);
   updateCaughtCounter();
 
   // Fang-bezogene Trophaeen (Anzahl gefangener Wesen je Seltenheitsstufe) —
   // pendingTrophyEntries wird von btn-catch-continue (main.js) nach dem
   // Fang-Erfolgsscreen an die Item-Erfolgsmeldungs-Queue angehaengt, damit
   // eine frisch freigeschaltete Trophaee direkt im Anschluss gezeigt wird.
-  pendingTrophyEntries = checkCatchTrophies();
+  // Level-Belohnungen (aus der Fang-XP) haengen aus demselben Grund mit dran.
+  pendingTrophyEntries = checkCatchTrophies().concat(levelRewardEntries);
   if (pendingTrophyEntries.length > 0) {
     updateCaughtCounter();
     pendingTrophyEntries
