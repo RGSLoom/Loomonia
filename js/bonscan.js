@@ -185,11 +185,21 @@ const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|\bstr\.|\b\d{5}\s+[a-zA-ZÀ-ÿ]/i;
 // faelschlich mitgetroffen wird.
 // pfand: Pfandbetrag ist kein eigener Artikel, sondern Teil eines anderen
 // Postens (Flasche/Kiste) — soll nicht als eigene Artikelzeile erscheinen.
+// Bewusst OHNE Wortgrenze davor: im Deutschen steht das fast immer als
+// zusammengesetztes Wort ohne Trenner (z.B. "EINWEGPFAND", "Flaschenpfand"),
+// eine Wortgrenze vor "pfand" wuerde diese Faelle verpassen (real beobachtet
+// auf einem Rossmann-Bon).
 // uid/signatur: TSE-Pflichtangaben (Kassenbon-Signatur/UID-Nummer nach
 // Kassensicherungsverordnung) sind kryptische Zufallsstrings, kein Artikel.
 // gesa[mn]tbetrag: deckt sowohl "Gesamtbetrag" als auch den haeufigen
 // OCR-Lesefehler "Gesantbetrag" (m/n-Verwechslung) ab.
-const RECEIPT_NON_PRODUCT_LINE = /summe|gesa[mn]tbetrag|zu zahlen|total|totaal|amount due|mwst|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|trace|terminal|posten|artikel:?\s*\d|\bpreis\b|\bpfand\b|\buid\b|signatur/i;
+// coupon/ersparnis/gespart/rabatt: Rabatt-/Coupon-Hinweiszeilen sind kein
+// gekaufter Artikel, tragen aber oft einen Betrag (den Ersparnisbetrag), der
+// sonst faelschlich als Artikelpreis durchgehen wuerde.
+// \bsepa\b: Zahlungsart-Zeile (SEPA-Lastschrift/-Kartenzahlung) traegt oft
+// den Bon-Gesamtbetrag direkt daneben — ohne Ausschluss wuerde dieser Betrag
+// als (falscher, doppelt gezaehlter) eigener Artikelpreis erscheinen.
+const RECEIPT_NON_PRODUCT_LINE = /summe|gesa[mn]tbetrag|zu zahlen|total|totaal|amount due|mwst|must\b|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|\bsepa\b|trace|terminal|posten|artikel:?\s*\d|\bpreis\b|pfand|\buid\b|signatur|coupon|ersparnis|gespart|rabatt/i;
 
 // Muss echte Wortbestandteile enthalten (nicht nur Ziffern/Symbole) --
 // verhindert, dass reine Artikelnummer-/Codezeilen (z.B. "1 1034320 1 |39
