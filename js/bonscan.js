@@ -183,7 +183,13 @@ const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|\bstr\.|\b\d{5}\s+[a-zA-ZÀ-ÿ]/i;
 // Artikelzeile "erben" und als eigenen (falschen, doppelt gezaehlten)
 // Artikel ausgeben. Wortgrenze, damit z.B. "Preiselbeeren" nicht
 // faelschlich mitgetroffen wird.
-const RECEIPT_NON_PRODUCT_LINE = /summe|gesamtbetrag|zu zahlen|total|totaal|amount due|mwst|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|trace|terminal|posten|artikel:?\s*\d|\bpreis\b/i;
+// pfand: Pfandbetrag ist kein eigener Artikel, sondern Teil eines anderen
+// Postens (Flasche/Kiste) — soll nicht als eigene Artikelzeile erscheinen.
+// uid/signatur: TSE-Pflichtangaben (Kassenbon-Signatur/UID-Nummer nach
+// Kassensicherungsverordnung) sind kryptische Zufallsstrings, kein Artikel.
+// gesa[mn]tbetrag: deckt sowohl "Gesamtbetrag" als auch den haeufigen
+// OCR-Lesefehler "Gesantbetrag" (m/n-Verwechslung) ab.
+const RECEIPT_NON_PRODUCT_LINE = /summe|gesa[mn]tbetrag|zu zahlen|total|totaal|amount due|mwst|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|trace|terminal|posten|artikel:?\s*\d|\bpreis\b|\bpfand\b|\buid\b|signatur/i;
 
 // Muss echte Wortbestandteile enthalten (nicht nur Ziffern/Symbole) --
 // verhindert, dass reine Artikelnummer-/Codezeilen (z.B. "1 1034320 1 |39
