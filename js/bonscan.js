@@ -169,6 +169,21 @@ function extractLineAmountCents(line) {
   return Math.round(value * 100);
 }
 
+// Plausibilitaets-Deckel: kein einzelner Artikelpreis darf hoeher sein als
+// der auf dem Bon gedruckte GESAMTBETRAG -- real beobachtet, dass OCR auf
+// schlecht lesbaren Fotos gelegentlich eine Artikelnummer/einen Barcode-
+// Ausschnitt faelschlich als Preis liest (z.B. Zeile "266" oder eine lange
+// Ziffernfolge, in der zufaellig ein Komma/Punkt an der richtigen Stelle
+// auftaucht). Ohne Deckel landet so ein Fantasiewert direkt im Umsatz --
+// bei identischem Bon, nur auf einem anderen Handy fotografiert, kann das
+// den erfassten Umsatz um ein Vielfaches verfaelschen. maxCents ist null,
+// wenn der Gesamtbetrag selbst nicht lesbar war -- dann keine Kappung
+// (besser ein moeglicherweise falscher Preis als gar keiner).
+function capToReceiptTotal(cents, maxCents) {
+  if (cents === null || maxCents === null) return cents;
+  return cents > maxCents ? null : cents;
+}
+
 // Schneidet den Preis (und alles danach, z.B. eine folgende MwSt-Kennung
 // wie "A"/"B") vom Zeilenende ab, bevor eine Zeile als "Produktname" fuers
 // Dashboard gespeichert wird — der Preis steht dort schon separat als
@@ -287,7 +302,7 @@ const RECEIPT_LINE_HAS_WORD = /[a-zA-ZÀ-ÿ]{3,}/;
 // wurde (RECEIPT_TOTAL_KEYWORDS, i.d.R. gut lesbar, da fett/gross gedruckt),
 // gilt alles DANACH als Fusszeile und wird nicht mehr geprueft -- unabhaengig
 // davon, wie kaputt der einzelne Zeilentext danach ist.
-function findAllProductLines(text, excludeLines) {
+function findAllProductLines(text, excludeLines, maxAmountCents) {
   const lines = text.split(/\r?\n/).map((l) => l.trim());
   const found = [];
   const seenText = new Set();
@@ -309,10 +324,12 @@ function findAllProductLines(text, excludeLines) {
     // als "erkannter Produktname" durchgeht (betrifft v.a. die erste
     // Bon-Zeile, die haeufig der Store-Header ist).
     if (RECEIPT_STORE_PATTERNS.some((entry) => entry.pattern.test(line))) continue;
-    const amountCents =
+    const amountCents = capToReceiptTotal(
       extractLineAmountCents(line) ??
-      extractLineAmountCents(lines[i - 1] || "") ??
-      extractLineAmountCents(lines[i + 1] || "");
+        extractLineAmountCents(lines[i - 1] || "") ??
+        extractLineAmountCents(lines[i + 1] || ""),
+      maxAmountCents
+    );
     if (amountCents === null) continue;
     const cleaned = cleanProductNameText(line).slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH);
     const dedupeKey = cleaned.toLowerCase();
@@ -353,6 +370,15 @@ function matchReceiptText(text) {
   // mehreren Artikeln so, als waere nur einer gescannt worden. Der Preis
   // wird PRO ZEILE erkannt (nicht die Bon-Gesamtsumme), damit jedes Item
   // seinen eigenen Wert traegt statt eines gemeinsamen Bon-Betrags.
+  // Gedruckter Gesamtbetrag des Bons -- dient als Plausibilitaets-Deckel
+  // fuer JEDEN einzelnen Zeilenpreis weiter unten (siehe capToReceiptTotal):
+  // ein Einzelartikel kann nie mehr kosten als der ganze Bon. Faengt den
+  // real beobachteten Fall ab, dass OCR auf einem schlecht lesbaren Foto
+  // eine Artikelnummer/einen Barcode-Ausschnitt faelschlich als Preis liest
+  // und der erfasste Umsatz dadurch (je nach Fotoqualitaet) um ein
+  // Vielfaches vom tatsaechlichen Bonbetrag abweicht.
+  const receiptTotalCents = findReceiptTotalCents(text);
+
   const lines = text.split(/\r?\n/);
   const matches = {}; // itemKey -> { count, amounts: [cents|null, ...], lineTexts: [string|null, ...] }
   const usedLines = new Set(); // rohe, getrimmte Zeilen, die bereits einem Fantasie-Item zugeordnet wurden
@@ -370,10 +396,12 @@ function matchReceiptText(text) {
     // einer Zeile und der Markenname ("Bench") separat direkt darunter.
     // Deshalb zusaetzlich eine Zeile vor/nach der Treffer-Zeile pruefen,
     // bevor der Preis als "nicht gefunden" gilt.
-    const amount =
+    const amount = capToReceiptTotal(
       extractLineAmountCents(line) ??
-      extractLineAmountCents(lines[i - 1] || "") ??
-      extractLineAmountCents(lines[i + 1] || "");
+        extractLineAmountCents(lines[i - 1] || "") ??
+        extractLineAmountCents(lines[i + 1] || ""),
+      receiptTotalCents
+    );
     matches[hit].amounts.push(amount);
     // Tatsaechlich erkannter Zeilentext fuers Dashboard (Artikel-Ansicht,
     // siehe grantReceiptItems) — nur die Treffer-Zeile selbst (nicht die
@@ -395,7 +423,7 @@ function matchReceiptText(text) {
   // NUR die Dashboard-Anzeige/Umsatzerfassung, siehe grantReceiptItems()
   // weiter unten — die Spiel-Item-Vergabe (Fantasie-Stichworte oben bzw.
   // das Muenzen-/Bonuspaket unten) bleibt davon komplett unberuehrt.
-  const remainingLines = findAllProductLines(text, usedLines);
+  const remainingLines = findAllProductLines(text, usedLines, receiptTotalCents);
 
   // Kein Store und/oder kein Fantasie-Item-Stichwort getroffen — die
   // Artikel auf dem Bon sind damit "nicht eindeutig" identifiziert. Statt
