@@ -191,7 +191,10 @@ function cleanProductNameText(line) {
 // Store oder Artikel-Stichwort erkannt wurden. Bevorzugt die Zeile mit
 // einem Summen-Schluesselwort (DE/EN/NL), sonst den groessten gueltigen
 // Betrag im ganzen Text (meist ohnehin die Bon-Gesamtsumme).
-const RECEIPT_TOTAL_KEYWORDS = /summe|gesamtbetrag|zu zahlen|total|totaal|amount due/i;
+// su[mn]{2}e statt "summe": deckt neben "Summe"/"Zwischensumme" auch den
+// OCR-Lesefehler "Zwischensunne" ab (dieselbe m/n-Verwechslung wie bei
+// "Gesantbetrag" -- real auf demselben Rossmann-Bon beobachtet).
+const RECEIPT_TOTAL_KEYWORDS = /su[mn]{2}e|gesa[mn]tbetrag|zu zahlen|total|totaal|amount due/i;
 
 function findReceiptTotalCents(text) {
   const lines = text.split(/\r?\n/);
@@ -241,7 +244,12 @@ const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|\bstr\.|\b\d{5}\s+[a-zA-ZÀ-ÿ]/i;
 // \bsepa\b: Zahlungsart-Zeile (SEPA-Lastschrift/-Kartenzahlung) traegt oft
 // den Bon-Gesamtbetrag direkt daneben — ohne Ausschluss wuerde dieser Betrag
 // als (falscher, doppelt gezaehlter) eigener Artikelpreis erscheinen.
-const RECEIPT_NON_PRODUCT_LINE = /summe|gesa[mn]tbetrag|zu zahlen|total|totaal|amount due|mwst|must\b|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|\bsepa\b|trace|terminal|posten|artikel:?\s*\d|\bpreis\b|pfand|\buid\b|signatur|coupon|ersparnis|gespart|rabatt/i;
+// Summen-/Gesamtbetrag-Varianten stehen bewusst NICHT mehr hier -- die
+// erkennt RECEIPT_TOTAL_KEYWORDS bereits vorher in findAllProductLines()
+// und schaltet ab dort per footerStarted konsequent den kompletten Rest der
+// Fusszeile stumm (robuster als jede einzelne Fusszeilen-Variante hier
+// nachzupflegen, siehe Kommentar bei findAllProductLines).
+const RECEIPT_NON_PRODUCT_LINE = /mwst|must\b|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|\bsepa\b|trace|terminal|posten|artikel:?\s*\d|\bpreis\b|pfand|\buid\b|signatur|coupon|ersparnis|gespart|rabatt/i;
 
 // Muss echte Wortbestandteile enthalten (nicht nur Ziffern/Symbole) --
 // verhindert, dass reine Artikelnummer-/Codezeilen (z.B. "1 1034320 1 |39
@@ -265,14 +273,34 @@ const RECEIPT_LINE_HAS_WORD = /[a-zA-ZÀ-ÿ]{3,}/;
 // Deichmann: Artikelnummer+Preis auf einer Zeile, Markenname "Bench"
 // separat direkt darunter) — deshalb auch hier Nachbarzeile vor/nach
 // pruefen, nicht nur die Treffer-Zeile selbst.
+//
+// footerStarted: Ein einzelnes Bon-Foto (v.a. bei Apotheken-/Drogerie-
+// Kleinschrift) kann so schlecht erkannt werden, dass OCR selbst Woerter
+// wie "SEPA" oder "MwSt" bis zur Unkenntlichkeit verstuemmelt (real
+// beobachtet: "SEPA ELV/OLV" -> "ESE EU RIE", eine MwSt-Aufschluesselungs-
+// zeile -> "in 69.20 0.8 foxy") -- dann greift KEIN Wortfilter mehr, egal
+// wie viele Varianten man ergaenzt, und der Rest der Fusszeile (Zahlungsart,
+// Steuerreferenz, Signatur) wuerde als falsche "Artikel" durchgehen, im
+// schlimmsten Fall sogar mit dem Bon-GESAMTBETRAG als Preis (per
+// Nachbarzeilen-Heuristik von der Summenzeile "geerbt"). Robuster als jedes
+// Einzelwort zu patchen: sobald einmal zweifelsfrei die Summenzeile erkannt
+// wurde (RECEIPT_TOTAL_KEYWORDS, i.d.R. gut lesbar, da fett/gross gedruckt),
+// gilt alles DANACH als Fusszeile und wird nicht mehr geprueft -- unabhaengig
+// davon, wie kaputt der einzelne Zeilentext danach ist.
 function findAllProductLines(text, excludeLines) {
   const lines = text.split(/\r?\n/).map((l) => l.trim());
   const found = [];
   const seenText = new Set();
+  let footerStarted = false;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (footerStarted) continue;
     if (line.length < 3) continue;
     if (excludeLines && excludeLines.has(line)) continue;
+    if (RECEIPT_TOTAL_KEYWORDS.test(line)) {
+      footerStarted = true;
+      continue;
+    }
     if (RECEIPT_NON_PRODUCT_LINE.test(line)) continue;
     if (RECEIPT_ADDRESS_LINE.test(line)) continue;
     if (!RECEIPT_LINE_HAS_WORD.test(line)) continue;
