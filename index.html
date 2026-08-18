@@ -10,10 +10,20 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Store Walk</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.css" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=81" />
+<link rel="stylesheet" href="css/style.css?v=82" />
 </head>
 <body>
 <div id="app">
+
+  <!-- Bewusst AUSSERHALB des .screen-Systems (fixed, eigenstaendig) --
+       nach einem erfolgreichen Bon-Scan wechselt die App sofort zum
+       Erfolgsbildschirm (showItemSuccessQueue -> showScreen(...)), was
+       ALLE .screen-Elemente inkl. eines etwaigen Buttons im Scan-Screen
+       sofort wieder ausblenden wuerde, bevor er je sichtbar war. Als
+       body-weites Element ueberlebt er den Screen-Wechsel und bleibt
+       antippbar, bis der naechste Scan startet (siehe resetScanUI() in
+       js/bonscan.js). -->
+  <button id="btn-scan-copy-text" class="scan-debug-copy hidden" type="button">📋 Erkannten Bon-Text kopieren</button>
 
   <!-- ============ MAP SCREEN ============ -->
   <section id="screen-map" class="screen active">
@@ -190,7 +200,6 @@
       <div class="scan-hint">Scanne deinen Kassenbon oder lade ein Foto davon hoch – das System erkennt den Store und schaltet dein Item frei.</div>
       <div id="scan-status" class="scan-status hidden"></div>
       <div id="scan-error" class="scan-error hidden"></div>
-      <button id="btn-scan-copy-text" class="scan-debug-copy hidden" type="button">📋 Erkannten Bon-Text kopieren</button>
       <button id="btn-scan-capture" class="primary-btn scan-btn">📷 Bon fotografieren</button>
       <button id="btn-scan-upload" class="primary-btn scan-btn secondary">📁 Bon-Foto hochladen</button>
       <input type="file" id="scan-camera-input" accept="image/*" capture="environment" style="display:none;" />
