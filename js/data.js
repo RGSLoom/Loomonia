@@ -41,10 +41,10 @@ const BAR_DURATION_MS_BY_RARITY = {
   "Selten": 620,
 };
 
-// Ruhepulver (siehe ITEMS.ruhepulver): verlangsamt die Fangleiste fuer den
+// Fokuszeit (siehe ITEMS.fokuszeit): verlangsamt die Fangleiste fuer den
 // Rest der aktuellen Fangbegegnung um diesen Faktor (>1 = langsamer = mehr
-// Reaktionszeit), siehe useRuhepulver() in js/catchgame.js.
-const RUHEPULVER_SLOWDOWN_FACTOR = 1.6;
+// Reaktionszeit), siehe useFokuszeit() in js/catchgame.js.
+const FOKUSZEIT_SLOWDOWN_FACTOR = 1.6;
 
 const DRAW_CONFIG = {
   viewBox: 220,
@@ -353,94 +353,105 @@ const SHINY_VARIANTS = {
 };
 
 const ITEMS = {
+  // `type`/`unlockText` ergaenzt, seit die dedizierten `card`-Kartenfotos
+  // dieser 9 Bestandsitems entfernt wurden (siehe Commit-Historie) — ohne
+  // `card` rendert profile.js jetzt die synthetische Detailkarte, die vorher
+  // (mit `card` gesetzt) nie erreichbar war und sonst den hartkodierten
+  // Kauf-Hinweistext auch fuer Trophaeen-/Standort-Items gezeigt haette.
   fruchtkorb: {
     key: "fruchtkorb",
     name: "Fruchtkorb der Energie",
     rarity: "Gewöhnlich",
     xp: 15,
-    icon: "assets/generated/icon_fruchtkorb_real.png",
-    card: "assets/items/Obstkorb.png",
+    icon: "assets/items/fruchtkorb_icon.png",
+    type: "Verbrauchbar",
     effect: "+25 % XP-Boost für 30 Minuten",
+    unlockText: "Kostenloser Drop an Standorten",
   },
   sprachbuch: {
     key: "sprachbuch",
     name: "Sprachbuch",
     rarity: "Gewöhnlich",
     xp: 15,
-    icon: "assets/generated/icon_sprachbuch_real.png",
-    card: "assets/items/Sprachbuch.png",
+    icon: "assets/items/sprachbuch_icon.png",
+    type: "Verbrauchbar",
     effect: "+5 % Punkte in menschlicher Sprache",
+    unlockText: "Kostenloser Drop an Standorten",
   },
   energiesnack: {
     key: "energiesnack",
     name: "Energiesnack",
     rarity: "Ungewöhnlich",
     xp: 30,
-    icon: "assets/generated/icon_energiesnack_real.png",
-    card: "assets/items/Burger.png",
+    icon: "assets/items/energiesnack_icon.png",
+    type: "Verbrauchbar",
     effect: "+50 % Energie wiederherstellen",
+    unlockText: "Kostenloser Drop an Standorten",
   },
   gesundheitspaket: {
     key: "gesundheitspaket",
     name: "Gesundheits-Paket",
     rarity: "Ungewöhnlich",
     xp: 30,
-    icon: "assets/generated/icon_gesundheitspaket_real.png",
-    card: "assets/items/Health.png",
+    icon: "assets/items/gesundheitspaket_icon.png",
+    type: "Anlegbar",
     effect: "+25 % XP beim Anlegen",
+    unlockText: "Kostenloser Drop an Standorten",
   },
   sneaker: {
     key: "sneaker",
     name: "Stylische Sneaker",
     rarity: "Selten",
     xp: 60,
-    icon: "assets/generated/icon_sneaker_real.png",
-    card: "assets/items/Sneaker.png",
+    icon: "assets/items/stylische-sneaker_icon.png",
+    type: "Anlegbar",
     effect: "+5 % Fangchance beim Anlegen",
+    unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
   },
   rucksack: {
     key: "rucksack",
     name: "Abenteuerrucksack",
     rarity: "Selten",
     xp: 60,
-    icon: "assets/generated/icon_rucksack_real.png",
-    card: "assets/items/Abenteuerrucksack.png",
+    icon: "assets/items/abenteuerrucksack_icon.png",
+    type: "Anlegbar",
     effect: "+5 Inventarplätze",
+    unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
   },
   hoodie: {
     key: "hoodie",
     name: "Epischer Hoodie",
     rarity: "Episch",
     xp: 120,
-    icon: "assets/generated/icon_hoodie_real.png",
-    card: "assets/items/Hoodie.png",
+    icon: "assets/items/epischer-hoodie_icon.png",
+    type: "Anlegbar",
     effect: "+25 % Fangchance beim Anlegen",
+    unlockText: "Exklusive Belohnung einer bestimmten Trophäe",
   },
   armband: {
     key: "armband",
     name: "Energie-Armband",
     rarity: "Legendär",
     xp: 200,
-    icon: "assets/generated/icon_armband_real.png",
-    card: "assets/items/Armband.png",
+    icon: "assets/items/energiearmband_icon.png",
+    type: "Anlegbar",
     effect: "+50 % XP beim Anlegen",
+    unlockText: "Exklusive Belohnung einer bestimmten Trophäe",
   },
   lockduftflakon: {
     key: "lockduftflakon",
     name: "Lockduft-Flakon",
     rarity: "Episch",
     xp: 120,
-    // Ausschnitt aus der echten Karte (assets/items/Lockduft.png) statt des
-    // generischen Platzhalter-SVGs — gleiche Vorgehensweise wie bei den
-    // anderen "..._real.png"-Icons.
-    icon: "assets/generated/icon_lockduftflakon_real.png",
-    card: "assets/items/Lockduft.png",
+    icon: "assets/items/lockduft-flakon_icon.png",
+    type: "Verbrauchbar",
     effect: "Läuft 7 Tage lang, lockt mehr Loomas an",
+    unlockText: "Exklusive Belohnung einer bestimmten Trophäe",
   },
 
   // ============ Item-Briefing (18 neue Items) ============
-  // Ab hier: neue Felder gegenueber den 9 Bestandsitems oben (die laut
-  // Briefing in dieser Runde unveraendert bleiben):
+  // Ab hier die 18 im Item-Briefing definierten neuen Items. Feldbedeutung
+  // (gilt inzwischen auch fuer die 9 Bestandsitems oben, siehe Kommentar dort):
   //   type        "Verbrauchbar" | "Anlegbar"
   //   unlockType  "standort" (kostenloser Drop, Zeichen-Minispiel) |
   //               "kauf" (nur per Bon-Scan/echtem Kauf)
@@ -470,7 +481,7 @@ const ITEMS = {
     name: "Energieriegel",
     rarity: "Gewöhnlich",
     xp: 15,
-    icon: "assets/items/placeholder_new_item.svg",
+    icon: "assets/items/energierigel_icon.png",
     type: "Verbrauchbar",
     effect: "+5 % XP-Boost für 10 Minuten",
     unlockType: "standort",
@@ -481,7 +492,7 @@ const ITEMS = {
     name: "Kaffeebecher",
     rarity: "Gewöhnlich",
     xp: 15,
-    icon: "assets/items/placeholder_new_item.svg",
+    icon: "assets/items/kaffeebecher_icon.png",
     type: "Verbrauchbar",
     effect: "Zeigt Loomas in der Nähe für 10 Minuten an",
     unlockType: "standort",
@@ -514,7 +525,7 @@ const ITEMS = {
     name: "Frischedeo",
     rarity: "Gewöhnlich",
     xp: 15,
-    icon: "assets/items/placeholder_new_item.svg",
+    icon: "assets/items/deo_icon.png",
     type: "Verbrauchbar",
     effect: "Lockt 5 Minuten lang leicht mehr Loomas an",
     unlockType: "standort",
@@ -525,7 +536,7 @@ const ITEMS = {
     name: "Futterportion",
     rarity: "Gewöhnlich",
     xp: 15,
-    icon: "assets/items/placeholder_new_item.svg",
+    icon: "assets/items/futterportion_icon.png",
     type: "Verbrauchbar",
     effect: "+10 % Fangchance für 5 Minuten",
     unlockType: "standort",
@@ -536,24 +547,26 @@ const ITEMS = {
     name: "Snackpaket",
     rarity: "Gewöhnlich",
     xp: 15,
-    icon: "assets/items/placeholder_new_item.svg",
+    icon: "assets/items/snackpaket_icon.png",
     type: "Verbrauchbar",
     effect: "+5 % XP-Boost für 10 Minuten",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
   },
-  ruhepulver: {
-    key: "ruhepulver",
-    name: "Ruhepulver",
+  fokuszeit: {
+    key: "fokuszeit",
+    // Hiess urspruenglich "Ruhepulver" -- Name passte nicht recht zum Effekt
+    // (mehr Reaktionszeit statt Beruhigung), daher umbenannt.
+    name: "Fokuszeit",
     rarity: "Gewöhnlich",
     xp: 15,
-    icon: "assets/items/placeholder_new_item.svg",
+    icon: "assets/items/focuszeit_icon.png",
     type: "Verbrauchbar",
     effect: "Verlangsamt den Loomas für einen Fangversuch",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
     // Einziges Item mit aktiver UI-Auswahl direkt in der Fangszene (siehe
-    // btn-use-ruhepulver in index.html + useRuhepulver() in catchgame.js)
+    // btn-use-fokuszeit in index.html + useFokuszeit() in catchgame.js)
     // statt passiver Inventar-Aktivierung wie alle anderen Verbrauchsitems.
     catchModeItem: true,
   },
@@ -563,7 +576,7 @@ const ITEMS = {
     name: "Vitaminsaft",
     rarity: "Ungewöhnlich",
     xp: 30,
-    icon: "assets/items/placeholder_new_item.svg",
+    icon: "assets/items/Vitaminsaft_icon.png",
     type: "Verbrauchbar",
     effect: "+50 % Energie sofort wiederherstellen",
     unlockType: "kauf",

@@ -132,12 +132,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // Button), das fuehlt sich beim echten Fangen natuerlicher an. Der
   // Schliessen-Button (X) ist davon ausgenommen.
   document.getElementById("screen-catch").addEventListener("click", (e) => {
-    if (e.target.closest(".btn-close") || e.target.closest("#btn-ar-toggle") || e.target.closest("#btn-use-ruhepulver")) return;
+    if (e.target.closest(".btn-close") || e.target.closest("#btn-ar-toggle") || e.target.closest("#btn-use-fokuszeit")) return;
     handleFangenClick();
   });
   document.querySelector('#screen-catch [data-close]').addEventListener("click", closeCatchScene);
   document.getElementById("btn-ar-toggle").addEventListener("click", toggleArCamera);
-  document.getElementById("btn-use-ruhepulver").addEventListener("click", useRuhepulver);
+  document.getElementById("btn-use-fokuszeit").addEventListener("click", useFokuszeit);
   document.getElementById("btn-catch-continue").addEventListener("click", () => {
     if (pendingTrophyEntries.length > 0) {
       const entries = pendingTrophyEntries;
