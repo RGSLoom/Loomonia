@@ -39,6 +39,13 @@ async function initMap() {
     zoom: 16,
     pitch: 45,
     bearing: 0,
+    // maxZoom 18.5: ab Zoom ~19 verliert die Mercator-Weltkoordinate der
+    // 3D-Kreaturmodelle (js/creature3d.js) im Float32-Grafikpfeifer so viel
+    // Praezision, dass sie sichtbar verzerren (auf einen duennen Streifen
+    // zusammengequetscht) -- weit jenseits der eigentlichen Spielzoomstufe
+    // (17) und ohne spielerischen Nutzen, deshalb hier gedeckelt statt das
+    // Problem tiefer (z.B. per Frame neu zentrierte Kamera-Referenz) zu loesen.
+    maxZoom: 18.5,
     attributionControl: true,
   });
   mapboxMap.addControl(
@@ -46,6 +53,10 @@ async function initMap() {
     "top-right"
   );
   setupOneFingerLook(mapboxMap);
+
+  // CustomLayer fuer echte 3D-Kreaturmodelle (js/creature3d.js) -- braucht
+  // den geladenen Stil, deshalb erst nach "load" statt direkt hier.
+  mapboxMap.on("load", () => initCreature3DLayer(mapboxMap));
 
   // Leichter Farbwasch in den App-eigenen Violett-/Cyan-Toenen (siehe
   // .profile-screen), damit die Karte zur restlichen Cosmic-Bildsprache
@@ -439,7 +450,15 @@ function spawnCreature() {
 
   const creature = CREATURES[key];
   const id = uid();
-  const iconHtml = `<div class="creature-marker" data-id="${id}" style="color:${creature.color}">
+  // Hat die Kreatur ein 3D-Modell (creature.model3d, aktuell nur Moosilda),
+  // bleibt hier nur ein unsichtbarer Hit-Marker fuer Klick/In-Range-Logik --
+  // das eigentliche Aussehen kommt vom CustomLayer in js/creature3d.js, der
+  // echt in der 3D-Kameraperspektive der Karte sitzt statt als flaches
+  // Icon draufgeklebt zu sein.
+  const has3DModel = !!creature.model3d;
+  const iconHtml = has3DModel
+    ? `<div class="creature-marker creature-marker-3d" data-id="${id}"></div>`
+    : `<div class="creature-marker" data-id="${id}" style="color:${creature.color}">
       <img src="${creatureIconCache[key] || creature.icon}" alt="${creature.name}" />
     </div>`;
   const container = document.createElement("div");
@@ -450,6 +469,8 @@ function spawnCreature() {
   const entry = { id, key, lat, lon, marker };
   el.addEventListener("click", () => onCreatureMarkerClick(entry));
   activeCreatures.push(entry);
+
+  if (has3DModel) add3DCreatureMarker(mapboxMap, id, creature, lat, lon);
 }
 
 // Tauscht nur das Bild im bestehenden Marker-Element statt es komplett neu
@@ -473,6 +494,7 @@ function onCreatureMarkerClick(entry) {
 
 function removeCreature(entry) {
   entry.marker.remove();
+  if (CREATURES[entry.key].model3d) remove3DCreatureMarker(mapboxMap, entry.id);
   activeCreatures = activeCreatures.filter((c) => c.id !== entry.id);
   const delay = isSpawnBoostActive()
     ? randomBetween(SPAWN_BOOST_RESPAWN_MIN_MS, SPAWN_BOOST_RESPAWN_MAX_MS)
@@ -496,11 +518,13 @@ function refreshDistancesAndHud() {
 
   activeCreatures.forEach((c) => {
     const d = distanceMeters(playerPos.lat, playerPos.lon, c.lat, c.lon);
+    const inRange = d <= CATCH_RADIUS_M;
     const el = c.marker.getElement();
     if (el) {
-      el.classList.toggle("out-of-range", d > CATCH_RADIUS_M);
-      el.classList.toggle("in-range", d <= CATCH_RADIUS_M);
+      el.classList.toggle("out-of-range", !inRange);
+      el.classList.toggle("in-range", inRange);
     }
+    if (CREATURES[c.key].model3d) set3DCreatureInRange(c.id, inRange);
   });
 
   Object.entries(storeMarkers).forEach(([key, s]) => {

@@ -627,6 +627,7 @@ html, body {
   z-index: 1;
   filter: drop-shadow(0 10px 24px rgba(0,0,0,0.6));
   pointer-events: none;
+  --poster-color: transparent;
   display: none;
 }
 /* Fest auf Hoehe der Fuesse im Fauli-Echtfoto positioniert (nicht an das
@@ -877,6 +878,7 @@ html, body {
   width: 62%;
   height: 62%;
   object-fit: contain;
+  --poster-color: transparent;
   filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6));
   display: none;
 }
@@ -1101,7 +1103,8 @@ html, body {
   box-shadow: none;
   cursor: default;
 }
-.item-cell img, .looma-cell img { width: 56%; height: 56%; object-fit: contain; }
+.item-cell img, .looma-cell img,
+.item-cell model-viewer, .looma-cell model-viewer { width: 56%; height: 56%; object-fit: contain; --poster-color: transparent; }
 .trophy-cell-icon { width: 46%; height: 46%; color: var(--rarity-color); stroke-width: 1.4; }
 .cell-count {
   position: absolute;
@@ -1145,6 +1148,7 @@ html, body {
   height: 120px;
   object-fit: contain;
   margin: 0 auto 18px;
+  --poster-color: transparent;
   filter: drop-shadow(0 0 16px rgba(192,132,252,0.5));
 }
 .detail-card-type {

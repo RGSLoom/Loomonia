@@ -67,11 +67,11 @@ function showPhotoLayer(creature) {
   // generischen Hintergruenden (Enari/Fifu/Nami) legen wir das
   // freigestellte Icon zusaetzlich als Vordergrund-Motiv drauf, damit
   // ueberhaupt ein Wesen zum Anvisieren sichtbar ist.
-  const creatureImgEl = document.getElementById("catch-creature-img");
+  let creatureImgEl = document.getElementById("catch-creature-img");
   if (creature.sceneIsRealPhoto) {
     creatureImgEl.style.display = "none";
   } else {
-    creatureImgEl.src = creatureIconCache[creature.key] || creature.icon;
+    creatureImgEl = renderCreatureVisual(creatureImgEl, creature, creatureIconCache[creature.key] || creature.icon);
     creatureImgEl.style.display = "block";
   }
 }
@@ -82,8 +82,8 @@ function showCameraLayer(creature) {
   // Im Kamera-Modus enthaelt das Live-Bild nie ein Wesen (anders als
   // Faulis festes Foto) — das Icon muss also immer als Vordergrund drauf.
   const creatureImgEl = document.getElementById("catch-creature-img");
-  creatureImgEl.src = creatureIconCache[creature.key] || creature.icon;
-  creatureImgEl.style.display = "block";
+  const el = renderCreatureVisual(creatureImgEl, creature, creatureIconCache[creature.key] || creature.icon);
+  el.style.display = "block";
 }
 
 async function tryStartCamera() {
@@ -259,8 +259,8 @@ function onCatchSuccess() {
   if (creature.sceneIsRealPhoto) {
     successIconEl.style.display = "none";
   } else {
-    successIconEl.src = creatureIconCache[creature.key] || creature.icon;
-    successIconEl.style.display = "block";
+    const el = renderCreatureVisual(successIconEl, creature, creatureIconCache[creature.key] || creature.icon);
+    el.style.display = "block";
   }
 
   document.getElementById("success-creature-name").textContent = creature.name;

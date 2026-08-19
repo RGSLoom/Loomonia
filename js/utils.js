@@ -127,3 +127,37 @@ async function getCutoutImage(imgSrc) {
   cutoutCache.set(imgSrc, promise);
   return promise;
 }
+
+// Baut Markup fuer die Vorschau eines Wesens: hat die Kreatur ein 3D-Modell
+// (creature.model3d, aktuell nur Moosilda), wird ein <model-viewer> mit dem
+// .glb gerendert, sonst wie bisher ein flaches <img>-Icon. Bewusst statisch
+// (kein auto-rotate, keine camera-controls) -- an diesen Stellen (Fangszene,
+// Erfolgsmeldung, Tausch-Detail, Sammlungsraster) soll das 3D-Modell wie ein
+// normales Icon wirken, nicht dauerhaft rotieren oder Klicks/Scrollen
+// abfangen (echtes 3D mit Kamerabezug gibt es nur auf dem Kartenmarker).
+function creatureVisualHTML(creature, iconSrc, { className = "", id = "" } = {}) {
+  const idAttr = id ? ` id="${id}"` : "";
+  const clsAttr = className ? ` class="${className}"` : "";
+  const name = creature ? creature.name : "";
+  if (creature && creature.model3d) {
+    // loading="eager" statt Standard-Lazyload per IntersectionObserver: die
+    // Stellen, an denen wir das nutzen, sind Screens/Karten, die genau dann
+    // erscheinen, wenn ihr Inhalt ohnehin gebraucht wird -- ein verzoegertes
+    // Nachladen wuerde sich dort nur als Ruckler bemerkbar machen.
+    return `<model-viewer${idAttr} src="${creature.model3d}"${clsAttr} alt="${name}" loading="eager" disable-zoom shadow-intensity="0"></model-viewer>`;
+  }
+  return `<img${idAttr} src="${iconSrc}"${clsAttr} alt="${name}" />`;
+}
+
+// DOM-Variante von creatureVisualHTML() fuer Stellen, die ein festes
+// <img>-Element per ID wiederverwenden statt es per innerHTML neu zu bauen
+// (Fangszene/Erfolgsmeldung) -- <img>.src haette bei einem 3D-Modell keine
+// Wirkung, daher wird das Element bei Bedarf gegen <model-viewer>
+// ausgetauscht (bzw. zurueck, sobald wieder ein Wesen ohne Modell dran ist).
+// Gibt das (ggf. neue) Element zurueck.
+function renderCreatureVisual(el, creature, iconSrc, opts = {}) {
+  const id = el.id;
+  const className = el.className;
+  el.outerHTML = creatureVisualHTML(creature, iconSrc, { ...opts, id, className });
+  return document.getElementById(id);
+}

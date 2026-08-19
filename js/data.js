@@ -310,6 +310,10 @@ const CREATURES = {
     // urspruenglichen Icons) — Laufzeit-Weissabgleich wuerde helle
     // Fellstellen kaputt-loechern, siehe wollypig-Kommentar oben.
     iconAlreadyTransparent: true,
+    // Wenn gesetzt, rendert renderCreatureVisual()/creatureVisualHTML()
+    // (js/utils.js) ueberall statt des flachen icons ein <model-viewer>
+    // mit diesem 3D-Modell.
+    model3d: "assets/wesen/moosilda_3d.glb",
     scene: "assets/hintergrund/Wiesenlandschaft.png",
     sceneIsRealPhoto: false,
   },
