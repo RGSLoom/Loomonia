@@ -341,13 +341,20 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
     // als "erkannter Produktname" durchgeht (betrifft v.a. die erste
     // Bon-Zeile, die haeufig der Store-Header ist).
     if (RECEIPT_STORE_PATTERNS.some((entry) => entry.pattern.test(line))) continue;
+    // amountCents kann null bleiben -- z.B. wenn OCR auf einem schlecht
+    // lesbaren Foto das Dezimaltrennzeichen verschluckt hat ("2,66" wird zu
+    // "266", passt dann nicht mehr auf RECEIPT_AMOUNT_PATTERN). Die Zeile
+    // bleibt TROTZDEM ein gueltiger Kandidat fuer den Fuzzy-Artikelabgleich
+    // (siehe matchReceiptText) -- sonst wuerde ein hinterlegter Artikel nie
+    // erkannt, nur weil sein Preis auf diesem einen Foto nicht lesbar war.
+    // Kein erfundener Preis: bleibt amountCents null, zaehlt der Treffer
+    // spaeter fuers Dashboard als erkannter Artikel OHNE Umsatzbeitrag.
     const amountCents = capToReceiptTotal(
       extractLineAmountCents(line) ??
         extractLineAmountCents(lines[i - 1] || "") ??
         extractLineAmountCents(lines[i + 1] || ""),
       maxAmountCents
     );
-    if (amountCents === null) continue;
     const cleaned = cleanProductNameText(line).slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH);
     const dedupeKey = cleaned.toLowerCase();
     if (seenText.has(dedupeKey)) continue; // z.B. dieselbe Zeile doppelt ueber Preis-Lookaround erreicht
@@ -415,6 +422,16 @@ function articleSimilarity(lineText, configuredArticle) {
   return 1 - levenshteinDistance(a, b) / Math.max(a.length, b.length);
 }
 
+// Viele Kassenbons stellen jeder Artikelzeile eine lange Artikel-/EAN-Nummer
+// voran (z.B. "4305613737946 RLM SKINCONCEALER 2,66") -- die dominiert bei
+// kurzen hinterlegten Artikelnamen die Editierdistanz und verschlechtert den
+// Score unnoetig, obwohl der eigentliche Artikeltext gut passen wuerde.
+// Wird deshalb vor dem Abgleich entfernt (nur fuers Matching, der
+// unveraenderte Zeilentext bleibt fuer amountCents/Preis-Erkennung erhalten).
+function stripLeadingBarcode(text) {
+  return (text || "").replace(/^\d{5,14}\s+/, "");
+}
+
 // Ab diesem Aehnlichkeitswert gilt eine Bon-Zeile als Treffer auf einen
 // hinterlegten Artikel. Einstellbar -- niedriger = mehr Treffer, aber mehr
 // Risiko von Fehltreffern (offener Punkt aus dem Briefing).
@@ -471,7 +488,7 @@ function matchReceiptText(text, configuredArticles) {
   const matchedArticles = [];
   if (configuredArticles && configuredArticles.length > 0) {
     candidateLines.forEach((line) => {
-      const best = matchLineToConfiguredArticles(line.text, configuredArticles);
+      const best = matchLineToConfiguredArticles(stripLeadingBarcode(line.text), configuredArticles);
       if (best) matchedArticles.push({ articleText: best.articleText, amountCents: line.amountCents });
     });
   }
@@ -499,6 +516,22 @@ function pickReceiptMatchRewards(matchedArticles) {
   }));
 }
 
+// Zieht das Bonuspaket (Muenzen-Betrag + weisse Zufalls-Items) fuer den
+// Fall, dass kein hinterlegter Artikel erkannt wurde -- ebenfalls reine
+// Zufallsauswahl (siehe pickReceiptMatchRewards oben), deshalb genauso schon
+// VOR trackReceiptScanForDashboard() berechnet, damit auch diese Bonus-Items
+// als eigene Dashboard-Events auftauchen (fuer "Items aus echten Kaeufen"/
+// "Top Artikel aus echten Kaeufen"), nicht nur ein reines Teilnahme-Event.
+function pickBonusReward() {
+  const coinAmount = Math.round(randomBetween(BONSCAN_COINS_MIN, BONSCAN_COINS_MAX));
+  const bonusCounts = {};
+  for (let i = 0; i < BONSCAN_UNCLEAR_BONUS_SLOT_COUNT - 1; i++) {
+    const key = randomChoice(BONSCAN_WHITE_BONUS_ITEM_POOL);
+    bonusCounts[key] = (bonusCounts[key] || 0) + 1;
+  }
+  return { coinAmount, bonusCounts };
+}
+
 // Dashboard-Tracking (Artikel-Ansicht/Umsatz) fuer die per Fuzzy-Match
 // erkannten Positionen -- LAEUFT BEWUSST GETRENNT von der eigentlichen
 // Item-/XP-/Trophaeen-Vergabe unten (siehe grantReceiptItems). Vorher lagen
@@ -513,19 +546,26 @@ function pickReceiptMatchRewards(matchedArticles) {
 // Ein Eintrag PRO erkannter Bon-Zeile (nicht nach Artikel gruppiert/gezaehlt)
 // -- das Dashboard gruppiert beim Anzeigen ohnehin case-insensitiv nach
 // Artikeltext, siehe countByProductText() in dashboard-render.js.
-function trackReceiptScanForDashboard(rewardedMatches, categoryKey) {
+function trackReceiptScanForDashboard(rewardedMatches, bonusReward, categoryKey) {
   if (rewardedMatches.length === 0) {
     // Kein hinterlegter Artikel erkannt -- der Kaufversuch zaehlt trotzdem
-    // (Kaeuferzahl, "treuer_shopper"-Ziel unten), aber OHNE erfundenen
-    // Umsatz/Artikeltext: Umsatz/Provision zaehlen laut Briefing nur noch
-    // aus tatsaechlich hinterlegten UND per Matching erkannten Artikeln.
-    trackEvent("item_receipt_scanned", {
-      storeId: "receipt_scan",
-      category: categoryKey,
-      itemKey: null,
-      rarity: null,
-      amountCents: null,
-      productText: null,
+    // (Kaeuferzahl, "treuer_shopper"-Ziel unten), UND jedes vergebene
+    // Bonus-Item bekommt sein eigenes Event (itemKey/rarity), aber OHNE
+    // erfundenen Umsatz/Artikeltext: Umsatz/Provision zaehlen laut Briefing
+    // nur noch aus tatsaechlich hinterlegten UND per Matching erkannten
+    // Artikeln.
+    Object.entries(bonusReward.bonusCounts).forEach(([itemKey, count]) => {
+      const item = ITEMS[itemKey];
+      for (let i = 0; i < count; i++) {
+        trackEvent("item_receipt_scanned", {
+          storeId: "receipt_scan",
+          category: categoryKey,
+          itemKey,
+          rarity: item.rarity,
+          amountCents: null,
+          productText: null,
+        });
+      }
     });
     return;
   }
@@ -544,7 +584,8 @@ function trackReceiptScanForDashboard(rewardedMatches, categoryKey) {
 
 function grantReceiptItems(matchedArticles, categoryKey, storeText) {
   const rewardedMatches = pickReceiptMatchRewards(matchedArticles);
-  trackReceiptScanForDashboard(rewardedMatches, categoryKey);
+  const bonusReward = rewardedMatches.length === 0 ? pickBonusReward() : null;
+  trackReceiptScanForDashboard(rewardedMatches, bonusReward, categoryKey);
 
   // Ab hier: die eigentliche Spiel-Belohnung (Item/XP/Muenzen/Trophaeen)
   // und die Erfolgs-Anzeige -- bewusst in try/catch, damit ein Fehler hier
@@ -577,20 +618,15 @@ function grantReceiptItems(matchedArticles, categoryKey, storeText) {
     // Zufalls-Items gibt es ein kleines Bonuspaket: ein Slot ist IMMER
     // Muenzen (neue Waehrung, siehe addCoins() in state.js + HUD-Anzeige
     // am Avatar), der Rest zufaellige weisse Items (siehe
-    // BONSCAN_WHITE_BONUS_ITEM_POOL in js/data.js). Gleiche Items werden zu
-    // einem Stapel zusammengefasst statt einzeln in der Erfolgs-Queue zu
-    // erscheinen.
-    const coinAmount = Math.round(randomBetween(BONSCAN_COINS_MIN, BONSCAN_COINS_MAX));
-    addCoins(coinAmount);
-    trackEvent("coins_received", { storeId: "receipt_scan", category: categoryKey, amount: coinAmount });
-    entries.push({ type: "coins", amount: coinAmount, storeText: "Bonus für deinen Einkauf 🧾" });
+    // BONSCAN_WHITE_BONUS_ITEM_POOL in js/data.js). Bereits oben per
+    // pickBonusReward() gezogen (fuer das Dashboard-Tracking), hier nur
+    // noch tatsaechlich vergeben. Gleiche Items werden zu einem Stapel
+    // zusammengefasst statt einzeln in der Erfolgs-Queue zu erscheinen.
+    addCoins(bonusReward.coinAmount);
+    trackEvent("coins_received", { storeId: "receipt_scan", category: categoryKey, amount: bonusReward.coinAmount });
+    entries.push({ type: "coins", amount: bonusReward.coinAmount, storeText: "Bonus für deinen Einkauf 🧾" });
 
-    const bonusCounts = {};
-    for (let i = 0; i < BONSCAN_UNCLEAR_BONUS_SLOT_COUNT - 1; i++) {
-      const key = randomChoice(BONSCAN_WHITE_BONUS_ITEM_POOL);
-      bonusCounts[key] = (bonusCounts[key] || 0) + 1;
-    }
-    Object.entries(bonusCounts).forEach(([itemKey, count]) => {
+    Object.entries(bonusReward.bonusCounts).forEach(([itemKey, count]) => {
       const item = ITEMS[itemKey];
       addItem(itemKey, count);
       levelRewardEntries = levelRewardEntries.concat(addXp(item.xp * count));
