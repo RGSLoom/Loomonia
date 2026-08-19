@@ -97,7 +97,9 @@ function xpToLevel(xp) {
 }
 
 const RARITY_COLORS = {
-  "Gewöhnlich": "#5eead4",
+  // War vorher ein Tuerkis-Ton (#5eead4), der neben Ungewoehnlich-Gruen kaum
+  // zu unterscheiden war -- jetzt echtes Weiss/Grau wie in der Spielspezifikation.
+  "Gewöhnlich": "#d1d5db",
   "Ungewöhnlich": "#4ade80",
   "Selten": "#60a5fa",
   "Episch": "#c084fc",

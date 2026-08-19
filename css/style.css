@@ -18,7 +18,7 @@
   --glass-border-strong: rgba(255,255,255,0.26);
 
   /* Rarity-Skala (siehe RARITY_COLORS in js/data.js, hier gespiegelt fuer CSS) */
-  --rarity-common: #5eead4;
+  --rarity-common: #d1d5db;
   --rarity-uncommon: #4ade80;
   --rarity-rare: #60a5fa;
   --rarity-epic: #c084fc;

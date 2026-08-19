@@ -145,7 +145,7 @@ Discounter/Fachgeschäft es hätte)
 | Epischer Hoodie | Episch | 120 | +25 % Fangchance beim Anlegen |
 | Energie-Armband | Legendär | 200 | +50 % XP beim Anlegen |
 
-Rarity-Farbcode: Gewöhnlich #5eead4 (Teal), Ungewöhnlich #4ade80 (Grün),
+Rarity-Farbcode: Gewöhnlich #d1d5db (Weiß/Grau), Ungewöhnlich #4ade80 (Grün),
 Selten #60a5fa (Blau), Episch #c084fc (Lila), Legendär #fbbf24 (Gold).
 
 ### Nachmal-Minigame (Item-Freischaltung)
