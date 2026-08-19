@@ -226,7 +226,7 @@ function renderLoomasGrid() {
       const owned = count > 0;
       if (!owned) return `<div class="looma-cell locked"></div>`;
       return `<div class="looma-cell" data-creature="${c.key}" style="--rarity-color:${RARITY_COLORS[c.rarity]}">
-        ${creatureVisualHTML(c, creatureIconCache[c.key] || c.icon)}<span class="cell-count">${count}</span>
+        <img src="${creatureIconCache[c.key] || c.icon}" alt="${c.name}" /><span class="cell-count">${count}</span>
         <span class="cell-label">${c.name}</span>
       </div>`;
     })
@@ -256,7 +256,7 @@ function showLoomaExchangeDetail(key) {
     <div class="detail-card-synthetic looma-exchange-card">
       <div class="detail-card-name">${creature.name}</div>
       <div class="detail-card-rarity" style="color:${RARITY_COLORS[creature.rarity]}">${creature.rarity}</div>
-      ${creatureVisualHTML(creature, creatureIconCache[key] || creature.icon, { className: "detail-card-icon" })}
+      <img src="${creatureIconCache[key] || creature.icon}" alt="${creature.name}" class="detail-card-icon" />
       <div class="looma-exchange-owned">Gefangen: ${owned}</div>
       <div class="looma-exchange-rate">1 Wesen = ${SHADOW_ESSENCE_PER_CREATURE} Schatten-Essenz</div>
       <div class="looma-exchange-slider-row">

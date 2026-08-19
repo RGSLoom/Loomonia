@@ -1,9 +1,13 @@
-// Rendert Wesen mit einem 3D-Modell (creature.model3d, aktuell nur Moosilda)
-// als echtes three.js-Objekt in einem Mapbox-GL-CustomLayer -- anders als
-// model-viewer (js/utils.js, fuer die statischen Screens Fangszene/Erfolg/
-// Tausch-Detail/Sammlungsraster) sitzt das Modell hier wirklich in der
-// Kamera-Perspektive der Karte: Kippen/Drehen der Karte zeigt die Kreatur
-// tatsaechlich von der Seite/von hinten.
+// Rendert Wesen mit einem 3D-Modell (creature.model3d) als echtes three.js-
+// Objekt in einem Mapbox-GL-CustomLayer -- NUR auf dem Kartenmarker. Alle
+// anderen Stellen (Fangszene, Erfolg, Tausch-Detail, Sammlungsraster) zeigen
+// bewusst weiterhin das flache creature.icon (js/profile.js, js/catchgame.js):
+// ein <model-viewer> pro Vorschau braucht dort einen eigenen WebGL-Kontext +
+// eigene GPU-Kopie der Geometrie, was bei mehreren gleichzeitig sichtbaren
+// Kreaturen (Sammlungsraster!) nicht lohnt, wenn ohnehin nichts rotiert.
+// Hier auf der Karte sitzt das Modell dagegen wirklich in der Kamera-
+// Perspektive: Kippen/Drehen der Karte zeigt die Kreatur tatsaechlich von
+// der Seite/von hinten -- das rechtfertigt den Aufwand.
 //
 // Tiefentest bewusst AUS (siehe depthTest/depthWrite unten): Mapbox GL JS v3
 // und three.js teilen sich zwar denselben GL-Kontext, aber Mercator-Hoehen
@@ -26,9 +30,9 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 
-// Deckt auch zukuenftige Draco-komprimierte Exports ab (der aktuelle
-// moosilda_3d.glb braucht ihn nicht mehr, siehe Chat-Verlauf) -- derselbe
-// von Google gehostete Decoder-Pfad, den model-viewer intern ebenfalls nutzt.
+// Deckt auch zukuenftige Draco-komprimierte Exports ab (die aktuellen
+// *_3d.glb-Dateien brauchen ihn nicht mehr, siehe Chat-Verlauf) -- der von
+// Google gehostete Standard-Decoder-Pfad.
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.7/");
 const gltfLoader = new GLTFLoader();

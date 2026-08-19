@@ -251,9 +251,9 @@ const CREATURES = {
     rarity: "Ungewöhnlich",
     xp: 300,
     icon: "assets/wesen/Perlina_icon.png",
-    // Wenn gesetzt, rendert renderCreatureVisual()/creatureVisualHTML()
-    // (js/utils.js) bzw. der Kartenmarker (js/creature3d.js) statt des
-    // flachen icons ein echtes 3D-Modell, siehe moosilda-Kommentar oben.
+    // Wenn gesetzt, rendert der Kartenmarker (js/creature3d.js) statt des
+    // flachen icons ein echtes 3D-Modell -- nur dort, "icon" bleibt fuer
+    // Fangszene/Erfolg/Sammlung/Tausch-Detail massgeblich.
     model3d: "assets/wesen/Perlina_3d.glb",
     scene: "assets/generated/bg_nami_real.jpg",
     sceneIsRealPhoto: false,
@@ -314,9 +314,9 @@ const CREATURES = {
     // urspruenglichen Icons) — Laufzeit-Weissabgleich wuerde helle
     // Fellstellen kaputt-loechern, siehe wollypig-Kommentar oben.
     iconAlreadyTransparent: true,
-    // Wenn gesetzt, rendert renderCreatureVisual()/creatureVisualHTML()
-    // (js/utils.js) ueberall statt des flachen icons ein <model-viewer>
-    // mit diesem 3D-Modell.
+    // Wenn gesetzt, rendert der Kartenmarker (js/creature3d.js) statt des
+    // flachen icons ein echtes 3D-Modell -- nur dort, "icon" bleibt fuer
+    // Fangszene/Erfolg/Sammlung/Tausch-Detail massgeblich.
     model3d: "assets/wesen/moosilda_3d.glb",
     scene: "assets/hintergrund/Wiesenlandschaft.png",
     sceneIsRealPhoto: false,
