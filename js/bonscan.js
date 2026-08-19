@@ -118,19 +118,32 @@ function handleScanFileInput(event) {
   if (file) processReceiptImage(file);
 }
 
-// Laedt die vom Store (aktuell nur GodAdmin, siehe dashboard/index.html
-// Einstellungen-Panel "Artikelverwaltung") hinterlegte Artikelliste, gegen
-// die matchReceiptText() jede erkannte Bon-Zeile unscharf abgleicht (siehe
-// supabase/store_articles_setup.sql). Oeffentlich lesbar (anon-Key) wie bei
-// STORE_LOCATIONS in js/locations.js -- darf den Scan nie blockieren, bei
-// jedem Fehler (offline, Tabelle/Function noch nicht angelegt) einfach eine
-// leere Liste liefern statt abzubrechen.
-function loadGodAdminArticles() {
-  return fetch(`${SUPABASE_URL}/rest/v1/store_articles?select=articles&store_key=eq.godadmin`, {
+// Laedt die Artikellisten ALLER aktuell konfigurierten Stores -- GodAdmin
+// (store_key "godadmin", siehe dashboard/index.html Einstellungen-Panel)
+// UND jeden echten Retailer-Standort, der ueber seinen eigenen Store-View-
+// Magic-Link eine Liste hinterlegt hat (siehe dashboard/store-view.html
+// Artikel-Panel). Das Spiel kennt beim Scannen (noch) keinen "aktuellen
+// Standort" (keine Proximity-/Auswahl-Logik, siehe Projekt-Notiz
+// "Store-Unterscheidung bei mehreren Filialen") -- deshalb werden bewusst
+// ALLE konfigurierten Listen gemeinsam geprueft statt nur einer einzelnen,
+// sonst wuerde ein bei einem echten Retailer-Standort hinterlegter Artikel
+// nie erkannt. Oeffentlich lesbar (anon-Key) wie bei STORE_LOCATIONS in
+// js/locations.js -- darf den Scan nie blockieren, bei jedem Fehler
+// (offline, Tabelle/Function noch nicht angelegt) einfach eine leere Liste
+// liefern statt abzubrechen.
+function loadConfiguredStores() {
+  return fetch(`${SUPABASE_URL}/rest/v1/store_articles?select=store_key,articles`, {
     headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
   })
     .then((r) => (r.ok ? r.json() : []))
-    .then((rows) => (rows[0] && Array.isArray(rows[0].articles) ? rows[0].articles : []))
+    .then((rows) =>
+      Array.isArray(rows)
+        ? rows.map((row) => ({
+            storeKey: row.store_key,
+            articles: Array.isArray(row.articles) ? row.articles : [],
+          }))
+        : []
+    )
     .catch(() => []);
 }
 
@@ -140,7 +153,7 @@ async function processReceiptImage(imageSource) {
   try {
     // Parallel zur (mehrere Sekunden dauernden) OCR gestartet statt danach
     // -- kostet dadurch effektiv keine zusaetzliche Wartezeit.
-    const articlesPromise = loadGodAdminArticles();
+    const storesPromise = loadConfiguredStores();
     const normalized = await normalizeImageForOcr(imageSource);
     // deu+eng+nld: Bon kann auch im Ausland fotografiert werden (DE/EN/NL) —
     // Tesseract erkennt damit alle drei gemeinsam statt nur Deutsch. Timeout
@@ -154,8 +167,8 @@ async function processReceiptImage(imageSource) {
     // ohne dass extra ein Fehlerzustand ausgeloest werden muss.
     console.log("Bon-OCR-Text:", result.data.text);
     showBonOcrCopyButton(result.data.text);
-    const configuredArticles = await articlesPromise;
-    matchReceiptText(result.data.text || "", configuredArticles);
+    const configuredStores = await storesPromise;
+    matchReceiptText(result.data.text || "", configuredStores);
   } catch (err) {
     console.warn("OCR fehlgeschlagen:", err && err.message ? err.message : err);
     setScanStatus("");
@@ -294,8 +307,8 @@ const RECEIPT_LINE_HAS_WORD = /[a-zA-ZÀ-ÿ]{3,}/;
 
 // Sucht ALLE plausiblen echten Artikelzeilen (nicht nur die erste) samt
 // jeweils eigenem Preis — liefert die Kandidatenzeilen, gegen die
-// matchLineToConfiguredArticles() anschliessend die vom Store hinterlegte
-// Artikelliste per Fuzzy-Match prueft (siehe matchReceiptText()).
+// matchLineToConfiguredStores() anschliessend die Artikellisten aller
+// konfigurierten Stores per Fuzzy-Match prueft (siehe matchReceiptText()).
 // Vollstaendigkeit ist hier wichtiger als lesbare Namen: auch kryptischer
 // Text (z.B. Kassensystem-Kuerzel wie "CC EW 0,33L FL") wird als Kandidat
 // zurueckgegeben, die eigentliche Auswahl trifft der Fuzzy-Abgleich danach.
@@ -437,24 +450,44 @@ function stripLeadingBarcode(text) {
 // Risiko von Fehltreffern (offener Punkt aus dem Briefing).
 const ARTICLE_MATCH_THRESHOLD = 0.6;
 
-// Bester Treffer (>= Threshold) einer Bon-Zeile gegen ALLE hinterlegten
-// Artikel eines Stores. Passt eine Zeile zu mehreren Artikeln aehnlich gut,
-// gewinnt der hoechste Score, bei exaktem Gleichstand (score > best.score
-// statt >=) der zuerst in der Liste hinterlegte Artikel.
-function matchLineToConfiguredArticles(lineText, configuredArticles) {
+// Bester Treffer (>= Threshold) einer Bon-Zeile gegen die Artikellisten
+// ALLER aktuell konfigurierten Stores (nicht nur eines einzelnen -- das
+// Spiel kennt beim Scannen noch keinen "aktuellen Standort", siehe
+// loadConfiguredStores). Passt eine Zeile zu mehreren Artikeln/Stores
+// aehnlich gut, gewinnt der hoechste Score, bei exaktem Gleichstand
+// (score > best.score statt >=) der zuerst konfigurierte Store/Artikel.
+function matchLineToConfiguredStores(lineText, configuredStores) {
   let best = null;
-  configuredArticles.forEach((article) => {
-    const articleText = (article || "").trim();
-    if (!articleText) return;
-    const score = articleSimilarity(lineText, articleText);
-    if (score >= ARTICLE_MATCH_THRESHOLD && (!best || score > best.score)) {
-      best = { articleText, score };
-    }
+  configuredStores.forEach(({ storeKey, articles }) => {
+    (articles || []).forEach((article) => {
+      const articleText = (article || "").trim();
+      if (!articleText) return;
+      const score = articleSimilarity(lineText, articleText);
+      if (score >= ARTICLE_MATCH_THRESHOLD && (!best || score > best.score)) {
+        best = { articleText, score, storeKey };
+      }
+    });
   });
   return best;
 }
 
-function matchReceiptText(text, configuredArticles) {
+// Loest den Store, dessen Artikelliste tatsaechlich getroffen hat, auf die
+// fuers Dashboard-Tracking noetige "category" auf (siehe RECEIPT_STORE_PATTERNS
+// -Kommentar in js/data.js: category steuert, welches Store-View-Dashboard/
+// welcher Kategorie-Filter die Zahl sieht). GodAdmin filtert seine "Alle
+// Stores"-Ansicht nicht nach Kategorie -> der kosmetisch per OCR-Retailer-
+// Erkennung ermittelte Fallback-Wert reicht dort aus. Fuer einen echten
+// Retailer-Standort dagegen MUSS die tatsaechliche, in der Standortverwaltung
+// hinterlegte Kategorie verwendet werden, sonst filtert dessen Store-View-
+// Dashboard (siehe supabase/functions/store-view/index.ts) den Treffer
+// faelschlich weg. STORE_LOCATIONS ist bereits global geladen (js/locations.js).
+function resolveCategoryKeyForStore(storeKey, fallbackCategoryKey) {
+  if (storeKey === "godadmin") return fallbackCategoryKey;
+  const loc = STORE_LOCATIONS.find((l) => l.id === storeKey);
+  return (loc && loc.categoryKey) || fallbackCategoryKey;
+}
+
+function matchReceiptText(text, configuredStores) {
   const trimmed = text.trim();
   if (trimmed.length < 3) {
     // Wirklich nichts Lesbares erkannt (leeres/kaputtes Foto) — das ist
@@ -478,18 +511,27 @@ function matchReceiptText(text, configuredArticles) {
 
   // Alle plausiblen Artikelzeilen samt Preis (Summen-/Steuer-/Adress-/
   // Fusszeilen bereits herausgefiltert, siehe findAllProductLines) -- jede
-  // davon wird gegen die hinterlegte Artikelliste geprueft. Mehrere Zeilen
-  // koennen auf denselben hinterlegten Artikel treffen (mehrere Stueck auf
-  // einem Bon) -- das erzeugt bewusst mehrere Eintraege statt eines
-  // gezaehlten Stapels, das Dashboard gruppiert Duplikate beim Anzeigen
-  // ohnehin case-insensitiv nach Artikeltext (siehe countByProductText in
-  // dashboard-render.js).
+  // davon wird gegen die Artikellisten ALLER konfigurierten Stores geprueft
+  // (siehe matchLineToConfiguredStores). Mehrere Zeilen koennen auf denselben
+  // hinterlegten Artikel treffen (mehrere Stueck auf einem Bon) -- das
+  // erzeugt bewusst mehrere Eintraege statt eines gezaehlten Stapels, das
+  // Dashboard gruppiert Duplikate beim Anzeigen ohnehin case-insensitiv nach
+  // Artikeltext (siehe countByProductText in dashboard-render.js).
   const candidateLines = findAllProductLines(text, new Set(), receiptTotalCents);
   const matchedArticles = [];
-  if (configuredArticles && configuredArticles.length > 0) {
+  if (configuredStores && configuredStores.length > 0) {
     candidateLines.forEach((line) => {
-      const best = matchLineToConfiguredArticles(stripLeadingBarcode(line.text), configuredArticles);
-      if (best) matchedArticles.push({ articleText: best.articleText, amountCents: line.amountCents });
+      const best = matchLineToConfiguredStores(stripLeadingBarcode(line.text), configuredStores);
+      if (best) {
+        matchedArticles.push({
+          articleText: best.articleText,
+          amountCents: line.amountCents,
+          // Pro Treffer einzeln aufgeloest, nicht ein gemeinsamer Wert fuers
+          // ganze Scan -- verschiedene Zeilen koennten (theoretisch) auf
+          // unterschiedliche Stores treffen.
+          categoryKey: resolveCategoryKeyForStore(best.storeKey, categoryKey),
+        });
+      }
     });
   }
 
@@ -509,9 +551,10 @@ function matchReceiptText(text, configuredArticles) {
 // berechnet, noch bevor trackReceiptScanForDashboard() bzw. der
 // fehleranfaelligere Trophaeen-/Level-Up-Code unten laufen.
 function pickReceiptMatchRewards(matchedArticles) {
-  return matchedArticles.map(({ articleText, amountCents }) => ({
+  return matchedArticles.map(({ articleText, amountCents, categoryKey }) => ({
     articleText,
     amountCents,
+    categoryKey,
     itemKey: pickWeightedItemFromPool(RECEIPT_MATCH_ITEM_POOL, LOCATION_DROP_RARITY_WEIGHTS),
   }));
 }
@@ -546,7 +589,13 @@ function pickBonusReward() {
 // Ein Eintrag PRO erkannter Bon-Zeile (nicht nach Artikel gruppiert/gezaehlt)
 // -- das Dashboard gruppiert beim Anzeigen ohnehin case-insensitiv nach
 // Artikeltext, siehe countByProductText() in dashboard-render.js.
-function trackReceiptScanForDashboard(rewardedMatches, bonusReward, categoryKey) {
+// fallbackCategoryKey: nur fuer den "kein Treffer"-Zweig (Bonuspaket) --
+// dort gibt es keinen Store, dessen Kategorie man verwenden koennte, also
+// die kosmetisch per OCR-Retailer-Erkennung ermittelte Kategorie. Fuer
+// echte Treffer traegt jeder Eintrag in rewardedMatches bereits seine EIGENE
+// (in matchReceiptText per resolveCategoryKeyForStore() aufgeloeste)
+// categoryKey.
+function trackReceiptScanForDashboard(rewardedMatches, bonusReward, fallbackCategoryKey) {
   if (rewardedMatches.length === 0) {
     // Kein hinterlegter Artikel erkannt -- der Kaufversuch zaehlt trotzdem
     // (Kaeuferzahl, "treuer_shopper"-Ziel unten), UND jedes vergebene
@@ -559,7 +608,7 @@ function trackReceiptScanForDashboard(rewardedMatches, bonusReward, categoryKey)
       for (let i = 0; i < count; i++) {
         trackEvent("item_receipt_scanned", {
           storeId: "receipt_scan",
-          category: categoryKey,
+          category: fallbackCategoryKey,
           itemKey,
           rarity: item.rarity,
           amountCents: null,
@@ -569,7 +618,7 @@ function trackReceiptScanForDashboard(rewardedMatches, bonusReward, categoryKey)
     });
     return;
   }
-  rewardedMatches.forEach(({ articleText, amountCents, itemKey }) => {
+  rewardedMatches.forEach(({ articleText, amountCents, itemKey, categoryKey }) => {
     const item = ITEMS[itemKey];
     trackEvent("item_receipt_scanned", {
       storeId: "receipt_scan",
@@ -582,10 +631,10 @@ function trackReceiptScanForDashboard(rewardedMatches, bonusReward, categoryKey)
   });
 }
 
-function grantReceiptItems(matchedArticles, categoryKey, storeText) {
+function grantReceiptItems(matchedArticles, fallbackCategoryKey, storeText) {
   const rewardedMatches = pickReceiptMatchRewards(matchedArticles);
   const bonusReward = rewardedMatches.length === 0 ? pickBonusReward() : null;
-  trackReceiptScanForDashboard(rewardedMatches, bonusReward, categoryKey);
+  trackReceiptScanForDashboard(rewardedMatches, bonusReward, fallbackCategoryKey);
 
   // Ab hier: die eigentliche Spiel-Belohnung (Item/XP/Muenzen/Trophaeen)
   // und die Erfolgs-Anzeige -- bewusst in try/catch, damit ein Fehler hier
@@ -623,7 +672,7 @@ function grantReceiptItems(matchedArticles, categoryKey, storeText) {
     // noch tatsaechlich vergeben. Gleiche Items werden zu einem Stapel
     // zusammengefasst statt einzeln in der Erfolgs-Queue zu erscheinen.
     addCoins(bonusReward.coinAmount);
-    trackEvent("coins_received", { storeId: "receipt_scan", category: categoryKey, amount: bonusReward.coinAmount });
+    trackEvent("coins_received", { storeId: "receipt_scan", category: fallbackCategoryKey, amount: bonusReward.coinAmount });
     entries.push({ type: "coins", amount: bonusReward.coinAmount, storeText: "Bonus für deinen Einkauf 🧾" });
 
     Object.entries(bonusReward.bonusCounts).forEach(([itemKey, count]) => {
@@ -654,7 +703,7 @@ function grantReceiptItems(matchedArticles, categoryKey, storeText) {
       .forEach((e) => {
         trackEvent("trophy_unlocked", {
           storeId: "receipt_scan",
-          category: categoryKey,
+          category: fallbackCategoryKey,
           itemKey: e.trophyKey,
           rarity: TROPHIES[e.trophyKey].tier,
         });

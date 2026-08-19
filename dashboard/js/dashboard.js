@@ -221,7 +221,7 @@ async function confirmResetTestData() {
 // ============ Artikelverwaltung (Einstellungen-Panel) ============
 // Bis zu 15 vom Store selbst hinterlegte Artikelbezeichnungen, gegen die
 // das Spiel jeden Bon-Scan per Fuzzy-Match prueft (siehe
-// matchLineToConfiguredArticles in js/bonscan.js). Rendering/Auslesen der
+// matchLineToConfiguredStores in js/bonscan.js). Rendering/Auslesen der
 // Felder kommt aus dashboard-render.js (geteilt mit store-view.js) -- hier
 // nur noch das WOHER/WOHIN: Admin-Bereich verwaltet aktuell ausschliesslich
 // den GodAdmin-Teststore (store_key "godadmin", siehe

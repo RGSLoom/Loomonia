@@ -903,10 +903,11 @@ const STORE_CATEGORIES = {
 // hier dienen nur der internen Zuordnung, sichtbar ist dem Spieler nur der
 // Kategorie-Anzeigename.
 // Seit der Artikelstammdaten-Umstellung (Store hinterlegt eigene
-// Artikelliste, siehe js/bonscan.js matchLineToConfiguredArticles) ist diese
-// Zuordnung NUR NOCH kosmetisch (Anzeigetext + "category"-Wert im Tracking)
-// -- sie entscheidet nicht mehr, welche Items/Umsaetze erkannt werden, das
-// macht ausschliesslich der Fuzzy-Abgleich gegen die hinterlegte Liste.
+// Artikelliste, siehe js/bonscan.js matchLineToConfiguredStores) ist diese
+// Zuordnung NUR NOCH ein Fallback fuer Anzeigetext/"category"-Wert, falls
+// KEIN Store-Match zustande kam -- bei einem echten Treffer wird die
+// Kategorie stattdessen aus dem tatsaechlich getroffenen Store aufgeloest
+// (siehe resolveCategoryKeyForStore in js/bonscan.js).
 const RECEIPT_STORE_PATTERNS = [
   { pattern: /deichmann/i, categoryKey: "sneaker" },
   { pattern: /edeka/i, categoryKey: "feinkost" },
