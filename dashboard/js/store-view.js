@@ -1,11 +1,14 @@
-// Rein lesende Magic-Link-Ansicht (dashboard/store-view.html?token=...).
-// Komplett unabhaengig vom Admin-Passwortschutz (dashboard-auth.js) und den
-// Edge Functions locations-admin/events-admin -- nutzt ausschliesslich die
+// Magic-Link-Ansicht (dashboard/store-view.html?token=...). Komplett
+// unabhaengig vom Admin-Passwortschutz (dashboard-auth.js) und den Edge
+// Functions locations-admin/events-admin -- nutzt ausschliesslich die
 // eigene Function store-view (siehe supabase/functions/store-view/), die
-// den Token server-seitig zu genau einem Store aufloest. Kein Schreiben,
-// kein Loeschen, kein Zugriff auf andere Stores moeglich. Aggregations-/
-// Rendering-Logik (Charts, KPI-Karten) teilt sich dieses Skript mit
-// dashboard.js in dashboard-render.js.
+// den Token server-seitig zu genau einem Store aufloest. Kein Loeschen,
+// kein Zugriff auf andere Stores moeglich -- seit dem Artikelstammdaten-
+// Feature aber NICHT mehr komplett rein lesend: der Store-Partner darf per
+// resource=articles seine eigene Artikelliste selbst speichern (siehe
+// saveArticleEditor unten), das ist der einzige Schreibzugriff. Aggregations-/
+// Rendering-Logik (Charts, KPI-Karten, Artikel-Formularfelder) teilt sich
+// dieses Skript mit dashboard.js in dashboard-render.js.
 
 const REFRESH_MS = 30000;
 const STORE_VIEW_URL = `${SUPABASE_URL}/functions/v1/store-view`;
@@ -33,6 +36,62 @@ function fetchStoreView(resource, extraParams) {
     if (!r.ok) throw new Error(`store-view-Aufruf fehlgeschlagen: ${r.status}`);
     return r.json();
   });
+}
+
+// POST-Variante von fetchStoreView() -- ausschliesslich fuer
+// resource=articles genutzt (siehe saveArticleEditor unten), der einzige
+// Schreibzugriff dieser Seite. Gibt bewusst die rohe Response zurueck (statt
+// wie fetchStoreView() automatisch zu .json() zu parsen), damit
+// saveArticleEditor() Status/Fehlertext selbst auswerten kann.
+function postStoreView(resource, body) {
+  const params = new URLSearchParams();
+  params.set("token", ACCESS_TOKEN);
+  params.set("resource", resource);
+  return fetch(`${STORE_VIEW_URL}?${params.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).then((r) => {
+    if (r.status === 404) {
+      showInvalidScreen();
+      throw new Error("invalid-token");
+    }
+    return r;
+  });
+}
+
+// Eigene Artikelliste dieses Stores laden/speichern (Artikel-Panel) -- die
+// eigentlichen Formularfelder kommen aus renderArticleEditorFields() in
+// dashboard-render.js (identisch zum Admin-Bereich), hier nur das WOHER/
+// WOHIN ueber den Store-View-Token statt Admin-Passwort-Hash.
+function loadArticleEditor() {
+  fetchStoreView("articles")
+    .then((data) => fillArticleEditorFields(data.articles || []))
+    .catch(() => {});
+}
+
+async function saveArticleEditor() {
+  const btn = document.getElementById("btn-articles-save");
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Speichere…";
+  setArticleEditorStatus("article-editor-status", "", "");
+
+  const articles = readArticleEditorValues();
+
+  try {
+    const res = await postStoreView("articles", { articles });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${res.statusText}${body ? " – " + body : ""}`);
+    }
+    setArticleEditorStatus("article-editor-status", `Artikelliste gespeichert (${articles.length} von ${ARTICLE_EDITOR_MAX_COUNT} Feldern befüllt).`, "success");
+  } catch (err) {
+    setArticleEditorStatus("article-editor-status", "Speichern fehlgeschlagen: " + (err && err.message ? err.message : err), "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 function loadStoreIdentity() {
@@ -109,6 +168,10 @@ function init() {
   const dateLabel = "Heute, " + new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
   document.getElementById("today-date").textContent = dateLabel;
   document.getElementById("today-date-umsatz").textContent = dateLabel;
+
+  renderArticleEditorFields("article-editor-fields");
+  loadArticleEditor();
+  document.getElementById("btn-articles-save").onclick = saveArticleEditor;
 
   loadStoreIdentity();
   loadStats();

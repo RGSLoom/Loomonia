@@ -1,13 +1,67 @@
 // Gemeinsame Aggregations- und Rendering-Logik fuer beide Dashboard-Seiten:
 // dashboard/index.html (Store Manager, Admin-Passwort) UND
-// dashboard/store-view.html (rein lesender Magic-Link pro Store, kein
-// Passwort). Beide zeigen dieselben KPI-Karten/Charts/Tabellen mit
-// denselben DOM-IDs -- nur WOHER die rohen Events kommen (Edge Function +
-// Admin-Header vs. Edge Function + Token) unterscheidet sich und bleibt in
-// dashboard.js bzw. store-view.js.
+// dashboard/store-view.html (Magic-Link pro Store, kein Passwort -- seit dem
+// Artikelstammdaten-Feature nicht mehr komplett rein lesend, siehe
+// renderArticleEditorFields() unten). Beide zeigen dieselben KPI-Karten/
+// Charts/Tabellen/Formulare mit denselben DOM-IDs -- nur WOHER die rohen
+// Events/Artikel kommen (Edge Function + Admin-Header vs. Edge Function +
+// Token) unterscheidet sich und bleibt in dashboard.js bzw. store-view.js.
 
 const DAYS_WINDOW = 14;
 const COMMISSION_RATE = 0.01; // 1% Haendler-Provision auf den geschaetzten Umsatz
+
+// ============ Artikelverwaltung (geteilt zwischen beiden Dashboards) ============
+// Reines DOM-Rendering/-Auslesen der 15 Artikel-Eingabefelder -- IDENTISCH
+// auf beiden Dashboard-Seiten (siehe Briefing: "Artikelverwaltung muss auf
+// beiden Ebenen technisch identisch funktionieren"). WIE die aktuelle Liste
+// geladen/gespeichert wird (Admin-Edge-Function+Passwort-Hash vs.
+// Store-View-Token) unterscheidet sich je nach Seite und bleibt in
+// dashboard.js bzw. store-view.js.
+const ARTICLE_EDITOR_MAX_COUNT = 15;
+
+function renderArticleEditorFields(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+  for (let i = 1; i <= ARTICLE_EDITOR_MAX_COUNT; i++) {
+    const field = document.createElement("div");
+    field.className = "article-field";
+    const label = document.createElement("label");
+    label.setAttribute("for", `article-input-${i}`);
+    label.textContent = `Artikel ${i}`;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = `article-input-${i}`;
+    input.maxLength = 120;
+    input.placeholder = "z.B. Coca-Cola 0,5L";
+    field.append(label, input);
+    container.appendChild(field);
+  }
+}
+
+function fillArticleEditorFields(articles) {
+  (articles || []).forEach((text, i) => {
+    const input = document.getElementById(`article-input-${i + 1}`);
+    if (input) input.value = text;
+  });
+}
+
+function readArticleEditorValues() {
+  const articles = [];
+  for (let i = 1; i <= ARTICLE_EDITOR_MAX_COUNT; i++) {
+    const el = document.getElementById(`article-input-${i}`);
+    const value = ((el && el.value) || "").trim();
+    if (value) articles.push(value);
+  }
+  return articles;
+}
+
+function setArticleEditorStatus(elId, msg, kind) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.textContent = msg || "";
+  el.className = "form-status" + (kind ? " " + kind : "");
+}
 
 // Lokales (nicht UTC-) Datum als "YYYY-MM-DD" — toISOString() wuerde bei
 // Zeitzonen oestlich von UTC den "heutigen" Tag falsch auf gestern

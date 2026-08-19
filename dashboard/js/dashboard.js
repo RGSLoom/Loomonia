@@ -221,38 +221,15 @@ async function confirmResetTestData() {
 // ============ Artikelverwaltung (Einstellungen-Panel) ============
 // Bis zu 15 vom Store selbst hinterlegte Artikelbezeichnungen, gegen die
 // das Spiel jeden Bon-Scan per Fuzzy-Match prueft (siehe
-// matchLineToConfiguredArticles in js/bonscan.js). Aktuell nur fuer den
-// GodAdmin-Teststore verdrahtet (store_key "godadmin", siehe
-// supabase/store_articles_setup.sql) -- dasselbe Muster kann spaeter fuer
-// echte Retailer-Standorte (store_key = deren locations.id) wiederverwendet
-// werden, sobald die Self-Service-Ansicht dafuer gebaut wird.
+// matchLineToConfiguredArticles in js/bonscan.js). Rendering/Auslesen der
+// Felder kommt aus dashboard-render.js (geteilt mit store-view.js) -- hier
+// nur noch das WOHER/WOHIN: Admin-Bereich verwaltet aktuell ausschliesslich
+// den GodAdmin-Teststore (store_key "godadmin", siehe
+// supabase/store_articles_setup.sql). Echte Retailer-Standorte pflegen ihre
+// eigene Liste seit dem Self-Service-Feature selbst ueber ihren
+// Store-View-Magic-Link (siehe store-view.js loadArticleEditor/
+// saveArticleEditor dort), nicht mehr hier.
 const ARTICLE_EDITOR_STORE_KEY = "godadmin";
-const ARTICLE_EDITOR_MAX_COUNT = 15;
-
-function renderArticleEditorFields() {
-  const container = document.getElementById("article-editor-fields");
-  container.innerHTML = "";
-  for (let i = 1; i <= ARTICLE_EDITOR_MAX_COUNT; i++) {
-    const field = document.createElement("div");
-    field.className = "article-field";
-    const label = document.createElement("label");
-    label.setAttribute("for", `article-input-${i}`);
-    label.textContent = `Artikel ${i}`;
-    const input = document.createElement("input");
-    input.type = "text";
-    input.id = `article-input-${i}`;
-    input.maxLength = 120;
-    input.placeholder = "z.B. Coca-Cola 0,5L";
-    field.append(label, input);
-    container.appendChild(field);
-  }
-}
-
-function setArticleEditorStatus(msg, kind) {
-  const el = document.getElementById("article-editor-status");
-  el.textContent = msg || "";
-  el.className = "form-status" + (kind ? " " + kind : "");
-}
 
 // Direkt mit dem anon-Key gelesen (oeffentlich lesbar, siehe
 // supabase/store_articles_setup.sql store_articles_public_select) -- kein
@@ -265,10 +242,7 @@ function loadArticleEditor() {
     .then((r) => (r.ok ? r.json() : []))
     .then((rows) => {
       const articles = (rows[0] && Array.isArray(rows[0].articles)) ? rows[0].articles : [];
-      articles.forEach((text, i) => {
-        const input = document.getElementById(`article-input-${i + 1}`);
-        if (input) input.value = text;
-      });
+      fillArticleEditorFields(articles);
     })
     .catch(() => {
       // Tabelle/Function evtl. noch nicht angelegt -- Formular bleibt dann
@@ -282,13 +256,9 @@ async function saveArticleEditor() {
   const originalText = btn.textContent;
   btn.disabled = true;
   btn.textContent = "Speichere…";
-  setArticleEditorStatus("", "");
+  setArticleEditorStatus("article-editor-status", "", "");
 
-  const articles = [];
-  for (let i = 1; i <= ARTICLE_EDITOR_MAX_COUNT; i++) {
-    const value = (document.getElementById(`article-input-${i}`).value || "").trim();
-    if (value) articles.push(value);
-  }
+  const articles = readArticleEditorValues();
 
   try {
     const res = await fetchWithAdminAuth(STORE_ARTICLES_ADMIN_URL, {
@@ -303,9 +273,9 @@ async function saveArticleEditor() {
       const body = await res.text().catch(() => "");
       throw new Error(`${res.status} ${res.statusText}${body ? " – " + body : ""}`);
     }
-    setArticleEditorStatus(`Artikelliste gespeichert (${articles.length} von ${ARTICLE_EDITOR_MAX_COUNT} Feldern befüllt).`, "success");
+    setArticleEditorStatus("article-editor-status", `Artikelliste gespeichert (${articles.length} von ${ARTICLE_EDITOR_MAX_COUNT} Feldern befüllt).`, "success");
   } catch (err) {
-    setArticleEditorStatus("Speichern fehlgeschlagen: " + (err && err.message ? err.message : err), "error");
+    setArticleEditorStatus("article-editor-status", "Speichern fehlgeschlagen: " + (err && err.message ? err.message : err), "error");
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
@@ -324,7 +294,7 @@ function init() {
   document.getElementById("btn-reset-confirm").onclick = confirmResetTestData;
   document.getElementById("btn-reset-cancel").onclick = cancelResetConfirm;
 
-  renderArticleEditorFields();
+  renderArticleEditorFields("article-editor-fields");
   loadArticleEditor();
   document.getElementById("btn-articles-save").onclick = saveArticleEditor;
 

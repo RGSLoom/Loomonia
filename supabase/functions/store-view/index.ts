@@ -1,20 +1,24 @@
-// Rein lesende Magic-Link-Ansicht fuer einzelne Store-Partner
-// (dashboard/store-view.html?token=...). Bewusst KOMPLETT UNABHAENGIG vom
-// Admin-Passwortschutz und von locations-admin/events-admin: kein
-// ADMIN_PASSWORD_HASH-Check, keine gemeinsame Auth -- stattdessen loest
-// diese Function einen langen Zufalls-Token ueber die eigene, oeffentlich
-// unerreichbare Tabelle "store_links" zu GENAU EINEM Store auf (siehe
-// supabase/store_links_setup.sql) und liefert ausschliesslich dessen Zahlen.
+// Magic-Link-Ansicht fuer einzelne Store-Partner (dashboard/store-view.html
+// ?token=...). Ganz ueberwiegend weiterhin rein lesend, PLUS (seit dem
+// Artikelstammdaten-Feature) genau ein eng begrenzter Schreibpfad: der
+// Store-Partner darf SEINE EIGENE Artikelliste selbst pflegen (siehe
+// dashboard/store-view.html Artikel-Panel + js/store-view.js). Bewusst
+// KOMPLETT UNABHAENGIG vom Admin-Passwortschutz und von locations-admin/
+// events-admin/store-articles-admin -- stattdessen loest diese Function
+// einen langen Zufalls-Token ueber die eigene, oeffentlich unerreichbare
+// Tabelle "store_links" zu GENAU EINEM Store auf (siehe
+// supabase/store_links_setup.sql) und liest/schreibt ausschliesslich
+// dessen Daten.
 //
-// Sicherheitsprinzip: welche "category" (= Store, siehe dashboard/js/
-// stores-config.js) angezeigt wird, wird IMMER hier serverseitig aus dem
-// Token aufgeloest, NIE aus einem vom Client mitgeschickten Parameter
-// uebernommen -- ein gueltiger Token fuer Store A kann dadurch nie Zahlen
-// von Store B sehen, egal was der Client an Query-Parametern mitschickt.
+// Sicherheitsprinzip: welche "category"/"location_id" gilt, wird IMMER hier
+// serverseitig aus dem Token aufgeloest, NIE aus einem vom Client
+// mitgeschickten Parameter uebernommen -- gilt fuer GET (Zahlen/Artikel
+// lesen) UND fuer den Schreibpfad (Artikelliste speichern) gleichermassen:
+// ein gueltiger Token fuer Store A kann dadurch nie Daten von Store B lesen
+// oder ueberschreiben, egal was der Client mitschickt.
 //
-// Nur GET, keine Schreib-/Loeschoperation -- das ist an dieser Stelle nicht
-// nur eine RLS-Einschraenkung, sondern bereits im Code der Function so
-// festgelegt.
+// Schreiben ist NUR fuer resource=articles erlaubt (POST, siehe
+// sanitizeArticles) -- jede andere Kombination bleibt strikt lesend.
 import { corsHeaders } from "../_shared/cors.ts";
 
 function jsonResponse(body: unknown, status: number): Response {
@@ -24,9 +28,26 @@ function jsonResponse(body: unknown, status: number): Response {
   });
 }
 
+// Verteidigung in der Tiefe: selbst wenn ein Store-Link-Token in falsche
+// Haende geraet oder der Client fehlerhafte Daten schickt, darf daraus nie
+// eine beliebig lange/kaputte Artikelliste in der Datenbank landen -- max.
+// 15 getrimmte, nicht-leere Strings, je hart auf 120 Zeichen gekappt
+// (identische Grenzen wie im Dashboard-Formular, siehe
+// dashboard/js/dashboard-render.js).
+function sanitizeArticles(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter((v) => v.length > 0)
+    .slice(0, 15)
+    .map((v) => v.slice(0, 120));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "GET") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (req.method !== "GET" && req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
 
   const url = new URL(req.url);
   const token = url.searchParams.get("token") || "";
@@ -65,11 +86,53 @@ Deno.serve(async (req) => {
 
   const resource = url.searchParams.get("resource");
 
+  if (req.method === "POST") {
+    // Der einzige erlaubte Schreibzugriff dieser Function -- alles andere
+    // bleibt strikt lesend (siehe Kommentar oben).
+    if (resource !== "articles") {
+      return jsonResponse({ error: "Schreiben nur für resource=articles erlaubt" }, 405);
+    }
+    let body: { articles?: unknown };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "Ungültiger Request-Body" }, 400);
+    }
+    const articles = sanitizeArticles(body.articles);
+    // Upsert mit locationId (server-seitig aus dem Token aufgeloest, siehe
+    // oben) als store_key -- der Client kann diesen Schluessel nicht
+    // beeinflussen, schreibt also unabhaengig vom Request-Inhalt IMMER nur
+    // die eigene Artikelliste.
+    const saveRes = await fetch(`${supabaseUrl}/rest/v1/store_articles`, {
+      method: "POST",
+      headers: { ...authHeaders, Prefer: "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify({ store_key: locationId, articles }),
+    });
+    const saveBody = await saveRes.text();
+    return new Response(saveBody, {
+      status: saveRes.status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (resource === "identity") {
     return jsonResponse(
       { name: store.name, address: store.address, store_number: store.store_number },
       200,
     );
+  }
+
+  if (resource === "articles") {
+    const artRes = await fetch(
+      `${supabaseUrl}/rest/v1/store_articles?select=articles&store_key=eq.${encodeURIComponent(locationId)}`,
+      { headers: authHeaders },
+    );
+    const artRows = await artRes.json();
+    const articles =
+      artRes.ok && Array.isArray(artRows) && artRows[0] && Array.isArray(artRows[0].articles)
+        ? artRows[0].articles
+        : [];
+    return jsonResponse({ articles }, 200);
   }
 
   if (resource === "events") {
