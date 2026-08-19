@@ -773,6 +773,13 @@ html, body {
   max-width: 320px;
   text-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
+.scan-tip {
+  font-size: 13px;
+  line-height: 1.4;
+  max-width: 300px;
+  color: rgba(255,255,255,0.85);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
 .scan-status {
   font-size: 14px;
   font-weight: 600;
