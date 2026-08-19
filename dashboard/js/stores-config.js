@@ -26,6 +26,16 @@ const DASHBOARD_ITEMS = {
   hoodie: { name: "Epischer Hoodie", rarity: "Episch" },
   armband: { name: "Energie-Armband", rarity: "Legendär" },
   lockduftflakon: { name: "Lockduft-Flakon", rarity: "Episch" },
+  // unlockType "kauf" in ITEMS (js/data.js) -- explizit fuer echte Kaeufe
+  // vorgesehen, siehe ARTICLE_ITEM_CHOICES in dashboard-render.js.
+  vitaminsaft: { name: "Vitaminsaft", rarity: "Ungewöhnlich" },
+  energieriegel_plus: { name: "Energieriegel Plus", rarity: "Ungewöhnlich" },
+  hose: { name: "Hose", rarity: "Ungewöhnlich" },
+  oberteil: { name: "Oberteil", rarity: "Ungewöhnlich" },
+  wasserflasche_plus: { name: "Wasserflasche Plus", rarity: "Ungewöhnlich" },
+  suessigkeit: { name: "Süßigkeit", rarity: "Selten" },
+  stylische_kappe: { name: "Stylische Kappe", rarity: "Selten" },
+  kraeuterelixier: { name: "Kräuterelixier", rarity: "Selten" },
 };
 
 const DASHBOARD_RARITY_COLORS = {

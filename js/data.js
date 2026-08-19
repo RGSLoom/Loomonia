@@ -804,12 +804,22 @@ const BONSCAN_COINS_MAX = 5;
 // Minigame-Drop.
 const COMMON_ITEM_POOL = ["fruchtkorb", "energiesnack", "gesundheitspaket", "sprachbuch"];
 
+// Items mit unlockType "kauf" (siehe ITEMS oben, "18 neue Items"-Briefing)
+// sind explizit fuer den Erhalt durch echte Kaeufe vorgesehen -- automatisch
+// ermittelt statt einzeln hier nachgetragen, damit ein spaeter neu
+// hinzugefuegtes "kauf"-Item nicht vergessen werden kann.
+const PURCHASE_UNLOCK_ITEM_KEYS = Object.values(ITEMS)
+  .filter((item) => item.unlockType === "kauf")
+  .map((item) => item.key);
+
 // Item-Pool, aus dem beim Bon-Scan (siehe js/bonscan.js) das Zufalls-Item pro
-// gegen die Store-Artikelliste erkanntem Treffer gezogen wird — enthaelt
-// bewusst auch "sneaker"/"rucksack" (Selten), die seit dem Bon-Scan-Feature
-// NUR noch ueber einen echten, erkannten Kassenbon erreichbar sind, nicht
-// mehr ueber das Standort-Minigame (siehe LOCATION_DROP_ITEM_POOL).
-const ANY_STORE_ITEM_POOL = [...COMMON_ITEM_POOL, "sneaker", "rucksack"];
+// gegen die Store-Artikelliste erkanntem Treffer gezogen wird (Fallback,
+// wenn der Store selbst kein Item gewaehlt hat, siehe ARTICLE_ITEM_CHOICES
+// in dashboard/js/dashboard-render.js) — enthaelt bewusst auch
+// "sneaker"/"rucksack" (Selten), die seit dem Bon-Scan-Feature NUR noch
+// ueber einen echten, erkannten Kassenbon erreichbar sind, nicht mehr ueber
+// das Standort-Minigame (siehe LOCATION_DROP_ITEM_POOL).
+const ANY_STORE_ITEM_POOL = [...COMMON_ITEM_POOL, "sneaker", "rucksack", ...PURCHASE_UNLOCK_ITEM_KEYS];
 
 // Gruppiert ANY_STORE_ITEM_POOL nach der TATSAECHLICHEN Rarity jedes Items
 // (nicht nach einer Branchen-Zuordnung) -- Grundlage fuer die per

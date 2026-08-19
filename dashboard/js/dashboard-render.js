@@ -23,11 +23,20 @@ const ARTICLE_EDITOR_MAX_COUNT = 15;
 // Treffer waehlen kann -- bewusst nur Ungewoehnlich (gruen) und Selten
 // (blau): Gewoehnlich bleibt exklusiv ueber das kostenlose Standort-
 // Minigame erreichbar, Episch/Legendaer bleiben Trophaeen vorbehalten
-// (siehe TROPHY_EXCLUSIVE_ITEM_KEYS in js/data.js). Eigene, dashboard-
-// seitige Liste (wie DASHBOARD_ITEMS in stores-config.js) statt eines
-// Verweises auf js/data.js -- dieses Projekt haelt Spiel- und Dashboard-
-// Code bewusst unabhaengig voneinander.
-const ARTICLE_ITEM_CHOICES = ["energiesnack", "gesundheitspaket", "sneaker", "rucksack"];
+// (siehe TROPHY_EXCLUSIVE_ITEM_KEYS in js/data.js). Entspricht ALLEN
+// Ungewoehnlich/Selten-Items aus ITEMS in js/data.js (die 4 urspruenglichen
+// Bon-Scan-Items PLUS die neueren, mit unlockType "kauf" explizit fuer
+// echte Kaeufe vorgesehenen Items) -- eigene, dashboard-seitige Liste (wie
+// DASHBOARD_ITEMS in stores-config.js) statt eines Verweises auf js/data.js,
+// dieses Projekt haelt Spiel- und Dashboard-Code bewusst unabhaengig
+// voneinander. Bei einem neuen Ungewoehnlich/Selten-Item in js/data.js hier
+// UND in DASHBOARD_ITEMS (stores-config.js) nachziehen.
+const ARTICLE_ITEM_CHOICES = [
+  // Ungewoehnlich (gruen)
+  "energiesnack", "gesundheitspaket", "vitaminsaft", "energieriegel_plus", "hose", "oberteil", "wasserflasche_plus",
+  // Selten (blau)
+  "sneaker", "rucksack", "suessigkeit", "stylische_kappe", "kraeuterelixier",
+];
 
 function renderArticleEditorFields(containerId) {
   const container = document.getElementById(containerId);

@@ -32,7 +32,10 @@ function jsonResponse(body: unknown, status: number): Response {
 // darf -- identische Liste wie ARTICLE_ITEM_CHOICES in
 // dashboard/js/dashboard-render.js (bewusst dupliziert statt geteilt,
 // gleiches Prinzip wie DASHBOARD_ITEMS/js/data.js ITEMS).
-const ALLOWED_ARTICLE_ITEM_KEYS = ["energiesnack", "gesundheitspaket", "sneaker", "rucksack"];
+const ALLOWED_ARTICLE_ITEM_KEYS = [
+  "energiesnack", "gesundheitspaket", "vitaminsaft", "energieriegel_plus", "hose", "oberteil", "wasserflasche_plus",
+  "sneaker", "rucksack", "suessigkeit", "stylische_kappe", "kraeuterelixier",
+];
 
 // Verteidigung in der Tiefe: selbst wenn ein Store-Link-Token in falsche
 // Haende geraet oder der Client fehlerhafte Daten schickt, darf daraus nie
