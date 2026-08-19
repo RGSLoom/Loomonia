@@ -38,7 +38,7 @@ function updateFokuszeitButtonUI() {
   const owned = (gameState.inventory.fokuszeit || 0) > 0;
   const usable = !!catchState && !catchState.usedFokuszeit && owned;
   btn.classList.toggle("hidden", !usable);
-  btn.textContent = `🕰️ Fokuszeit (${gameState.inventory.fokuszeit || 0})`;
+  document.getElementById("fokuszeit-btn-badge").textContent = gameState.inventory.fokuszeit || 0;
 }
 
 function useFokuszeit() {
