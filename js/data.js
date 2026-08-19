@@ -786,16 +786,34 @@ const BONSCAN_COINS_MAX = 5;
 // Seltene Items (Sneaker, Abenteuerrucksack) sind bewusst NICHT mehr Teil
 // der Minigame-itemPools unten — sie sind seit dem Bon-Scan-Feature
 // (siehe js/bonscan.js) nur noch durch einen echten, erkannten Kassenbon
-// erhaeltlich (receiptItemPool). Ohne echten Kauf gibt es dafuer nur noch
-// den generischen Gewoehnlich/Ungewoehnlich-Pool als Minigame-Drop.
+// erhaeltlich (RECEIPT_MATCH_ITEM_POOL unten). Ohne echten Kauf gibt es
+// dafuer nur noch den generischen Gewoehnlich/Ungewoehnlich-Pool als
+// Minigame-Drop.
 const COMMON_ITEM_POOL = ["fruchtkorb", "energiesnack", "gesundheitspaket", "sprachbuch"];
 
-// Fallback-Pool fuers Bon-Scan, wenn der Store NICHT in RECEIPT_STORE_PATTERNS
-// hinterlegt ist (z.B. Retailer im Ausland/nicht gelistete Ketten) oder eine
-// erkannte Kategorie noch keinen eigenen receiptItemPool hat — dann wird ueber
-// ALLE Bon-tauglichen Items (ohne Episch/Legendaer, siehe oben) nach
-// Stichwort-Treffern gesucht, statt den Scan hart abzulehnen.
+// Item-Pool, aus dem beim Bon-Scan (siehe js/bonscan.js) das Zufalls-Item pro
+// gegen die Store-Artikelliste erkanntem Treffer gezogen wird — enthaelt
+// bewusst auch "sneaker"/"rucksack" (Selten), die seit dem Bon-Scan-Feature
+// NUR noch ueber einen echten, erkannten Kassenbon erreichbar sind, nicht
+// mehr ueber das Standort-Minigame (siehe LOCATION_DROP_ITEM_POOL).
 const ANY_STORE_ITEM_POOL = [...COMMON_ITEM_POOL, "sneaker", "rucksack"];
+
+// Gruppiert ANY_STORE_ITEM_POOL nach der TATSAECHLICHEN Rarity jedes Items
+// (nicht nach einer Branchen-Zuordnung) -- Grundlage fuer die per
+// pickWeightedItemFromPool() gezogene Item-Belohnung bei einem
+// Artikel-Treffer (siehe grantReceiptItems() in js/bonscan.js). Das
+// Zufalls-Item ist damit bewusst UNABHAENGIG vom konkreten, vom Store selbst
+// hinterlegten Artikeltext -- nur WELCHES Item gezogen wird, ist zufaellig,
+// DASS ueberhaupt eines gezogen wird, haengt vom Fuzzy-Match ab.
+function buildPoolByActualRarity(keys) {
+  const pool = {};
+  keys.forEach((key) => {
+    const rarity = ITEMS[key].rarity;
+    (pool[rarity] = pool[rarity] || []).push(key);
+  });
+  return pool;
+}
+const RECEIPT_MATCH_ITEM_POOL = buildPoolByActualRarity(ANY_STORE_ITEM_POOL);
 
 // STORE_CATEGORIES = Branchen (Anzeigename, Szene-Hintergrund, Item-Pool).
 // Nirgends echte Marken-/Retailer-Namen (siehe Spielspezifikation Abschnitt 9)
@@ -806,9 +824,6 @@ const STORE_CATEGORIES = {
     name: "Feinkost & Snacks",
     scene: "assets/generated/store_feinkost_real.jpg",
     itemPool: COMMON_ITEM_POOL,
-    // Items, die bei dieser Branche per echtem Bon-Scan erhaeltlich sind
-    // (siehe RECEIPT_STORE_PATTERNS/RECEIPT_ITEM_KEYWORDS unten).
-    receiptItemPool: COMMON_ITEM_POOL,
   },
   sneaker: {
     key: "sneaker",
@@ -817,7 +832,6 @@ const STORE_CATEGORIES = {
     // Sneaker/Rucksack gibt es hier nur noch per echtem Bon-Scan, nicht
     // mehr im Minigame — daher derselbe generische Fallback-Pool.
     itemPool: COMMON_ITEM_POOL,
-    receiptItemPool: ["sneaker", "rucksack"],
   },
   juwelier: {
     key: "juwelier",
@@ -834,16 +848,12 @@ const STORE_CATEGORIES = {
     name: "Café",
     scene: "assets/generated/store_cafe_real.jpg",
     itemPool: ["fruchtkorb", "energiesnack"],
-    receiptItemPool: ["fruchtkorb", "energiesnack"],
   },
   fashion: {
     key: "fashion",
     name: "Mode & Accessoires",
     scene: "assets/generated/store_fashion_real.jpg",
     itemPool: COMMON_ITEM_POOL,
-    // Bekleidungsbranche verkauft plausibel auch Schuhe/Taschen -> gleicher
-    // Echtkauf-Pool wie die Sneaker&Streetwear-Kategorie.
-    receiptItemPool: ["sneaker", "rucksack"],
   },
   bank: {
     key: "bank",
@@ -858,14 +868,12 @@ const STORE_CATEGORIES = {
     name: "Drogerie",
     scene: "assets/generated/bg_store_drogerie.svg",
     itemPool: ["gesundheitspaket", "fruchtkorb", "sprachbuch"],
-    receiptItemPool: ["gesundheitspaket", "fruchtkorb", "sprachbuch"],
   },
   schnellrestaurant: {
     key: "schnellrestaurant",
     name: "Schnellrestaurant",
     scene: "assets/generated/bg_store_schnellrestaurant.svg",
     itemPool: ["energiesnack", "fruchtkorb"],
-    receiptItemPool: ["energiesnack", "fruchtkorb"],
   },
   bar: {
     key: "bar",
@@ -881,6 +889,11 @@ const STORE_CATEGORIES = {
 // im UI angezeigt (siehe Spielspezifikation Abschnitt 9) — die Patterns
 // hier dienen nur der internen Zuordnung, sichtbar ist dem Spieler nur der
 // Kategorie-Anzeigename.
+// Seit der Artikelstammdaten-Umstellung (Store hinterlegt eigene
+// Artikelliste, siehe js/bonscan.js matchLineToConfiguredArticles) ist diese
+// Zuordnung NUR NOCH kosmetisch (Anzeigetext + "category"-Wert im Tracking)
+// -- sie entscheidet nicht mehr, welche Items/Umsaetze erkannt werden, das
+// macht ausschliesslich der Fuzzy-Abgleich gegen die hinterlegte Liste.
 const RECEIPT_STORE_PATTERNS = [
   { pattern: /deichmann/i, categoryKey: "sneaker" },
   { pattern: /edeka/i, categoryKey: "feinkost" },
@@ -927,45 +940,6 @@ const RECEIPT_STORE_PATTERNS = [
   { pattern: /\betos\b/i, categoryKey: "drogerie" },
   { pattern: /\bzeeman\b/i, categoryKey: "fashion" },
 ];
-
-// Stichwortliste pro Item, gegen die einzelne Artikelzeilen des OCR-Texts
-// geprueft werden. Echte Kassenzettel enthalten so gut wie nie das exakte
-// Fantasie-Item-Wort selbst (z.B. steht bei einem Deichmann-Bon nur die
-// Schuhmarke "Bench" auf der Artikelzeile) — die Listen sind daher bewusst
-// breiter gefasst als reine Item-Namen und enthalten auch Marken, die als
-// Artikelzeile auf dem Bon EINES ANDEREN Stores auftauchen koennen (z.B.
-// "Red Bull" auf einem Supermarkt-Bon).
-// Mehrsprachig (DE/EN/NL), da Bons auch im Ausland gescannt werden sollen
-// (OCR laeuft auf "deu+eng+nld", siehe js/bonscan.js) — pro Item stehen
-// deshalb bewusst Begriffe aus allen drei Sprachen nebeneinander.
-const RECEIPT_ITEM_KEYWORDS = {
-  sneaker: [
-    /sneaker/i, /schuh/i, /bench/i, /turnschuh/i, /nike/i, /adidas/i, /puma/i,
-    /shoe/i, /schoen(en)?/i, /footwear/i,
-  ],
-  rucksack: [
-    /rucksack/i, /tasche/i, /koffer/i, /trolley/i, /mammut/i,
-    /backpack/i, /rugzak/i, /\btas\b/i, /\bbag\b/i,
-  ],
-  fruchtkorb: [
-    /obst/i, /frucht/i, /apfel/i, /salat/i, /gemüse/i,
-    /\bfruit\b/i, /appel/i, /vegetable/i, /groente/i, /salade/i,
-  ],
-  energiesnack: [
-    /getränk/i, /drink/i, /kaffee/i, /krön/i, /wasser/i, /mate/i, /snack/i, /riegel/i, /cola/i,
-    /red ?bull/i, /fritz.?kola/i, /true ?fruits/i, /ferrero/i, /bahlsen/i, /tchibo/i,
-    /coffee/i, /koffie/i, /\bdrank\b/i, /\bwater\b/i, /energy/i,
-  ],
-  gesundheitspaket: [
-    /vitamin/i, /apotheke/i, /bio/i, /gesund/i,
-    /l.?or[ée]al/i, /nivea/i, /sante/i, /beiersdorf/i, /henkel/i,
-    /\bhealth\b/i, /gezond/i, /apotheek/i, /medicine/i, /medicijn/i,
-  ],
-  sprachbuch: [
-    /buch/i, /magazin/i, /zeitschrift/i, /roman/i,
-    /\bbook\b/i, /\bboek\b/i, /magazine/i, /tijdschrift/i,
-  ],
-};
 
 // STORE_LOCATIONS = einzelne physische Standorte (Stores + reine
 // Kartenpunkte/Landmarks). Mehrere Standorte koennen dieselbe Kategorie

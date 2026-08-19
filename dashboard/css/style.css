@@ -326,6 +326,40 @@ h1, h2, h3 { font-family: var(--font-heading); color: var(--heading); }
   border: 1px solid var(--border);
   margin-bottom: 16px;
 }
+
+.article-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px 14px;
+  margin-bottom: 14px;
+}
+.article-field { display: flex; flex-direction: column; gap: 4px; }
+.article-field label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+.article-field input {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.article-field input:focus { outline: 2px solid var(--tech-blue); outline-offset: 1px; }
+.article-editor-actions { display: flex; gap: 10px; }
+.btn-save-primary {
+  background: var(--tech-blue);
+  color: #fff;
+  border: none;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-save-primary:hover { background: #1e4685; }
+.btn-save-primary:disabled { background: #a9b8cf; cursor: not-allowed; }
+/* .form-status selbst kommt bereits aus css/standorte.css (auch in
+   index.html eingebunden), hier nicht dupliziert. */
 .data-card-title { font-family: var(--font-heading); font-weight: 700; color: var(--heading); margin: 0 0 4px; font-size: 1.02rem; }
 .data-card-sub { color: var(--text-muted); font-size: 0.82rem; margin: 0 0 14px; }
 .empty-note {

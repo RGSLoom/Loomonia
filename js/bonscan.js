@@ -118,10 +118,29 @@ function handleScanFileInput(event) {
   if (file) processReceiptImage(file);
 }
 
+// Laedt die vom Store (aktuell nur GodAdmin, siehe dashboard/index.html
+// Einstellungen-Panel "Artikelverwaltung") hinterlegte Artikelliste, gegen
+// die matchReceiptText() jede erkannte Bon-Zeile unscharf abgleicht (siehe
+// supabase/store_articles_setup.sql). Oeffentlich lesbar (anon-Key) wie bei
+// STORE_LOCATIONS in js/locations.js -- darf den Scan nie blockieren, bei
+// jedem Fehler (offline, Tabelle/Function noch nicht angelegt) einfach eine
+// leere Liste liefern statt abzubrechen.
+function loadGodAdminArticles() {
+  return fetch(`${SUPABASE_URL}/rest/v1/store_articles?select=articles&store_key=eq.godadmin`, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+  })
+    .then((r) => (r.ok ? r.json() : []))
+    .then((rows) => (rows[0] && Array.isArray(rows[0].articles) ? rows[0].articles : []))
+    .catch(() => []);
+}
+
 async function processReceiptImage(imageSource) {
   resetScanUI();
   setScanStatus("Bon wird gelesen…");
   try {
+    // Parallel zur (mehrere Sekunden dauernden) OCR gestartet statt danach
+    // -- kostet dadurch effektiv keine zusaetzliche Wartezeit.
+    const articlesPromise = loadGodAdminArticles();
     const normalized = await normalizeImageForOcr(imageSource);
     // deu+eng+nld: Bon kann auch im Ausland fotografiert werden (DE/EN/NL) —
     // Tesseract erkennt damit alle drei gemeinsam statt nur Deutsch. Timeout
@@ -135,7 +154,8 @@ async function processReceiptImage(imageSource) {
     // ohne dass extra ein Fehlerzustand ausgeloest werden muss.
     console.log("Bon-OCR-Text:", result.data.text);
     showBonOcrCopyButton(result.data.text);
-    matchReceiptText(result.data.text || "");
+    const configuredArticles = await articlesPromise;
+    matchReceiptText(result.data.text || "", configuredArticles);
   } catch (err) {
     console.warn("OCR fehlgeschlagen:", err && err.message ? err.message : err);
     setScanStatus("");
@@ -273,21 +293,18 @@ const RECEIPT_NON_PRODUCT_LINE = /mwst|must\b|ust\b|steuer|tax\b|\bbar\b|rückge
 const RECEIPT_LINE_HAS_WORD = /[a-zA-ZÀ-ÿ]{3,}/;
 
 // Sucht ALLE plausiblen echten Artikelzeilen (nicht nur die erste) samt
-// jeweils eigenem Preis — unabhaengig davon, ob eine Zeile auf ein
-// Fantasie-Item-Stichwort passt. RECEIPT_ITEM_KEYWORDS zielt gezielt auf
-// die deutlich engere Fantasie-Item-Zuordnung (bestimmt, WELCHES Spiel-Item
-// vergeben wird); diese Funktion ist bewusst breiter und dient nur der
-// Artikel-Ansicht im Dashboard — dort soll JEDE erkennbare Bon-Position
-// auftauchen, auch wenn der Text kryptisch ist (z.B. Kassensystem-Kuerzel
-// wie "CC EW 0,33L FL"), denn ein Store-Partner kennt seine eigenen
-// Kuerzel. Vollstaendigkeit ist hier wichtiger als lesbare Namen fuer
-// Aussenstehende. excludeLines: bereits anderweitig verwendete Roh-Zeilen
-// (z.B. schon als Fantasie-Item gezaehlt), damit dieselbe Zeile nicht
-// doppelt landet. Genau wie beim Stichwort-Abgleich oben steht der Preis
-// auf echten Bons oft NICHT auf derselben Zeile wie der Produktname (z.B.
-// Deichmann: Artikelnummer+Preis auf einer Zeile, Markenname "Bench"
-// separat direkt darunter) — deshalb auch hier Nachbarzeile vor/nach
-// pruefen, nicht nur die Treffer-Zeile selbst.
+// jeweils eigenem Preis — liefert die Kandidatenzeilen, gegen die
+// matchLineToConfiguredArticles() anschliessend die vom Store hinterlegte
+// Artikelliste per Fuzzy-Match prueft (siehe matchReceiptText()).
+// Vollstaendigkeit ist hier wichtiger als lesbare Namen: auch kryptischer
+// Text (z.B. Kassensystem-Kuerzel wie "CC EW 0,33L FL") wird als Kandidat
+// zurueckgegeben, die eigentliche Auswahl trifft der Fuzzy-Abgleich danach.
+// excludeLines: bereits anderweitig verwendete Roh-Zeilen, damit dieselbe
+// Zeile nicht doppelt landet. Der Preis steht auf echten Bons oft NICHT auf
+// derselben Zeile wie der Produktname (z.B. Deichmann: Artikelnummer+Preis
+// auf einer Zeile, Markenname "Bench" separat direkt darunter) — deshalb
+// auch hier Nachbarzeile vor/nach pruefen, nicht nur die Treffer-Zeile
+// selbst.
 //
 // footerStarted: Ein einzelnes Bon-Foto (v.a. bei Apotheken-/Drogerie-
 // Kleinschrift) kann so schlecht erkannt werden, dass OCR selbst Woerter
@@ -340,7 +357,87 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
   return found;
 }
 
-function matchReceiptText(text) {
+// ============ Fuzzy-Abgleich gegen die hinterlegte Artikelliste ============
+// Ersetzt das frueher hier verwendete freie Stichwort-Matching
+// (RECEIPT_ITEM_KEYWORDS): OCR-Ergebnisse weichen in Schreibweise, Abkuerzung
+// oder durch Erkennungsfehler vom Original ab, ein exakter Textvergleich
+// reicht daher nicht. Handgeschriebene Levenshtein-Implementierung statt
+// einer externen Bibliothek — dieses Projekt hat keine Build-Pipeline
+// (Plain-Script-Tags), ein npm-Paket waere hier nicht ohne Weiteres nutzbar.
+
+// Lowercase, Akzente entfernt, alles ausser a-z/0-9 zu einzelnen Leerzeichen
+// zusammengefasst -- macht "Coca-Cola 0,5L" und "COCA COLA O,5 L" vor dem
+// Vergleich gleich, unabhaengig von Gross-/Kleinschreibung, Bindestrichen
+// oder OCR-typischen Leerzeichen-Verschiebungen.
+function normalizeArticleText(text) {
+  return (text || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+// Standard-Editierdistanz (dynamische Programmierung, iterativ mit zwei
+// Zeilen statt vollständiger Matrix -- reicht für die hier vorkommenden
+// kurzen Artikel-/Zeilentexte locker aus).
+function levenshteinDistance(a, b) {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  let prevRow = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const currRow = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      currRow[j] = Math.min(
+        prevRow[j] + 1, // Loeschen
+        currRow[j - 1] + 1, // Einfuegen
+        prevRow[j - 1] + cost // Ersetzen
+      );
+    }
+    prevRow = currRow;
+  }
+  return prevRow[b.length];
+}
+
+// Aehnlichkeit zweier Texte als Wert zwischen 0 (komplett verschieden) und 1
+// (identisch nach Normalisierung). Ein Store traegt oft nur einen Teil des
+// tatsaechlichen Bon-Zeilentexts ein (z.B. "Coca Cola" statt "Coca-Cola 0,5L
+// EW") -- eine reine Editierdistanz wuerde das bei stark unterschiedlicher
+// Laenge zu Unrecht als unaehnlich werten, deshalb zusaetzlich ein fixer,
+// hoher Score, sobald der kuerzere Text komplett im laengeren enthalten ist.
+function articleSimilarity(lineText, configuredArticle) {
+  const a = normalizeArticleText(lineText);
+  const b = normalizeArticleText(configuredArticle);
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  if (a.includes(b) || b.includes(a)) return 0.85;
+  return 1 - levenshteinDistance(a, b) / Math.max(a.length, b.length);
+}
+
+// Ab diesem Aehnlichkeitswert gilt eine Bon-Zeile als Treffer auf einen
+// hinterlegten Artikel. Einstellbar -- niedriger = mehr Treffer, aber mehr
+// Risiko von Fehltreffern (offener Punkt aus dem Briefing).
+const ARTICLE_MATCH_THRESHOLD = 0.6;
+
+// Bester Treffer (>= Threshold) einer Bon-Zeile gegen ALLE hinterlegten
+// Artikel eines Stores. Passt eine Zeile zu mehreren Artikeln aehnlich gut,
+// gewinnt der hoechste Score, bei exaktem Gleichstand (score > best.score
+// statt >=) der zuerst in der Liste hinterlegte Artikel.
+function matchLineToConfiguredArticles(lineText, configuredArticles) {
+  let best = null;
+  configuredArticles.forEach((article) => {
+    const articleText = (article || "").trim();
+    if (!articleText) return;
+    const score = articleSimilarity(lineText, articleText);
+    if (score >= ARTICLE_MATCH_THRESHOLD && (!best || score > best.score)) {
+      best = { articleText, score };
+    }
+  });
+  return best;
+}
+
+function matchReceiptText(text, configuredArticles) {
   const trimmed = text.trim();
   if (trimmed.length < 3) {
     // Wirklich nichts Lesbares erkannt (leeres/kaputtes Foto) — das ist
@@ -350,156 +447,104 @@ function matchReceiptText(text) {
     return;
   }
 
+  // Nur noch kosmetisch (Anzeigetext + "category"-Wert im Tracking) --
+  // entscheidet NICHT mehr, welche Items/Umsaetze erkannt werden, siehe
+  // Kommentar bei RECEIPT_STORE_PATTERNS in js/data.js.
   const storeMatch = RECEIPT_STORE_PATTERNS.find((entry) => entry.pattern.test(text));
   const categoryKey = storeMatch ? storeMatch.categoryKey : null;
   const category = categoryKey ? STORE_CATEGORIES[categoryKey] : null;
-  // Store nicht hinterlegt (z.B. Retailer im Ausland/nicht gelistete Kette)
-  // oder erkannte Kategorie hat noch keinen eigenen receiptItemPool -> ueber
-  // ALLE Bon-tauglichen Items pruefen statt den Scan hart abzulehnen. So
-  // laesst sich jeder lesbare Bon testen, unabhaengig vom Retailer.
-  const pool = category && category.receiptItemPool && category.receiptItemPool.length > 0
-    ? category.receiptItemPool
-    : ANY_STORE_ITEM_POOL;
 
-  // Jede Zeile kann maximal ein Item treffen (erstes passendes Item aus
-  // dem Pool gewinnt); mehrere Zeilen koennen aber unterschiedliche Items
-  // treffen (z.B. Bon mit Schuhen UND Rucksack). Trifft eine Zeile
-  // denselben Item-Typ wie eine vorherige (z.B. drei verschiedene
-  // Getraenke -> alle "Energiesnack"), zaehlt das als mehrere Stueck
-  // desselben Items statt zu verschwinden — sonst wirkt ein Bon mit
-  // mehreren Artikeln so, als waere nur einer gescannt worden. Der Preis
-  // wird PRO ZEILE erkannt (nicht die Bon-Gesamtsumme), damit jedes Item
-  // seinen eigenen Wert traegt statt eines gemeinsamen Bon-Betrags.
   // Gedruckter Gesamtbetrag des Bons -- dient als Plausibilitaets-Deckel
-  // fuer JEDEN einzelnen Zeilenpreis weiter unten (siehe capToReceiptTotal):
-  // ein Einzelartikel kann nie mehr kosten als der ganze Bon. Faengt den
-  // real beobachteten Fall ab, dass OCR auf einem schlecht lesbaren Foto
-  // eine Artikelnummer/einen Barcode-Ausschnitt faelschlich als Preis liest
-  // und der erfasste Umsatz dadurch (je nach Fotoqualitaet) um ein
-  // Vielfaches vom tatsaechlichen Bonbetrag abweicht.
+  // fuer JEDEN einzelnen Zeilenpreis (siehe capToReceiptTotal): ein
+  // Einzelartikel kann nie mehr kosten als der ganze Bon.
   const receiptTotalCents = findReceiptTotalCents(text);
 
-  const lines = text.split(/\r?\n/);
-  const matches = {}; // itemKey -> { count, amounts: [cents|null, ...], lineTexts: [string|null, ...] }
-  const usedLines = new Set(); // rohe, getrimmte Zeilen, die bereits einem Fantasie-Item zugeordnet wurden
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const hit = pool.find((itemKey) => {
-      const patterns = RECEIPT_ITEM_KEYWORDS[itemKey] || [];
-      return patterns.some((p) => p.test(line));
+  // Alle plausiblen Artikelzeilen samt Preis (Summen-/Steuer-/Adress-/
+  // Fusszeilen bereits herausgefiltert, siehe findAllProductLines) -- jede
+  // davon wird gegen die hinterlegte Artikelliste geprueft. Mehrere Zeilen
+  // koennen auf denselben hinterlegten Artikel treffen (mehrere Stueck auf
+  // einem Bon) -- das erzeugt bewusst mehrere Eintraege statt eines
+  // gezaehlten Stapels, das Dashboard gruppiert Duplikate beim Anzeigen
+  // ohnehin case-insensitiv nach Artikeltext (siehe countByProductText in
+  // dashboard-render.js).
+  const candidateLines = findAllProductLines(text, new Set(), receiptTotalCents);
+  const matchedArticles = [];
+  if (configuredArticles && configuredArticles.length > 0) {
+    candidateLines.forEach((line) => {
+      const best = matchLineToConfiguredArticles(line.text, configuredArticles);
+      if (best) matchedArticles.push({ articleText: best.articleText, amountCents: line.amountCents });
     });
-    if (!hit) continue;
-    if (!matches[hit]) matches[hit] = { count: 0, amounts: [], lineTexts: [] };
-    matches[hit].count++;
-    // Der Preis steht nicht immer auf exakt derselben Zeile wie das
-    // Stichwort — z.B. steht bei Deichmann-Bons Artikelnummer+Preis auf
-    // einer Zeile und der Markenname ("Bench") separat direkt darunter.
-    // Deshalb zusaetzlich eine Zeile vor/nach der Treffer-Zeile pruefen,
-    // bevor der Preis als "nicht gefunden" gilt.
-    const amount = capToReceiptTotal(
-      extractLineAmountCents(line) ??
-        extractLineAmountCents(lines[i - 1] || "") ??
-        extractLineAmountCents(lines[i + 1] || ""),
-      receiptTotalCents
-    );
-    matches[hit].amounts.push(amount);
-    // Tatsaechlich erkannter Zeilentext fuers Dashboard (Artikel-Ansicht,
-    // siehe grantReceiptItems) — nur die Treffer-Zeile selbst (nicht die
-    // Nachbarzeile wie beim Preis), da das der tatsaechliche Produktname/
-    // -hinweis ist. Preis (falls auf derselben Zeile) wird abgeschnitten —
-    // der steht im Dashboard schon separat als Umsatzanteil, siehe
-    // cleanProductNameText(). Gekappt als Schutz gegen ausufernden
-    // OCR-Muell auf schlecht lesbaren Bons.
-    const cleanedLine = cleanProductNameText(line.trim()).slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH);
-    matches[hit].lineTexts.push(cleanedLine || null);
-    usedLines.add(line.trim());
   }
-
-  // Alle uebrigen, noch nicht per Fantasie-Item-Stichwort verwendeten
-  // plausiblen Artikelzeilen — Produktentscheidung: JEDE erkennbare
-  // Bon-Position soll in der Dashboard-Artikel-Ansicht auftauchen, auch
-  // wenn sie keinem Spiel-Item entspricht (z.B. Kassensystem-Kuerzel wie
-  // "CC EW 0,33L FL"), statt sie stillschweigend zu verwerfen. Betrifft
-  // NUR die Dashboard-Anzeige/Umsatzerfassung, siehe grantReceiptItems()
-  // weiter unten — die Spiel-Item-Vergabe (Fantasie-Stichworte oben bzw.
-  // das Muenzen-/Bonuspaket unten) bleibt davon komplett unberuehrt.
-  const remainingLines = findAllProductLines(text, usedLines, receiptTotalCents);
-
-  // Kein Store und/oder kein Fantasie-Item-Stichwort getroffen — die
-  // Artikel auf dem Bon sind damit "nicht eindeutig" identifiziert. Statt
-  // eines starren Fallback-Items gibt es dafuer unten in grantReceiptItems()
-  // ein kleines Zufalls-Bonuspaket (Muenzen + weisse Items, siehe
-  // BONSCAN_UNCLEAR_BONUS_SLOT_COUNT in js/data.js). Fuers Dashboard trotzdem
-  // noch die erste plausible echte Artikelzeile MIT ihrem eigenen Preis
-  // nehmen (die Fantasie-Stichwortliste ist eng auf Spiel-Items zugeschnitten,
-  // echte Kassenbons — Markennamen, Lebensmittel — matchen davon oft nichts,
-  // obwohl OCR die Zeile technisch einwandfrei gelesen hat).
-  const isUnclear = Object.keys(matches).length === 0;
-  let bestLine = null;
-  if (isUnclear) {
-    bestLine = remainingLines.shift() || null; // entfernt die erste Zeile aus remainingLines, damit sie nicht doppelt landet
-  } else {
-    // Kein einziger Preis auf irgendeiner Treffer-Zeile gefunden -> die Bon-
-    // Summe (falls lesbar) EINMALIG dem ersten Item zuschreiben, statt den
-    // Scan ganz ohne Umsatz zu lassen. Nicht auf jedes Item verteilen, sonst
-    // wuerde der Umsatz bei mehreren Treffern vervielfacht.
-    const anyAmountFound = Object.values(matches).some((m) => m.amounts.some((a) => a !== null));
-    if (!anyAmountFound) {
-      const total = findReceiptTotalCents(text);
-      if (total !== null) {
-        const firstKey = Object.keys(matches)[0];
-        matches[firstKey].amounts[0] = total;
-      }
-    }
-  }
-  const extraArticles = remainingLines;
 
   const storeText = category
     ? `Echter Kauf erkannt bei ${category.name} 🧾`
-    : `Echter Kauf erkannt (Retailer nicht gelistet) 🧾`;
+    : `Echter Kauf erkannt 🧾`;
 
   setScanStatus("");
-  grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine, extraArticles);
+  grantReceiptItems(matchedArticles, categoryKey, storeText);
 }
 
-// Dashboard-Tracking (Artikel-Ansicht/Umsatz) fuer die eindeutig erkannten
-// Positionen -- LAEUFT BEWUSST GETRENNT von der eigentlichen Item-/XP-/
-// Trophaeen-Vergabe unten (siehe grantReceiptItems). Vorher lagen beide
-// Dinge in einer einzigen Funktion verschachtelt: eine Exception in der
-// Belohnungs-/Trophaeen-Logik (z.B. der von aussen ergaenzten Level-Up-
-// Funktion) brach die GESAMTE Funktion vorzeitig ab, NACHDEM das Item
-// schon lokal vergeben war (addItem laeuft vor addXp/Trophaeen), aber
-// BEVOR irgendein trackEvent() lief -- der Scan landete dann nie im
-// Dashboard, obwohl der Spieler sein Item bekam. Jetzt laeuft das
-// Tracking zuerst und kann durch nichts danach mehr verhindert werden.
-function trackReceiptScanForDashboard(matches, categoryKey, extraArticles) {
-  Object.entries(matches).forEach(([itemKey, { count, amounts, lineTexts }]) => {
-    const item = ITEMS[itemKey];
-    for (let i = 0; i < count; i++) {
-      trackEvent("item_receipt_scanned", {
-        storeId: "receipt_scan",
-        category: categoryKey,
-        itemKey,
-        rarity: item.rarity,
-        amountCents: amounts[i] ?? null,
-        productText: (lineTexts && lineTexts[i]) || null,
-      });
-    }
-  });
-  (extraArticles || []).forEach((article) => {
+// Zieht PRO Fuzzy-Treffer ein zufaelliges Item (rarity-gewichtet, siehe
+// RECEIPT_MATCH_ITEM_POOL/LOCATION_DROP_RARITY_WEIGHTS in js/data.js) --
+// bewusst NICHT an den konkreten Artikeltext gekoppelt, nur DASS ein Item
+// vergeben wird haengt vom Match ab, WELCHES ist Zufall (siehe Briefing).
+// Reine Pool-Auswahl (kann nicht fehlschlagen) -- deshalb schon HIER
+// berechnet, noch bevor trackReceiptScanForDashboard() bzw. der
+// fehleranfaelligere Trophaeen-/Level-Up-Code unten laufen.
+function pickReceiptMatchRewards(matchedArticles) {
+  return matchedArticles.map(({ articleText, amountCents }) => ({
+    articleText,
+    amountCents,
+    itemKey: pickWeightedItemFromPool(RECEIPT_MATCH_ITEM_POOL, LOCATION_DROP_RARITY_WEIGHTS),
+  }));
+}
+
+// Dashboard-Tracking (Artikel-Ansicht/Umsatz) fuer die per Fuzzy-Match
+// erkannten Positionen -- LAEUFT BEWUSST GETRENNT von der eigentlichen
+// Item-/XP-/Trophaeen-Vergabe unten (siehe grantReceiptItems). Vorher lagen
+// beide Dinge in einer einzigen Funktion verschachtelt: eine Exception in
+// der Belohnungs-/Trophaeen-Logik (z.B. der von aussen ergaenzten Level-Up-
+// Funktion) brach die GESAMTE Funktion vorzeitig ab, NACHDEM das Item schon
+// lokal vergeben war (addItem laeuft vor addXp/Trophaeen), aber BEVOR
+// irgendein trackEvent() lief -- der Scan landete dann nie im Dashboard,
+// obwohl der Spieler sein Item bekam. Jetzt laeuft das Tracking zuerst und
+// kann durch nichts danach mehr verhindert werden.
+//
+// Ein Eintrag PRO erkannter Bon-Zeile (nicht nach Artikel gruppiert/gezaehlt)
+// -- das Dashboard gruppiert beim Anzeigen ohnehin case-insensitiv nach
+// Artikeltext, siehe countByProductText() in dashboard-render.js.
+function trackReceiptScanForDashboard(rewardedMatches, categoryKey) {
+  if (rewardedMatches.length === 0) {
+    // Kein hinterlegter Artikel erkannt -- der Kaufversuch zaehlt trotzdem
+    // (Kaeuferzahl, "treuer_shopper"-Ziel unten), aber OHNE erfundenen
+    // Umsatz/Artikeltext: Umsatz/Provision zaehlen laut Briefing nur noch
+    // aus tatsaechlich hinterlegten UND per Matching erkannten Artikeln.
     trackEvent("item_receipt_scanned", {
       storeId: "receipt_scan",
       category: categoryKey,
       itemKey: null,
       rarity: null,
-      amountCents: article.amountCents,
-      productText: article.text,
+      amountCents: null,
+      productText: null,
+    });
+    return;
+  }
+  rewardedMatches.forEach(({ articleText, amountCents, itemKey }) => {
+    const item = ITEMS[itemKey];
+    trackEvent("item_receipt_scanned", {
+      storeId: "receipt_scan",
+      category: categoryKey,
+      itemKey,
+      rarity: item.rarity,
+      amountCents,
+      productText: articleText,
     });
   });
 }
 
-function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine, extraArticles) {
-  trackReceiptScanForDashboard(matches, categoryKey, extraArticles);
+function grantReceiptItems(matchedArticles, categoryKey, storeText) {
+  const rewardedMatches = pickReceiptMatchRewards(matchedArticles);
+  trackReceiptScanForDashboard(rewardedMatches, categoryKey);
 
   // Ab hier: die eigentliche Spiel-Belohnung (Item/XP/Muenzen/Trophaeen)
   // und die Erfolgs-Anzeige -- bewusst in try/catch, damit ein Fehler hier
@@ -510,21 +555,31 @@ function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine,
   // Scan, der weder im Dashboard noch fuer den Spieler sichtbar ankommt.
   try {
   let levelRewardEntries = [];
-  const entries = Object.entries(matches).map(([itemKey, { count }]) => {
-    const item = ITEMS[itemKey];
-    addItem(itemKey, count);
-    levelRewardEntries = levelRewardEntries.concat(addXp(item.xp * count));
-    return { type: "item", itemKey, count, storeText };
-  });
+  const entries = [];
 
-  // Nicht eindeutiger Bon (kein Store/Stichwort erkannt) -> statt eines
-  // einzelnen Zufalls-Items gibt es ein kleines Bonuspaket: ein Slot ist
-  // IMMER Muenzen (neue Waehrung, siehe addCoins() in state.js + HUD-Anzeige
-  // am Avatar), der Rest zufaellige weisse Items (siehe
-  // BONSCAN_WHITE_BONUS_ITEM_POOL in js/data.js). Gleiche Items werden zu
-  // einem Stapel zusammengefasst statt einzeln in der Erfolgs-Queue zu
-  // erscheinen.
-  if (isUnclear) {
+  if (rewardedMatches.length > 0) {
+    // Je Artikel-Treffer wurde bereits oben ein Zufalls-Item gezogen --
+    // fuer die Erfolgs-Queue nach Item-Typ gruppiert/gestapelt (wie zuvor),
+    // damit ein Bon mit z.B. 3 Treffern nicht 3 fast identische Karten
+    // erzeugt, falls mehrfach dasselbe Item gezogen wurde.
+    const itemCounts = {};
+    rewardedMatches.forEach(({ itemKey }) => {
+      itemCounts[itemKey] = (itemCounts[itemKey] || 0) + 1;
+    });
+    Object.entries(itemCounts).forEach(([itemKey, count]) => {
+      const item = ITEMS[itemKey];
+      addItem(itemKey, count);
+      levelRewardEntries = levelRewardEntries.concat(addXp(item.xp * count));
+      entries.push({ type: "item", itemKey, count, storeText });
+    });
+  } else {
+    // Kein hinterlegter Artikel erkannt -> statt eines einzelnen
+    // Zufalls-Items gibt es ein kleines Bonuspaket: ein Slot ist IMMER
+    // Muenzen (neue Waehrung, siehe addCoins() in state.js + HUD-Anzeige
+    // am Avatar), der Rest zufaellige weisse Items (siehe
+    // BONSCAN_WHITE_BONUS_ITEM_POOL in js/data.js). Gleiche Items werden zu
+    // einem Stapel zusammengefasst statt einzeln in der Erfolgs-Queue zu
+    // erscheinen.
     const coinAmount = Math.round(randomBetween(BONSCAN_COINS_MIN, BONSCAN_COINS_MAX));
     addCoins(coinAmount);
     trackEvent("coins_received", { storeId: "receipt_scan", category: categoryKey, amount: coinAmount });
@@ -535,20 +590,10 @@ function grantReceiptItems(matches, categoryKey, storeText, isUnclear, bestLine,
       const key = randomChoice(BONSCAN_WHITE_BONUS_ITEM_POOL);
       bonusCounts[key] = (bonusCounts[key] || 0) + 1;
     }
-    let isFirstBonusItem = true;
     Object.entries(bonusCounts).forEach(([itemKey, count]) => {
       const item = ITEMS[itemKey];
       addItem(itemKey, count);
       levelRewardEntries = levelRewardEntries.concat(addXp(item.xp * count));
-      trackEvent("item_receipt_scanned", {
-        storeId: "receipt_scan",
-        category: categoryKey,
-        itemKey,
-        rarity: item.rarity,
-        amountCents: isFirstBonusItem && bestLine ? bestLine.amountCents : null,
-        productText: isFirstBonusItem && bestLine ? bestLine.text : null,
-      });
-      isFirstBonusItem = false;
       entries.push({ type: "item", itemKey, count, storeText: "Bonus für deinen Einkauf 🧾" });
     });
   }

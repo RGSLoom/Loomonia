@@ -1,6 +1,6 @@
-# Deploy-Anleitung: locations-admin / events-admin
+# Deploy-Anleitung: locations-admin / events-admin / store-articles-admin
 
-Diese beiden Edge Functions sind der Ersatz für die bisherigen direkten
+Diese drei Edge Functions sind der Ersatz für die bisherigen direkten
 Schreib-/Lese-/Lösch-Zugriffe der Dashboards über den öffentlichen anon-Key.
 Sie laufen bei Supabase (nicht auf GitHub Pages) und nutzen dort den
 Service-Role-Key, der **nie** im Client-Code stehen darf.
@@ -30,6 +30,7 @@ wird nirgends gespeichert oder committed.
 npx supabase login
 npx supabase functions deploy locations-admin --project-ref oztsymfskxaeonxqggfb
 npx supabase functions deploy events-admin --project-ref oztsymfskxaeonxqggfb
+npx supabase functions deploy store-articles-admin --project-ref oztsymfskxaeonxqggfb
 ```
 
 ## 3. Secret setzen
@@ -40,7 +41,10 @@ npx supabase secrets set ADMIN_PASSWORD_HASH=<Hash aus Schritt 1> --project-ref 
 
 `SUPABASE_URL` und `SUPABASE_SERVICE_ROLE_KEY` müssen NICHT manuell gesetzt
 werden — die stellt Supabase jeder Edge Function automatisch als Umgebungsvariable
-bereit.
+bereit. store-articles-admin nutzt denselben `ADMIN_PASSWORD_HASH` wie die
+beiden anderen Functions, kein zusätzliches Secret nötig — vorher aber
+`supabase/store_articles_setup.sql` im SQL-Editor ausführen (legt die Tabelle
+inkl. RLS-Policy für die neue Function an).
 
 ## 4. Erst DANACH: RLS-Policies verschärfen
 

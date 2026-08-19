@@ -218,6 +218,100 @@ async function confirmResetTestData() {
   }
 }
 
+// ============ Artikelverwaltung (Einstellungen-Panel) ============
+// Bis zu 15 vom Store selbst hinterlegte Artikelbezeichnungen, gegen die
+// das Spiel jeden Bon-Scan per Fuzzy-Match prueft (siehe
+// matchLineToConfiguredArticles in js/bonscan.js). Aktuell nur fuer den
+// GodAdmin-Teststore verdrahtet (store_key "godadmin", siehe
+// supabase/store_articles_setup.sql) -- dasselbe Muster kann spaeter fuer
+// echte Retailer-Standorte (store_key = deren locations.id) wiederverwendet
+// werden, sobald die Self-Service-Ansicht dafuer gebaut wird.
+const ARTICLE_EDITOR_STORE_KEY = "godadmin";
+const ARTICLE_EDITOR_MAX_COUNT = 15;
+
+function renderArticleEditorFields() {
+  const container = document.getElementById("article-editor-fields");
+  container.innerHTML = "";
+  for (let i = 1; i <= ARTICLE_EDITOR_MAX_COUNT; i++) {
+    const field = document.createElement("div");
+    field.className = "article-field";
+    const label = document.createElement("label");
+    label.setAttribute("for", `article-input-${i}`);
+    label.textContent = `Artikel ${i}`;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = `article-input-${i}`;
+    input.maxLength = 120;
+    input.placeholder = "z.B. Coca-Cola 0,5L";
+    field.append(label, input);
+    container.appendChild(field);
+  }
+}
+
+function setArticleEditorStatus(msg, kind) {
+  const el = document.getElementById("article-editor-status");
+  el.textContent = msg || "";
+  el.className = "form-status" + (kind ? " " + kind : "");
+}
+
+// Direkt mit dem anon-Key gelesen (oeffentlich lesbar, siehe
+// supabase/store_articles_setup.sql store_articles_public_select) -- kein
+// Admin-Zugriff zum Vorbefuellen des Formulars noetig.
+function loadArticleEditor() {
+  fetch(
+    `${SUPABASE_URL}/rest/v1/store_articles?select=articles&store_key=eq.${encodeURIComponent(ARTICLE_EDITOR_STORE_KEY)}`,
+    { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+  )
+    .then((r) => (r.ok ? r.json() : []))
+    .then((rows) => {
+      const articles = (rows[0] && Array.isArray(rows[0].articles)) ? rows[0].articles : [];
+      articles.forEach((text, i) => {
+        const input = document.getElementById(`article-input-${i + 1}`);
+        if (input) input.value = text;
+      });
+    })
+    .catch(() => {
+      // Tabelle/Function evtl. noch nicht angelegt -- Formular bleibt dann
+      // einfach leer, das Speichern legt die Zeile beim ersten Mal per
+      // Upsert an.
+    });
+}
+
+async function saveArticleEditor() {
+  const btn = document.getElementById("btn-articles-save");
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Speichere…";
+  setArticleEditorStatus("", "");
+
+  const articles = [];
+  for (let i = 1; i <= ARTICLE_EDITOR_MAX_COUNT; i++) {
+    const value = (document.getElementById(`article-input-${i}`).value || "").trim();
+    if (value) articles.push(value);
+  }
+
+  try {
+    const res = await fetchWithAdminAuth(STORE_ARTICLES_ADMIN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify({ store_key: ARTICLE_EDITOR_STORE_KEY, articles }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${res.statusText}${body ? " – " + body : ""}`);
+    }
+    setArticleEditorStatus(`Artikelliste gespeichert (${articles.length} von ${ARTICLE_EDITOR_MAX_COUNT} Feldern befüllt).`, "success");
+  } catch (err) {
+    setArticleEditorStatus("Speichern fehlgeschlagen: " + (err && err.message ? err.message : err), "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
 // Fuer den Pitch hat jeder teilnehmende Shop nur EIN Konto/EIN Dashboard —
 // die Store-Auswahl (renderStoreGrid/switchStore, fuers spaetere Phase-2-
 // Szenario "Grosskonzern vergleicht seine Filialen") wird deshalb aktuell
@@ -229,6 +323,11 @@ function init() {
   document.getElementById("btn-reset-open").onclick = openResetConfirm;
   document.getElementById("btn-reset-confirm").onclick = confirmResetTestData;
   document.getElementById("btn-reset-cancel").onclick = cancelResetConfirm;
+
+  renderArticleEditorFields();
+  loadArticleEditor();
+  document.getElementById("btn-articles-save").onclick = saveArticleEditor;
+
   document.querySelectorAll(".nav-item[data-target]").forEach((btn) => {
     btn.onclick = () => {
       document.querySelectorAll(".nav-item[data-target]").forEach((b) => b.classList.remove("active"));
