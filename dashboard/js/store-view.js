@@ -122,7 +122,7 @@ function fetchEvents() {
   cutoff.setHours(0, 0, 0, 0);
 
   return fetchStoreView("events", {
-    select: "type,player_id,ts,item_key,amount_cents",
+    select: "type,player_id,ts,item_key,amount_cents,product_text",
     ts: `gte.${cutoff.toISOString()}`,
     order: "ts.asc",
     limit: "10000",
