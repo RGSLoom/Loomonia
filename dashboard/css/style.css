@@ -328,22 +328,35 @@ h1, h2, h3 { font-family: var(--font-heading); color: var(--heading); }
 }
 
 .article-editor-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 14px;
 }
-.article-field { display: flex; flex-direction: column; gap: 4px; }
-.article-field label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
-.article-field input {
+.article-field {
+  display: grid;
+  grid-template-columns: 72px 1fr 210px;
+  align-items: center;
+  gap: 10px;
+}
+.article-field label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
+.article-field input,
+.article-field select {
   font-family: var(--font-body);
   font-size: 0.9rem;
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid var(--border);
   color: var(--text);
+  background: #fff;
 }
-.article-field input:focus { outline: 2px solid var(--tech-blue); outline-offset: 1px; }
+.article-field input:focus,
+.article-field select:focus { outline: 2px solid var(--tech-blue); outline-offset: 1px; }
+.article-item-select { font-size: 0.8rem; color: var(--text-muted); }
+
+@media (max-width: 640px) {
+  .article-field { grid-template-columns: 1fr; }
+}
 .article-editor-actions { display: flex; gap: 10px; }
 .btn-save-primary {
   background: var(--tech-blue);

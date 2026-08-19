@@ -19,6 +19,16 @@ const COMMISSION_RATE = 0.01; // 1% Haendler-Provision auf den geschaetzten Umsa
 // dashboard.js bzw. store-view.js.
 const ARTICLE_EDITOR_MAX_COUNT = 15;
 
+// Items, die ein Store bei der Artikel-Hinterlegung als Belohnung fuer einen
+// Treffer waehlen kann -- bewusst nur Ungewoehnlich (gruen) und Selten
+// (blau): Gewoehnlich bleibt exklusiv ueber das kostenlose Standort-
+// Minigame erreichbar, Episch/Legendaer bleiben Trophaeen vorbehalten
+// (siehe TROPHY_EXCLUSIVE_ITEM_KEYS in js/data.js). Eigene, dashboard-
+// seitige Liste (wie DASHBOARD_ITEMS in stores-config.js) statt eines
+// Verweises auf js/data.js -- dieses Projekt haelt Spiel- und Dashboard-
+// Code bewusst unabhaengig voneinander.
+const ARTICLE_ITEM_CHOICES = ["energiesnack", "gesundheitspaket", "sneaker", "rucksack"];
+
 function renderArticleEditorFields(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -33,25 +43,48 @@ function renderArticleEditorFields(containerId) {
     input.type = "text";
     input.id = `article-input-${i}`;
     input.maxLength = 120;
-    input.placeholder = "z.B. Coca-Cola 0,5L";
-    field.append(label, input);
+    input.placeholder = "Artikeltext";
+
+    const select = document.createElement("select");
+    select.id = `article-item-${i}`;
+    select.className = "article-item-select";
+    ARTICLE_ITEM_CHOICES.forEach((itemKey) => {
+      const meta = DASHBOARD_ITEMS[itemKey];
+      const opt = document.createElement("option");
+      opt.value = itemKey;
+      opt.textContent = `${meta.name} (${meta.rarity})`;
+      select.appendChild(opt);
+    });
+
+    field.append(label, input, select);
     container.appendChild(field);
   }
 }
 
 function fillArticleEditorFields(articles) {
-  (articles || []).forEach((text, i) => {
+  (articles || []).forEach((entry, i) => {
     const input = document.getElementById(`article-input-${i + 1}`);
-    if (input) input.value = text;
+    const select = document.getElementById(`article-item-${i + 1}`);
+    if (!input) return;
+    // Abwaertskompatibel: Artikel-Eintraege vor der Item-Auswahl-Erweiterung
+    // waren reine Strings -- text kommt dann direkt aus dem String, itemKey
+    // bleibt leer (Zufalls-Item als Fallback, siehe pickReceiptMatchRewards
+    // in js/bonscan.js).
+    const text = typeof entry === "string" ? entry : (entry && entry.text) || "";
+    const itemKey = typeof entry === "string" ? null : (entry && entry.itemKey) || null;
+    input.value = text;
+    if (select && itemKey && ARTICLE_ITEM_CHOICES.includes(itemKey)) select.value = itemKey;
   });
 }
 
 function readArticleEditorValues() {
   const articles = [];
   for (let i = 1; i <= ARTICLE_EDITOR_MAX_COUNT; i++) {
-    const el = document.getElementById(`article-input-${i}`);
-    const value = ((el && el.value) || "").trim();
-    if (value) articles.push(value);
+    const input = document.getElementById(`article-input-${i}`);
+    const select = document.getElementById(`article-item-${i}`);
+    const text = ((input && input.value) || "").trim();
+    if (!text) continue;
+    articles.push({ text, itemKey: select ? select.value : ARTICLE_ITEM_CHOICES[0] });
   }
   return articles;
 }

@@ -28,19 +28,41 @@ function jsonResponse(body: unknown, status: number): Response {
   });
 }
 
+// Items, die ein Store als Belohnung fuer einen Artikel-Treffer waehlen
+// darf -- identische Liste wie ARTICLE_ITEM_CHOICES in
+// dashboard/js/dashboard-render.js (bewusst dupliziert statt geteilt,
+// gleiches Prinzip wie DASHBOARD_ITEMS/js/data.js ITEMS).
+const ALLOWED_ARTICLE_ITEM_KEYS = ["energiesnack", "gesundheitspaket", "sneaker", "rucksack"];
+
 // Verteidigung in der Tiefe: selbst wenn ein Store-Link-Token in falsche
 // Haende geraet oder der Client fehlerhafte Daten schickt, darf daraus nie
 // eine beliebig lange/kaputte Artikelliste in der Datenbank landen -- max.
-// 15 getrimmte, nicht-leere Strings, je hart auf 120 Zeichen gekappt
-// (identische Grenzen wie im Dashboard-Formular, siehe
-// dashboard/js/dashboard-render.js).
-function sanitizeArticles(input: unknown): string[] {
+// 15 Eintraege, je ein getrimmter, nicht-leerer Text (hart auf 120 Zeichen
+// gekappt, identische Grenzen wie im Dashboard-Formular) plus ein
+// optionales itemKey, das NUR einer der erlaubten Werte sein darf (sonst
+// null -- dann greift der Zufalls-Fallback in js/bonscan.js
+// pickReceiptMatchRewards). Akzeptiert zusaetzlich reine Strings
+// (Artikel-Eintraege vor der Item-Auswahl-Erweiterung).
+function sanitizeArticles(input: unknown): { text: string; itemKey: string | null }[] {
   if (!Array.isArray(input)) return [];
   return input
-    .map((v) => (typeof v === "string" ? v.trim() : ""))
-    .filter((v) => v.length > 0)
+    .map((entry) => {
+      const text = typeof entry === "string"
+        ? entry
+        : (entry && typeof entry === "object" && typeof (entry as Record<string, unknown>).text === "string")
+          ? (entry as Record<string, unknown>).text as string
+          : "";
+      const rawItemKey = (entry && typeof entry === "object")
+        ? (entry as Record<string, unknown>).itemKey
+        : null;
+      const itemKey = typeof rawItemKey === "string" && ALLOWED_ARTICLE_ITEM_KEYS.includes(rawItemKey)
+        ? rawItemKey
+        : null;
+      return { text: text.trim(), itemKey };
+    })
+    .filter((e) => e.text.length > 0)
     .slice(0, 15)
-    .map((v) => v.slice(0, 120));
+    .map((e) => ({ text: e.text.slice(0, 120), itemKey: e.itemKey }));
 }
 
 Deno.serve(async (req) => {

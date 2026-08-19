@@ -482,11 +482,17 @@ function matchLineToConfiguredStores(lineText, configuredStores) {
   let best = null;
   configuredStores.forEach(({ storeKey, articles }) => {
     (articles || []).forEach((article) => {
-      const articleText = (article || "").trim();
+      // Abwaertskompatibel: Artikel-Eintraege vor der Item-Auswahl-
+      // Erweiterung (Haendler waehlt ein Ungewoehnlich/Selten-Item pro
+      // Artikel, siehe dashboard-render.js ARTICLE_ITEM_CHOICES) waren reine
+      // Strings -- itemKey bleibt dann null, pickReceiptMatchRewards()
+      // faellt in dem Fall auf ein Zufalls-Item zurueck.
+      const articleText = (typeof article === "string" ? article : (article && article.text) || "").trim();
       if (!articleText) return;
+      const itemKey = typeof article === "string" ? null : (article && article.itemKey) || null;
       const score = articleSimilarity(lineText, articleText);
       if (score >= ARTICLE_MATCH_THRESHOLD && (!best || score > best.score)) {
-        best = { articleText, score, storeKey };
+        best = { articleText, score, storeKey, itemKey };
       }
     });
   });
@@ -552,6 +558,11 @@ function matchReceiptText(text, configuredStores) {
           // ganze Scan -- verschiedene Zeilen koennten (theoretisch) auf
           // unterschiedliche Stores treffen.
           categoryKey: resolveCategoryKeyForStore(best.storeKey, categoryKey),
+          // Vom Store selbst gewaehltes Item (Ungewoehnlich/Selten, siehe
+          // ARTICLE_ITEM_CHOICES in dashboard-render.js) -- null bei
+          // aelteren Artikel-Eintraegen ohne Auswahl, dann greift der
+          // Zufalls-Fallback in pickReceiptMatchRewards().
+          itemKey: best.itemKey,
         });
       }
     });
@@ -565,19 +576,21 @@ function matchReceiptText(text, configuredStores) {
   grantReceiptItems(matchedArticles, categoryKey, storeText);
 }
 
-// Zieht PRO Fuzzy-Treffer ein zufaelliges Item (rarity-gewichtet, siehe
-// RECEIPT_MATCH_ITEM_POOL/LOCATION_DROP_RARITY_WEIGHTS in js/data.js) --
-// bewusst NICHT an den konkreten Artikeltext gekoppelt, nur DASS ein Item
-// vergeben wird haengt vom Match ab, WELCHES ist Zufall (siehe Briefing).
+// Bestimmt PRO Fuzzy-Treffer das zu vergebende Item: vorrangig das vom
+// Store selbst bei der Artikel-Hinterlegung gewaehlte Item (Ungewoehnlich/
+// Selten, siehe ARTICLE_ITEM_CHOICES in dashboard-render.js) -- nur wenn
+// keins hinterlegt ist (aeltere Artikel-Eintraege vor dieser Erweiterung),
+// faellt es auf ein zufaelliges, rarity-gewichtetes Item zurueck (siehe
+// RECEIPT_MATCH_ITEM_POOL/LOCATION_DROP_RARITY_WEIGHTS in js/data.js).
 // Reine Pool-Auswahl (kann nicht fehlschlagen) -- deshalb schon HIER
 // berechnet, noch bevor trackReceiptScanForDashboard() bzw. der
 // fehleranfaelligere Trophaeen-/Level-Up-Code unten laufen.
 function pickReceiptMatchRewards(matchedArticles) {
-  return matchedArticles.map(({ articleText, amountCents, categoryKey }) => ({
+  return matchedArticles.map(({ articleText, amountCents, categoryKey, itemKey }) => ({
     articleText,
     amountCents,
     categoryKey,
-    itemKey: pickWeightedItemFromPool(RECEIPT_MATCH_ITEM_POOL, LOCATION_DROP_RARITY_WEIGHTS),
+    itemKey: itemKey || pickWeightedItemFromPool(RECEIPT_MATCH_ITEM_POOL, LOCATION_DROP_RARITY_WEIGHTS),
   }));
 }
 
