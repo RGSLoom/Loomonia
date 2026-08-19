@@ -202,6 +202,18 @@ function extractLineAmountCents(line) {
   return Math.round(value * 100);
 }
 
+// Erkennt, ob eine Zeile erkennbar einen EIGENEN Preisversuch traegt --
+// auch wenn extractLineAmountCents() ihn nicht sauber parsen konnte (z.B.
+// OCR verschluckt das Komma: "1,29" wird zu "1298", weil die folgende
+// MwSt-Kennung "B" ohne Trennzeichen drangeklebt wird). Ein Ziffernblock am
+// Zeilenende (optional gefolgt von einem einzelnen MwSt-Klassenbuchstaben)
+// gilt als "eigener Preisversuch vorhanden" -- steuert in
+// findAllProductLines(), ob auf eine Nachbarzeile ausgewichen werden darf
+// (siehe Kommentar dort).
+function lineHasOwnPriceAttempt(line) {
+  return /\d{2,4}\s*[A-Za-zÀ-ÿ]?\s*$/.test(line.trim());
+}
+
 // Plausibilitaets-Deckel: kein einzelner Artikelpreis darf hoeher sein als
 // der auf dem Bon gedruckte GESAMTBETRAG -- real beobachtet, dass OCR auf
 // schlecht lesbaren Fotos gelegentlich eine Artikelnummer/einen Barcode-
@@ -362,10 +374,20 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
     // erkannt, nur weil sein Preis auf diesem einen Foto nicht lesbar war.
     // Kein erfundener Preis: bleibt amountCents null, zaehlt der Treffer
     // spaeter fuers Dashboard als erkannter Artikel OHNE Umsatzbeitrag.
+    //
+    // Nachbarzeilen-Ausweichen (fuers Deichmann-Layout: Artikelnummer+Preis
+    // auf einer Zeile, Markenname separat direkt darunter) nur, wenn die
+    // Zeile selbst erkennbar GAR KEINEN eigenen Preisversuch traegt --
+    // sonst "erbt" eine Zeile mit verstuemmeltem eigenem Preis faelschlich
+    // den Preis einer voellig anderen Nachbarzeile. Real beobachtet: "Nimm2
+    // Funfart 1298" (OCR verschluckt das Komma aus "1,29") bekam sonst den
+    // Preis der naechsten, komplett unabhaengigen Zeile ("Rü.Wiener veg.
+    // 1,98") zugewiesen, statt korrekt null zu bleiben.
+    const ownAmount = extractLineAmountCents(line);
     const amountCents = capToReceiptTotal(
-      extractLineAmountCents(line) ??
-        extractLineAmountCents(lines[i - 1] || "") ??
-        extractLineAmountCents(lines[i + 1] || ""),
+      ownAmount ?? (lineHasOwnPriceAttempt(line)
+        ? null
+        : extractLineAmountCents(lines[i - 1] || "") ?? extractLineAmountCents(lines[i + 1] || "")),
       maxAmountCents
     );
     const cleaned = cleanProductNameText(line).slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH);
