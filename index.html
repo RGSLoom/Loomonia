@@ -11,19 +11,6 @@
 <title>Store Walk</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.css" rel="stylesheet" />
 <link rel="stylesheet" href="css/style.css?v=88" />
-<!-- Import-Map fuer js/creature3d.js (echte 3D-Kreaturmodelle auf der
-     Karte): die three.js-Loader von unpkg importieren intern per blossem
-     "three"-Bezeichner statt eines relativen Pfads -- ohne diese Map kann
-     der Browser das nicht aufloesen. Muss als allererstes Modul-relevante
-     Element im Dokument stehen (Spec: vor jedem Modul-Script, das laedt). -->
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
 </head>
 <body>
 <div id="app">
@@ -297,20 +284,14 @@
 
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.js"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-<!-- Echte 3D-Kreaturmodelle als Mapbox-CustomLayer (three.js), siehe
-     js/creature3d.js -- type="module", weil three.js/GLTFLoader/DRACOLoader
-     nur noch als ES-Module verfuegbar sind. Haengt seine Funktionen
-     explizit auf window, damit map.js (klassisches Script) sie aufrufen
-     kann. -->
-<script type="module" src="js/creature3d.js?v=2"></script>
-<script src="js/data.js?v=88"></script>
+<script src="js/data.js?v=89"></script>
 <script src="js/utils.js?v=81"></script>
 <script src="js/state.js?v=78"></script>
 <script src="js/supabase-config.js?v=78"></script>
 <script src="js/mapbox-config.js?v=78"></script>
 <script src="js/tracking.js?v=85"></script>
 <script src="js/locations.js?v=78"></script>
-<script src="js/map.js?v=79"></script>
+<script src="js/map.js?v=80"></script>
 <script src="js/catchgame.js?v=83"></script>
 <script src="js/drawgame.js?v=78"></script>
 <script src="js/bonscan.js?v=88"></script>
