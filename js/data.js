@@ -198,7 +198,10 @@ const CREATURES = {
     color: "#fb923c",
     rarity: "Gewöhnlich",
     xp: 150,
-    icon: "assets/wesen/Fifu_icon.png",
+    icon: "assets/wesen/fifu_icon.png",
+    // Neues Bild hat schon einen echten Alphakanal, siehe moosilda-Kommentar
+    // weiter unten -- Laufzeit-Weissabgleich wuerde es kaputt-loechern.
+    iconAlreadyTransparent: true,
     scene: "assets/generated/bg_fifu_real.jpg",
     sceneIsRealPhoto: false,
   },
@@ -211,6 +214,8 @@ const CREATURES = {
     rarity: "Gewöhnlich",
     xp: 150,
     icon: "assets/wesen/Enari_icon.png",
+    // Ebenfalls schon echt freigestellt, siehe moosilda-Kommentar weiter unten.
+    iconAlreadyTransparent: true,
     scene: "assets/generated/bg_enari_real.webp",
     sceneIsRealPhoto: false,
   },
@@ -223,6 +228,8 @@ const CREATURES = {
     rarity: "Gewöhnlich",
     xp: 150,
     icon: "assets/wesen/Nami_icon.png",
+    // Ebenfalls schon echt freigestellt, siehe moosilda-Kommentar weiter unten.
+    iconAlreadyTransparent: true,
     scene: "assets/generated/bg_nami_real.jpg",
     sceneIsRealPhoto: false,
   },
@@ -234,10 +241,10 @@ const CREATURES = {
     color: "#d4a574",
     rarity: "Gewöhnlich",
     xp: 150,
-    icon: "assets/generated/icon_wollypig.png",
-    // Im Gegensatz zu den anderen Icons bereits echt freigestellt
-    // (Alphakanal vorhanden) — Laufzeit-Weissabgleich (getCutoutImage)
-    // wuerde hier nur helle Fellstellen kaputt-loechern, siehe map.js.
+    icon: "assets/wesen/Wolly_Pig_icon.png",
+    // Im Gegensatz zu Fauli bereits echt freigestellt (Alphakanal vorhanden)
+    // -- Laufzeit-Weissabgleich (getCutoutImage) wuerde hier nur helle
+    // Fellstellen kaputt-loechern, siehe map.js.
     iconAlreadyTransparent: true,
     scene: "assets/generated/bg_wollypig_real.jpg",
     sceneIsRealPhoto: false,
