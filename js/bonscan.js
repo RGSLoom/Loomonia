@@ -446,6 +446,12 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
 function normalizeArticleText(text) {
   return (text || "")
     .toLowerCase()
+    // "\u00df" wird von NFD NICHT in "s"+Diakritikum zerlegt (anders als
+    // \u00e4/\u00f6/\u00fc) -- ohne diese explizite Ersetzung wuerde es von der
+    // a-z0-9-Filterung weiter unten einfach als Leerzeichen verschluckt
+    // ("Stra\u00dfe" -> "stra e" statt "strasse"), was z.B. den Adressabgleich
+    // in matchReceiptHeaderToStore() komplett lahmgelegt haette.
+    .replace(/\u00df/g, "ss")
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
@@ -531,6 +537,63 @@ function matchLineToConfiguredStores(lineText, configuredStores) {
   return best;
 }
 
+// Ab diesem Aehnlichkeitswert gilt die Bon-Kopfzeile als Treffer auf die
+// hinterlegte Adresse eines Stores. Eigene Konstante (nicht
+// ARTICLE_MATCH_THRESHOLD wiederverwendet), auch wenn der Wert aktuell
+// gleich ist -- Adressabgleich und Artikelabgleich sind inhaltlich
+// unabhaengige Entscheidungen und sollen unabhaengig voneinander
+// nachjustierbar bleiben.
+const STORE_ADDRESS_MATCH_THRESHOLD = 0.6;
+
+// Erste paar Zeilen des Bons (Store-Name + Adresse stehen dort, siehe
+// RECEIPT_ADDRESS_LINE) als ein zusammenhaengender Text fuer den
+// Adressabgleich -- bewusst ein Textblock statt Zeile-fuer-Zeile, da nicht
+// sicher ist, auf welcher genauen Zeile die Adresse steht (manche Bons
+// haben den Store-Namen und die Adresse auf verschiedenen Zeilen, andere
+// zusammen).
+function extractReceiptHeaderText(text) {
+  return text.split(/\r?\n/).slice(0, 6).join(" ");
+}
+
+// Vergleicht die Bon-Kopfzeile gegen die in der Standortverwaltung
+// hinterlegte Adresse jedes konfigurierten Stores (STORE_LOCATIONS, siehe
+// js/locations.js) -- verhindert, dass eine Bon-Zeile gegen die
+// Artikelliste eines VOELLIG ANDEREN, nicht besuchten Stores matcht, nur
+// weil dessen Artikeltexte zufaellig aehnlich klingen (z.B. ein bei "Rewe"
+// hinterlegter Artikel, der zufaellig auf einem Kaufland-Bon auftaucht).
+// GodAdmin hat keine physische Adresse und wird hier bewusst uebersprungen
+// -- siehe restrictStoresToReceipt() unten, das GodAdmin separat immer
+// mitfuehrt.
+function matchReceiptHeaderToStore(headerText, configuredStores) {
+  let best = null;
+  configuredStores.forEach(({ storeKey }) => {
+    if (storeKey === "godadmin") return;
+    const loc = STORE_LOCATIONS.find((l) => l.id === storeKey);
+    const address = loc && loc.address;
+    if (!address) return;
+    const score = articleSimilarity(headerText, address);
+    if (score >= STORE_ADDRESS_MATCH_THRESHOLD && (!best || score > best.score)) {
+      best = { storeKey, score };
+    }
+  });
+  return best;
+}
+
+// Schraenkt die fuers Artikel-Matching herangezogenen Stores auf den per
+// Adresse identifizierten Store (falls einer gefunden wurde) plus GodAdmin
+// ein. GodAdmin ist der interne Teststore und prueft bewusst JEDEN Bon
+// (siehe Briefing) -- ein echter Retailer-Standort dagegen nur noch Bons,
+// deren Kopfzeile zu SEINER EIGENEN hinterlegten Adresse passt. Kein
+// Adress-Treffer -> nur GodAdmin bleibt uebrig, kein anderer Store wird
+// faelschlich getroffen.
+function restrictStoresToReceipt(text, configuredStores) {
+  const headerText = extractReceiptHeaderText(text);
+  const identified = matchReceiptHeaderToStore(headerText, configuredStores);
+  return configuredStores.filter(
+    (s) => s.storeKey === "godadmin" || (identified && s.storeKey === identified.storeKey)
+  );
+}
+
 // Loest den Store, dessen Artikelliste tatsaechlich getroffen hat, auf die
 // fuers Dashboard-Tracking noetige "category" auf (siehe RECEIPT_STORE_PATTERNS
 // -Kommentar in js/data.js: category steuert, welches Store-View-Dashboard/
@@ -569,14 +632,21 @@ function matchReceiptText(text, configuredStores) {
   // Einzelartikel kann nie mehr kosten als der ganze Bon.
   const receiptTotalCents = findReceiptTotalCents(text);
 
+  // Auf den per Bon-Kopfzeile/Adresse identifizierten Store (plus GodAdmin,
+  // siehe restrictStoresToReceipt) eingeschraenkte Store-Liste -- verhindert,
+  // dass eine Zeile faelschlich gegen die Artikelliste eines VOELLIG
+  // ANDEREN, nicht besuchten Stores matcht.
+  const applicableStores = restrictStoresToReceipt(text, configuredStores || []);
+
   // Alle plausiblen Artikelzeilen samt Preis (Summen-/Steuer-/Adress-/
   // Fusszeilen bereits herausgefiltert, siehe findAllProductLines) -- jede
-  // davon wird gegen die Artikellisten ALLER konfigurierten Stores geprueft
-  // (siehe matchLineToConfiguredStores). Mehrere Zeilen koennen auf denselben
-  // hinterlegten Artikel treffen (mehrere Stueck auf einem Bon) -- das
-  // erzeugt bewusst mehrere Eintraege statt eines gezaehlten Stapels, das
-  // Dashboard gruppiert Duplikate beim Anzeigen ohnehin case-insensitiv nach
-  // Artikeltext (siehe countByProductText in dashboard-render.js).
+  // davon wird gegen die Artikellisten der oben ermittelten, zutreffenden
+  // Stores geprueft (siehe matchLineToConfiguredStores). Mehrere Zeilen
+  // koennen auf denselben hinterlegten Artikel treffen (mehrere Stueck auf
+  // einem Bon) -- das erzeugt bewusst mehrere Eintraege statt eines
+  // gezaehlten Stapels, das Dashboard gruppiert Duplikate beim Anzeigen
+  // ohnehin case-insensitiv nach Artikeltext (siehe countByProductText in
+  // dashboard-render.js).
   //
   // Zeilen OHNE Treffer landen NICHT mehr verworfen, sondern in
   // unmatchedArticles mit dem ROHEN OCR-Zeilentext als Artikelname --
@@ -590,8 +660,8 @@ function matchReceiptText(text, configuredStores) {
   const matchedArticles = [];
   const unmatchedArticles = [];
   candidateLines.forEach((line) => {
-    const best = (configuredStores && configuredStores.length > 0)
-      ? matchLineToConfiguredStores(stripLeadingBarcode(line.text), configuredStores)
+    const best = (applicableStores && applicableStores.length > 0)
+      ? matchLineToConfiguredStores(stripLeadingBarcode(line.text), applicableStores)
       : null;
     if (best) {
       matchedArticles.push({

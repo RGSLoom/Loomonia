@@ -12,6 +12,11 @@ function mapLocationRow(row) {
     categoryKey: row.category_key || null,
     landmarkIcon: row.landmark_icon || null,
     name: row.name || row.id,
+    // Fuer die Bon-Header-Adressabgleichung beim Scannen (siehe
+    // matchReceiptHeaderToStore in js/bonscan.js) -- verhindert, dass ein
+    // Bon-Treffer versehentlich einem anderen, nicht besuchten Store
+    // zugeschrieben wird.
+    address: row.address || null,
     coords: row.lat != null && row.lon != null ? { lat: row.lat, lon: row.lon } : null,
     // ISO-Zeitstempel der letzten Aenderung -> Cache-Invalidierung in
     // ensureStorePositions() (js/map.js), damit ein im Dashboard
