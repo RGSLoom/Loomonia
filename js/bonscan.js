@@ -319,8 +319,13 @@ const RECEIPT_NON_PRODUCT_LINE = /mwst|must\b|ust\b|steuer|tax\b|\bbar\b|rückge
 // Muss echte Wortbestandteile enthalten (nicht nur Ziffern/Symbole) --
 // verhindert, dass reine Artikelnummer-/Codezeilen (z.B. "1 1034320 1 |39
 // |03|0| 49,99") als "Produktname" durchgehen, sobald auch Nachbarzeilen
-// nach einem Preis durchsucht werden.
-const RECEIPT_LINE_HAS_WORD = /[a-zA-ZÀ-ÿ]{3,}/;
+// nach einem Preis durchsucht werden. Bewusst schon ab 2 Buchstaben (nicht
+// 3): reale Kassensystem-Kuerzel sind oft nur 2 Zeichen lang (z.B. "CC EW
+// 0,33L FL" -- das Beispiel in der Doku unten waere mit "{3,}" selbst
+// nicht durchgekommen). Reine Zifferncode-Zeilen wie im Beispiel oben
+// haben ueberhaupt keine Buchstabenfolge, bleiben also weiterhin
+// ausgeschlossen.
+const RECEIPT_LINE_HAS_WORD = /[a-zA-ZÀ-ÿ]{2,}/;
 
 // Sucht ALLE plausiblen echten Artikelzeilen (nicht nur die erste) samt
 // jeweils eigenem Preis — liefert die Kandidatenzeilen, gegen die
@@ -374,9 +379,14 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
     if (!RECEIPT_LINE_HAS_WORD.test(line)) continue;
     // Store-Kopfzeile (z.B. "EDEKA MARKT") ist kein Artikel — nutzt dieselben
     // Retailer-Muster wie die Store-Erkennung oben, damit der Ladenname nie
-    // als "erkannter Produktname" durchgeht (betrifft v.a. die erste
-    // Bon-Zeile, die haeufig der Store-Header ist).
-    if (RECEIPT_STORE_PATTERNS.some((entry) => entry.pattern.test(line))) continue;
+    // als "erkannter Produktname" durchgeht. Bewusst NUR auf die ersten
+    // Zeilen angewendet (wo der Store-Header tatsaechlich steht): einige
+    // dieser Muster sind Marken-/Getraenkenamen (z.B. "Red Bull",
+    // "Fritz-Kola"), die auch als ganz normale PRODUKTZEILE mitten auf
+    // einem fremden Bon auftauchen koennen (z.B. "RED BULL 250ML 1,79 A")
+    // -- ohne diese Begrenzung wuerde so eine echte Artikelzeile faelschlich
+    // als Store-Kopfzeile verworfen.
+    if (i < 3 && RECEIPT_STORE_PATTERNS.some((entry) => entry.pattern.test(line))) continue;
     // amountCents kann null bleiben -- z.B. wenn OCR auf einem schlecht
     // lesbaren Foto das Dezimaltrennzeichen verschluckt hat ("2,66" wird zu
     // "266", passt dann nicht mehr auf RECEIPT_AMOUNT_PATTERN). Die Zeile
@@ -562,7 +572,7 @@ function extractReceiptHeaderText(text) {
 // weil dessen Artikeltexte zufaellig aehnlich klingen (z.B. ein bei "Rewe"
 // hinterlegter Artikel, der zufaellig auf einem Kaufland-Bon auftaucht).
 // GodAdmin hat keine physische Adresse und wird hier bewusst uebersprungen
-// -- siehe restrictStoresToReceipt() unten, das GodAdmin separat immer
+// -- siehe resolveStoresForReceipt() unten, das GodAdmin separat immer
 // mitfuehrt.
 function matchReceiptHeaderToStore(headerText, configuredStores) {
   let best = null;
@@ -579,19 +589,23 @@ function matchReceiptHeaderToStore(headerText, configuredStores) {
   return best;
 }
 
-// Schraenkt die fuers Artikel-Matching herangezogenen Stores auf den per
-// Adresse identifizierten Store (falls einer gefunden wurde) plus GodAdmin
-// ein. GodAdmin ist der interne Teststore und prueft bewusst JEDEN Bon
-// (siehe Briefing) -- ein echter Retailer-Standort dagegen nur noch Bons,
-// deren Kopfzeile zu SEINER EIGENEN hinterlegten Adresse passt. Kein
-// Adress-Treffer -> nur GodAdmin bleibt uebrig, kein anderer Store wird
-// faelschlich getroffen.
-function restrictStoresToReceipt(text, configuredStores) {
+// Loest anhand der Bon-Kopfzeile auf, welche Stores fuers Artikel-Matching
+// herangezogen werden: der per Adresse identifizierte Store (falls einer
+// gefunden wurde) UND GodAdmin -- als eigene Store-Objekte, NICHT als
+// zusammengemischter Pool, damit matchReceiptText() den identifizierten
+// Store zuerst probieren und nur bei einem Fehltreffer auf GodAdmin
+// zurueckfallen kann (siehe dort). GodAdmin ist der interne Teststore und
+// prueft bewusst JEDEN Bon (siehe Briefing) -- ein echter Retailer-Standort
+// dagegen nur noch Bons, deren Kopfzeile zu SEINER EIGENEN hinterlegten
+// Adresse passt. Kein Adress-Treffer -> nur GodAdmin bleibt uebrig, kein
+// anderer Store wird faelschlich getroffen.
+function resolveStoresForReceipt(text, configuredStores) {
   const headerText = extractReceiptHeaderText(text);
   const identified = matchReceiptHeaderToStore(headerText, configuredStores);
-  return configuredStores.filter(
-    (s) => s.storeKey === "godadmin" || (identified && s.storeKey === identified.storeKey)
-  );
+  return {
+    identifiedStore: identified ? configuredStores.find((s) => s.storeKey === identified.storeKey) : null,
+    godAdminStore: configuredStores.find((s) => s.storeKey === "godadmin") || null,
+  };
 }
 
 // Loest den Store, dessen Artikelliste tatsaechlich getroffen hat, auf die
@@ -632,20 +646,26 @@ function matchReceiptText(text, configuredStores) {
   // Einzelartikel kann nie mehr kosten als der ganze Bon.
   const receiptTotalCents = findReceiptTotalCents(text);
 
-  // Auf den per Bon-Kopfzeile/Adresse identifizierten Store (plus GodAdmin,
-  // siehe restrictStoresToReceipt) eingeschraenkte Store-Liste -- verhindert,
-  // dass eine Zeile faelschlich gegen die Artikelliste eines VOELLIG
-  // ANDEREN, nicht besuchten Stores matcht.
-  const applicableStores = restrictStoresToReceipt(text, configuredStores || []);
+  // Per Bon-Kopfzeile/Adresse identifizierter Store PLUS GodAdmin, getrennt
+  // gehalten (nicht zusammengemischt) -- verhindert sowohl, dass eine Zeile
+  // gegen die Artikelliste eines VOELLIG ANDEREN, nicht besuchten Stores
+  // matcht, als auch, dass bei inhaltlich aehnlichen Eintraegen (z.B.
+  // GodAdmins Testliste UND der identifizierte Store haben beide "Amicelli
+  // Tafel" hinterlegt) faelschlich GodAdmin statt des tatsaechlich
+  // identifizierten Stores den Treffer bekommt (siehe Prioritaet unten).
+  const { identifiedStore, godAdminStore } = resolveStoresForReceipt(text, configuredStores || []);
 
   // Alle plausiblen Artikelzeilen samt Preis (Summen-/Steuer-/Adress-/
   // Fusszeilen bereits herausgefiltert, siehe findAllProductLines) -- jede
-  // davon wird gegen die Artikellisten der oben ermittelten, zutreffenden
-  // Stores geprueft (siehe matchLineToConfiguredStores). Mehrere Zeilen
-  // koennen auf denselben hinterlegten Artikel treffen (mehrere Stueck auf
-  // einem Bon) -- das erzeugt bewusst mehrere Eintraege statt eines
-  // gezaehlten Stapels, das Dashboard gruppiert Duplikate beim Anzeigen
-  // ohnehin case-insensitiv nach Artikeltext (siehe countByProductText in
+  // davon wird zuerst gegen die Artikelliste des identifizierten Stores
+  // geprueft, NUR bei einem Fehltreffer dort zusaetzlich gegen GodAdmins
+  // Liste (siehe matchLineToConfiguredStores) -- der eigene, tatsaechlich
+  // besuchte Store hat also immer Vorrang vor GodAdmins Testliste, selbst
+  // bei inhaltlich sehr aehnlichen Eintraegen. Mehrere Zeilen koennen auf
+  // denselben hinterlegten Artikel treffen (mehrere Stueck auf einem Bon)
+  // -- das erzeugt bewusst mehrere Eintraege statt eines gezaehlten
+  // Stapels, das Dashboard gruppiert Duplikate beim Anzeigen ohnehin
+  // case-insensitiv nach Artikeltext (siehe countByProductText in
   // dashboard-render.js).
   //
   // Zeilen OHNE Treffer landen NICHT mehr verworfen, sondern in
@@ -660,9 +680,11 @@ function matchReceiptText(text, configuredStores) {
   const matchedArticles = [];
   const unmatchedArticles = [];
   candidateLines.forEach((line) => {
-    const best = (applicableStores && applicableStores.length > 0)
-      ? matchLineToConfiguredStores(stripLeadingBarcode(line.text), applicableStores)
-      : null;
+    const strippedLine = stripLeadingBarcode(line.text);
+    const best =
+      (identifiedStore && matchLineToConfiguredStores(strippedLine, [identifiedStore])) ||
+      (godAdminStore && matchLineToConfiguredStores(strippedLine, [godAdminStore])) ||
+      null;
     if (best) {
       matchedArticles.push({
         articleText: best.articleText,
