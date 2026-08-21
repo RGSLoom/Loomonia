@@ -162,13 +162,23 @@ Deno.serve(async (req) => {
 
   if (resource === "events") {
     // select/ts/order/limit/type vom Client uebernehmen (gleiche Query-Form
-    // wie dashboard.js sie fuer den Admin-Bereich baut), "category" aber
-    // IMMER server-seitig ueberschreiben -- siehe Kommentar oben.
+    // wie dashboard.js sie fuer den Admin-Bereich baut), die Store-
+    // Zugehoerigkeit aber IMMER server-seitig ueberschreiben -- siehe
+    // Kommentar oben. Filtert nach store_id (= locationId, server-seitig aus
+    // dem Token aufgeloest), NICHT mehr nach category: mehrere Stores teilen
+    // sich oft dieselbe Kategorie (z.B. REWE und Kaufland beide "feinkost"),
+    // ein Kategorie-Filter zeigte deshalb faelschlich JEDEM Store aus dieser
+    // Kategorie die Bon-Scans ALLER anderen Stores derselben Kategorie an --
+    // real beobachtet: ein bei Kaufland gescannter Bon erschien im REWE-
+    // Store-View-Dashboard. store_id wird seit dem Umbau der Bon-Store-
+    // Zuordnung (siehe receiptStoreId in js/bonscan.js) mit der tatsaechlich
+    // per Bon-Kopfzeile/Adresse identifizierten Store-ID befuellt.
     const forwardParams = new URLSearchParams(url.search);
     forwardParams.delete("token");
     forwardParams.delete("resource");
     forwardParams.delete("category");
-    forwardParams.set("category", `eq.${store.category_key}`);
+    forwardParams.delete("store_id");
+    forwardParams.set("store_id", `eq.${locationId}`);
     const eventsRes = await fetch(`${supabaseUrl}/rest/v1/events?${forwardParams.toString()}`, {
       headers: authHeaders,
     });

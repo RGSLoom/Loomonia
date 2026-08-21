@@ -747,6 +747,18 @@ function matchReceiptText(text, configuredStores) {
   // identifizierten Stores den Treffer bekommt (siehe Prioritaet unten).
   const { identifiedStore, godAdminStore } = resolveStoresForReceipt(text, configuredStores || []);
 
+  // Store-ID fuers Dashboard-Tracking (events.store_id) -- IMMER der per
+  // Adresse identifizierte Store, unabhaengig davon, gegen welche Liste eine
+  // einzelne Zeile am Ende gematcht hat (siehe unten): ein Treffer gegen
+  // GodAdmins Testliste soll trotzdem im Store-View-Dashboard des tatsaechlich
+  // besuchten Ladens auftauchen, nicht nur bei GodAdmin. Kein identifizierter
+  // Store (Adresse passt zu niemandem) -> bleibt null, dann sieht NUR GodAdmins
+  // ungefilterte "Alle Stores"-Ansicht diesen Bon, kein einzelner Retailer.
+  // Ersetzt den bisherigen, IMMER gleichen Literal "receipt_scan" -- der
+  // machte events.store_id fuers Store-View-Dashboard nutzlos, siehe
+  // Kommentar bei resolveCategoryKeyForStore/store-view Edge Function.
+  const receiptStoreId = identifiedStore ? identifiedStore.storeKey : null;
+
   // Alle plausiblen Artikelzeilen samt Preis (Summen-/Steuer-/Adress-/
   // Fusszeilen bereits herausgefiltert, siehe findAllProductLines) -- jede
   // davon wird zuerst gegen die Artikelliste des identifizierten Stores
@@ -808,7 +820,7 @@ function matchReceiptText(text, configuredStores) {
     : `Echter Kauf erkannt 🧾`;
 
   setScanStatus("");
-  grantReceiptItems(matchedArticles, unmatchedArticles, categoryKey, storeText);
+  grantReceiptItems(matchedArticles, unmatchedArticles, categoryKey, storeText, receiptStoreId);
 }
 
 // Bestimmt PRO Fuzzy-Treffer das zu vergebende Item: vorrangig das vom
@@ -847,13 +859,13 @@ function pickReceiptMatchRewards(matchedArticles) {
 // item_key: null (zaehlt im Dashboard als Umsatz, aber NICHT in die
 // Provision, siehe aggregateEvents()/aggregateAllTimeTotals() in
 // dashboard-render.js) -- diese Unterscheidung braucht kein eigenes Feld.
-function trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallbackCategoryKey) {
+function trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallbackCategoryKey, receiptStoreId) {
   if (rewardedMatches.length === 0 && unmatchedArticles.length === 0) {
     // Kein einziger Kandidat gefunden (z.B. komplett unlesbares Foto) --
     // der Kaufversuch zaehlt trotzdem (Kaeuferzahl, "treuer_shopper"-Ziel
     // unten), aber ohne erfundenen Umsatz/Artikeltext.
     trackEvent("item_receipt_scanned", {
-      storeId: "receipt_scan",
+      storeId: receiptStoreId,
       category: fallbackCategoryKey,
       itemKey: null,
       rarity: null,
@@ -865,7 +877,7 @@ function trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallba
   rewardedMatches.forEach(({ articleText, amountCents, itemKey, categoryKey }) => {
     const item = ITEMS[itemKey];
     trackEvent("item_receipt_scanned", {
-      storeId: "receipt_scan",
+      storeId: receiptStoreId,
       category: categoryKey,
       itemKey,
       rarity: item.rarity,
@@ -875,7 +887,7 @@ function trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallba
   });
   unmatchedArticles.forEach(({ articleText, amountCents, categoryKey }) => {
     trackEvent("item_receipt_scanned", {
-      storeId: "receipt_scan",
+      storeId: receiptStoreId,
       category: categoryKey,
       itemKey: null,
       rarity: null,
@@ -885,9 +897,9 @@ function trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallba
   });
 }
 
-function grantReceiptItems(matchedArticles, unmatchedArticles, fallbackCategoryKey, storeText) {
+function grantReceiptItems(matchedArticles, unmatchedArticles, fallbackCategoryKey, storeText, receiptStoreId) {
   const rewardedMatches = pickReceiptMatchRewards(matchedArticles);
-  trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallbackCategoryKey);
+  trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallbackCategoryKey, receiptStoreId);
 
   // Ab hier: die eigentliche Spiel-Belohnung (Item/XP/Trophaeen) und die
   // Erfolgs-Anzeige -- bewusst in try/catch, damit ein Fehler hier (z.B. in
@@ -939,7 +951,7 @@ function grantReceiptItems(matchedArticles, unmatchedArticles, fallbackCategoryK
       .filter((e) => e.type === "trophy")
       .forEach((e) => {
         trackEvent("trophy_unlocked", {
-          storeId: "receipt_scan",
+          storeId: receiptStoreId,
           category: fallbackCategoryKey,
           itemKey: e.trophyKey,
           rarity: TROPHIES[e.trophyKey].tier,

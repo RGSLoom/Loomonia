@@ -11,7 +11,13 @@ function trackEvent(type, payload) {
       type,
       player_id: getPlayerId(),
       ts: new Date().toISOString(),
-      store_id: payload.storeId,
+      // "unbekannt" statt null: dieselbe NOT-NULL-Falle wie bei "category"
+      // unten, real beobachtet beim Umbau der Bon-Store-Zuordnung auf
+      // events.store_id -- ein Bon, dessen Kopfzeile zu KEINEM Store passt
+      // (siehe receiptStoreId in js/bonscan.js), sendet bewusst
+      // payload.storeId=null, das liesse sonst wieder JEDEN Datensatz
+      // lautlos mit HTTP 400 (23502) abprallen.
+      store_id: payload.storeId || "unbekannt",
       // "unbekannt" statt null: die Spalte "category" hat serverseitig eine
       // NOT-NULL-Bedingung. Bon-Scans bei nicht gelisteten Retailern (siehe
       // ANY_STORE_ITEM_POOL/"Retailer nicht gelistet" in js/bonscan.js)
