@@ -131,7 +131,7 @@ function fetchEvents() {
 
 function fetchAllTimeTotals() {
   return fetchStoreView("events", {
-    select: "type,player_id,amount_cents",
+    select: "type,player_id,amount_cents,item_key",
     type: "in.(item_receipt_scanned,trophy_unlocked)",
     limit: "50000",
   });

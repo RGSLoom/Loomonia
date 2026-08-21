@@ -38,6 +38,23 @@ function renderItemSuccess(entry, position, total) {
     return;
   }
 
+  // Reine Bestaetigung ohne Item/Muenzen/Trophaee -- z.B. wenn ein Bon-Scan
+  // keinen bei einem Store hinterlegten Artikel trifft (siehe
+  // grantReceiptItems() in js/bonscan.js: seit dem Wegfall des Zufalls-
+  // Bonuspakets der einzige verbleibende "leere" Erfolgsfall).
+  if (entry.type === "info") {
+    document.getElementById("item-success-banner").textContent = "🧾 Bon erfasst";
+    img.classList.add("hidden");
+    trophyIcon.classList.add("hidden");
+    coinsIcon.classList.add("hidden");
+    document.getElementById("item-success-name").textContent = entry.title || "";
+    document.getElementById("item-success-rarity").textContent = "";
+    document.getElementById("item-success-store").textContent = entry.storeText || "";
+    document.getElementById("item-success-effect").textContent = entry.message || "";
+    document.getElementById("item-success-xp").textContent = "";
+    return;
+  }
+
   // Muenzen sind bewusst KEIN Inventar-Item (siehe addCoins() in state.js) —
   // eigener Zweig statt einer ITEMS-Karte, Anzeige oben am Avatar-HUD statt
   // im Rucksack (siehe hud-coins-badge in index.html).

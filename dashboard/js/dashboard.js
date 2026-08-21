@@ -131,7 +131,7 @@ function fetchEvents(storeKey) {
 // fetchEvents(), da dort nur die letzten DAYS_WINDOW Tage geladen werden.
 function fetchAllTimeTotals(storeKey) {
   let url =
-    `${EVENTS_ADMIN_URL}?select=type,player_id,amount_cents` +
+    `${EVENTS_ADMIN_URL}?select=type,player_id,amount_cents,item_key` +
     `&type=in.(item_receipt_scanned,trophy_unlocked)&limit=50000`;
   if (storeKey !== "all") {
     url += `&category=eq.${encodeURIComponent(storeKey)}`;

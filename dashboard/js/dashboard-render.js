@@ -115,12 +115,25 @@ function localDateKey(d) {
   return `${y}-${m}-${day}`;
 }
 
+// revenueCents/provisionCents beziehen sich AUSSCHLIESSLICH auf Treffer
+// (item_key vorhanden -- ein Store hat den Artikel selbst hinterlegt und
+// dafuer ein Item gewaehlt, siehe js/bonscan.js grantReceiptItems).
+// unmatchedRevenueCents sind Bon-Zeilen, die zwar erkannt und mit Preis
+// getrackt wurden, aber zu keinem hinterlegten Artikel passten (item_key
+// null, product_text = roher OCR-Text) -- zaehlen bewusst NICHT in die
+// Provision ein (siehe Briefing "Item-Vergabe von Umsatzerfassung
+// entkoppeln"), werden aber als eigene Zahl ausgewiesen, damit der
+// vollstaendige, durch die Plattform ausgeloeste Umsatz sichtbar bleibt.
 function aggregateAllTimeTotals(events) {
   const receiptEvents = events.filter((e) => e.type === "item_receipt_scanned");
   const trophyEvents = events.filter((e) => e.type === "trophy_unlocked");
-  const revenueCents = receiptEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
+  const matchedEvents = receiptEvents.filter((e) => e.item_key);
+  const unmatchedEvents = receiptEvents.filter((e) => !e.item_key);
+  const revenueCents = matchedEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
+  const unmatchedRevenueCents = unmatchedEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
   return {
     revenueCents,
+    unmatchedRevenueCents,
     provisionCents: Math.round(revenueCents * COMMISSION_RATE),
     buyers: new Set(receiptEvents.map((e) => e.player_id)).size,
     completers: new Set(trophyEvents.map((e) => e.player_id)).size,
@@ -133,11 +146,17 @@ function aggregateAllTimeTotals(events) {
 // "Artikel"-Panel im Store Manager Dashboard (echte Produktnamen statt
 // Spiel-Items). Case-insensitiv gruppiert (OCR liest Gross-/Kleinschreibung
 // nicht zuverlaessig), Anzeige nutzt die zuerst gesehene Schreibweise.
-// Events ohne erkannten Produkttext (product_text null/leer) tauchen hier
-// bewusst NICHT auf -- kein erfundener "Unbekannt"-Artikel, siehe
+// Events ohne erkannten Produkttext (product_text null/leer -- der seltene
+// Fall "gar keine Kandidatenzeile gefunden", siehe trackReceiptScanForDashboard
+// in js/bonscan.js) tauchen hier bewusst NICHT auf -- kein erfundener
+// "Unbekannt"-Artikel, siehe renderTopArticles(). Jede tatsaechlich erkannte
+// Bon-Position landet dagegen hier, egal ob Treffer (item_key vorhanden,
+// product_text = vom Store hinterlegter Artikelname) oder nicht zugeordnet
+// (item_key null, product_text = roher OCR-Zeilentext) -- matched
+// unterscheidet die beiden Faelle fuer die Status-Spalte in
 // renderTopArticles(). sharePct bezieht sich auf den Umsatz ALLER
-// item_receipt_scanned-Events im Fenster (nicht nur der benannten), damit
-// der Anteil wirklich "Anteil am Gesamtumsatz" bedeutet.
+// item_receipt_scanned-Events im Fenster (Treffer + nicht zugeordnet),
+// damit der Anteil wirklich "Anteil am kompletten erfassten Umsatz" bedeutet.
 function countByProductText(receiptEvents) {
   const totalRevenueCents = receiptEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
   const buckets = {};
@@ -145,15 +164,17 @@ function countByProductText(receiptEvents) {
     const raw = (e.product_text || "").trim();
     if (!raw) return;
     const key = raw.toLowerCase();
-    if (!buckets[key]) buckets[key] = { displayText: raw, count: 0, revenueCents: 0 };
+    if (!buckets[key]) buckets[key] = { displayText: raw, count: 0, revenueCents: 0, matched: false };
     buckets[key].count++;
     buckets[key].revenueCents += e.amount_cents || 0;
+    if (e.item_key) buckets[key].matched = true;
   });
   return Object.values(buckets)
     .map((b) => ({
       productText: b.displayText,
       count: b.count,
       revenueCents: b.revenueCents,
+      matched: b.matched,
       sharePct: totalRevenueCents > 0 ? Math.round((b.revenueCents / totalRevenueCents) * 1000) / 10 : null,
     }))
     .sort((a, b) => b.count - a.count)
@@ -181,10 +202,15 @@ function aggregateEvents(events, daysWindow) {
     const receiptEvents = dayEvents.filter((e) => e.type === "item_receipt_scanned");
     const distinctPlayers = new Set(selected.map((e) => e.player_id)).size;
     const distinctBuyers = new Set(receiptEvents.map((e) => e.player_id)).size;
-    // amount_cents haengt nur an einem Event pro Bon-Scan (siehe
-    // js/bonscan.js grantReceiptItems) -> einfaches Aufsummieren ueber alle
-    // Events des Tages zaehlt jeden Bon trotzdem nur einmal.
-    const revenueCents = receiptEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
+    // Ein Event pro erkannter Bon-Zeile (siehe js/bonscan.js
+    // trackReceiptScanForDashboard) -- revenueCents zaehlt NUR Treffer
+    // (item_key vorhanden, provisionsrelevant), unmatchedRevenueCents die
+    // nicht zugeordneten Zeilen (item_key null, zaehlt als Umsatz, aber
+    // nicht in die Provision).
+    const matchedReceiptEvents = receiptEvents.filter((e) => e.item_key);
+    const unmatchedReceiptEvents = receiptEvents.filter((e) => !e.item_key);
+    const revenueCents = matchedReceiptEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
+    const unmatchedRevenueCents = unmatchedReceiptEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
     const provisionCents = Math.round(revenueCents * COMMISSION_RATE);
     return {
       date,
@@ -198,6 +224,7 @@ function aggregateEvents(events, daysWindow) {
       // im Inventar gelandet sind.
       realItemsReceived: receiptEvents.filter((e) => e.item_key).length,
       revenueCents,
+      unmatchedRevenueCents,
       provisionCents,
     };
   });
@@ -254,6 +281,7 @@ function aggregateEvents(events, daysWindow) {
       buyersToday: todayStat.realBuyers,
       purchaseItemsToday: todayStat.realItemsReceived,
       revenueCentsToday: todayStat.revenueCents,
+      unmatchedRevenueCentsToday: todayStat.unmatchedRevenueCents,
       provisionCentsToday: todayStat.provisionCents,
       lastReceiptTs,
     },
@@ -323,7 +351,7 @@ function renderTopArticles(bodyId, articles, emptyText) {
   body.innerHTML = "";
 
   if (articles.length === 0) {
-    body.innerHTML = `<tr><td colspan="4" class="empty-note">${emptyText}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="5" class="empty-note">${emptyText}</td></tr>`;
     return;
   }
 
@@ -342,7 +370,18 @@ function renderTopArticles(bodyId, articles, emptyText) {
     const shareTd = document.createElement("td");
     shareTd.textContent = entry.sharePct === null ? "–" : `${entry.sharePct} %`;
 
-    row.append(rankTd, nameTd, countTd, shareTd);
+    // Treffer (item_key vorhanden, provisionsrelevant) vs. nicht zugeordnet
+    // (roher OCR-Text, zaehlt nur als Umsatz-Info) -- siehe
+    // countByProductText() oben. Wiederverwendet die bereits vorhandenen
+    // .status-pill-Klassen (siehe dashboard/css/style.css), statt neue
+    // Farben einzufuehren.
+    const statusTd = document.createElement("td");
+    const statusPill = document.createElement("span");
+    statusPill.className = "status-pill " + (entry.matched ? "status-pill-active" : "status-pill-planned");
+    statusPill.textContent = entry.matched ? "Treffer" : "Nicht zugeordnet";
+    statusTd.appendChild(statusPill);
+
+    row.append(rankTd, nameTd, countTd, shareTd, statusTd);
     body.appendChild(row);
   });
 }
@@ -406,6 +445,7 @@ function renderStats(data) {
   document.getElementById("kpi-buyers").textContent = kpis.buyersToday ?? 0;
   document.getElementById("kpi-purchase-items").textContent = kpis.purchaseItemsToday ?? 0;
   document.getElementById("kpi-revenue").textContent = formatEuro(kpis.revenueCentsToday);
+  document.getElementById("kpi-unmatched-revenue").textContent = formatEuro(kpis.unmatchedRevenueCentsToday);
   document.getElementById("kpi-provision").textContent = formatEuro(kpis.provisionCentsToday);
   document.getElementById("kpi-purchase-last").textContent = formatAgo(kpis.lastReceiptTs);
 
@@ -415,6 +455,7 @@ function renderStats(data) {
   ]);
   renderChart(document.getElementById("revenue-chart-svg"), data.days || [], [
     { key: "revenueCents", color: "#2656A3" },
+    { key: "unmatchedRevenueCents", color: "#00354E" },
   ]);
 
   renderTopItems("top-items-body", data.topItems || [], "Noch keine Items vergeben.");
@@ -424,6 +465,7 @@ function renderStats(data) {
 
 function renderAllTimeStats(totals) {
   document.getElementById("kpi-revenue-total").textContent = formatEuro(totals.revenueCents);
+  document.getElementById("kpi-unmatched-revenue-total").textContent = formatEuro(totals.unmatchedRevenueCents);
   document.getElementById("kpi-buyers-total").textContent = totals.buyers ?? 0;
   document.getElementById("kpi-provision-total").textContent = formatEuro(totals.provisionCents);
 

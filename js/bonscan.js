@@ -545,35 +545,54 @@ function matchReceiptText(text, configuredStores) {
   // erzeugt bewusst mehrere Eintraege statt eines gezaehlten Stapels, das
   // Dashboard gruppiert Duplikate beim Anzeigen ohnehin case-insensitiv nach
   // Artikeltext (siehe countByProductText in dashboard-render.js).
+  //
+  // Zeilen OHNE Treffer landen NICHT mehr verworfen, sondern in
+  // unmatchedArticles mit dem ROHEN OCR-Zeilentext als Artikelname --
+  // Vollstaendigkeit vor Lesbarkeit, ein Store-Partner kennt seine eigenen
+  // Kassensystem-Kuerzel auch ohne hinterlegte Artikelliste. Zaehlt fuers
+  // Dashboard als Umsatz, aber OHNE Item-Vergabe und OHNE Provision (siehe
+  // grantReceiptItems) -- die Unterscheidung "Treffer vs. nicht zugeordnet"
+  // ergibt sich spaeter rein aus item_key vorhanden/null, kein eigenes Feld
+  // noetig.
   const candidateLines = findAllProductLines(text, new Set(), receiptTotalCents);
   const matchedArticles = [];
-  if (configuredStores && configuredStores.length > 0) {
-    candidateLines.forEach((line) => {
-      const best = matchLineToConfiguredStores(stripLeadingBarcode(line.text), configuredStores);
-      if (best) {
-        matchedArticles.push({
-          articleText: best.articleText,
-          amountCents: line.amountCents,
-          // Pro Treffer einzeln aufgeloest, nicht ein gemeinsamer Wert fuers
-          // ganze Scan -- verschiedene Zeilen koennten (theoretisch) auf
-          // unterschiedliche Stores treffen.
-          categoryKey: resolveCategoryKeyForStore(best.storeKey, categoryKey),
-          // Vom Store selbst gewaehltes Item (Ungewoehnlich/Selten, siehe
-          // ARTICLE_ITEM_CHOICES in dashboard-render.js) -- null bei
-          // aelteren Artikel-Eintraegen ohne Auswahl, dann greift der
-          // Zufalls-Fallback in pickReceiptMatchRewards().
-          itemKey: best.itemKey,
-        });
-      }
-    });
-  }
+  const unmatchedArticles = [];
+  candidateLines.forEach((line) => {
+    const best = (configuredStores && configuredStores.length > 0)
+      ? matchLineToConfiguredStores(stripLeadingBarcode(line.text), configuredStores)
+      : null;
+    if (best) {
+      matchedArticles.push({
+        articleText: best.articleText,
+        amountCents: line.amountCents,
+        // Pro Treffer einzeln aufgeloest, nicht ein gemeinsamer Wert fuers
+        // ganze Scan -- verschiedene Zeilen koennten (theoretisch) auf
+        // unterschiedliche Stores treffen.
+        categoryKey: resolveCategoryKeyForStore(best.storeKey, categoryKey),
+        // Vom Store selbst gewaehltes Item (Ungewoehnlich/Selten, siehe
+        // ARTICLE_ITEM_CHOICES in dashboard-render.js) -- null bei
+        // aelteren Artikel-Eintraegen ohne Auswahl, dann greift der
+        // Zufalls-Fallback in pickReceiptMatchRewards().
+        itemKey: best.itemKey,
+      });
+    } else {
+      unmatchedArticles.push({
+        articleText: line.text,
+        amountCents: line.amountCents,
+        // Kein Store-Treffer -> keine echte Kategorie aufloesbar, bleibt
+        // beim kosmetischen Fallback (siehe RECEIPT_STORE_PATTERNS-Kommentar
+        // in js/data.js).
+        categoryKey,
+      });
+    }
+  });
 
   const storeText = category
     ? `Echter Kauf erkannt bei ${category.name} 🧾`
     : `Echter Kauf erkannt 🧾`;
 
   setScanStatus("");
-  grantReceiptItems(matchedArticles, categoryKey, storeText);
+  grantReceiptItems(matchedArticles, unmatchedArticles, categoryKey, storeText);
 }
 
 // Bestimmt PRO Fuzzy-Treffer das zu vergebende Item: vorrangig das vom
@@ -594,62 +613,36 @@ function pickReceiptMatchRewards(matchedArticles) {
   }));
 }
 
-// Zieht das Bonuspaket (Muenzen-Betrag + weisse Zufalls-Items) fuer den
-// Fall, dass kein hinterlegter Artikel erkannt wurde -- ebenfalls reine
-// Zufallsauswahl (siehe pickReceiptMatchRewards oben), deshalb genauso schon
-// VOR trackReceiptScanForDashboard() berechnet, damit auch diese Bonus-Items
-// als eigene Dashboard-Events auftauchen (fuer "Items aus echten Kaeufen"/
-// "Top Artikel aus echten Kaeufen"), nicht nur ein reines Teilnahme-Event.
-function pickBonusReward() {
-  const coinAmount = Math.round(randomBetween(BONSCAN_COINS_MIN, BONSCAN_COINS_MAX));
-  const bonusCounts = {};
-  for (let i = 0; i < BONSCAN_UNCLEAR_BONUS_SLOT_COUNT - 1; i++) {
-    const key = randomChoice(BONSCAN_WHITE_BONUS_ITEM_POOL);
-    bonusCounts[key] = (bonusCounts[key] || 0) + 1;
-  }
-  return { coinAmount, bonusCounts };
-}
-
-// Dashboard-Tracking (Artikel-Ansicht/Umsatz) fuer die per Fuzzy-Match
-// erkannten Positionen -- LAEUFT BEWUSST GETRENNT von der eigentlichen
-// Item-/XP-/Trophaeen-Vergabe unten (siehe grantReceiptItems). Vorher lagen
-// beide Dinge in einer einzigen Funktion verschachtelt: eine Exception in
-// der Belohnungs-/Trophaeen-Logik (z.B. der von aussen ergaenzten Level-Up-
-// Funktion) brach die GESAMTE Funktion vorzeitig ab, NACHDEM das Item schon
-// lokal vergeben war (addItem laeuft vor addXp/Trophaeen), aber BEVOR
-// irgendein trackEvent() lief -- der Scan landete dann nie im Dashboard,
-// obwohl der Spieler sein Item bekam. Jetzt laeuft das Tracking zuerst und
-// kann durch nichts danach mehr verhindert werden.
+// Dashboard-Tracking (Artikel-Ansicht/Umsatz) fuer ALLE gefundenen Positionen
+// -- Treffer UND nicht zugeordnete -- LAEUFT BEWUSST GETRENNT von der
+// eigentlichen Item-/XP-/Trophaeen-Vergabe unten (siehe grantReceiptItems).
+// Vorher lagen beide Dinge in einer einzigen Funktion verschachtelt: eine
+// Exception in der Belohnungs-/Trophaeen-Logik (z.B. der von aussen
+// ergaenzten Level-Up-Funktion) brach die GESAMTE Funktion vorzeitig ab,
+// NACHDEM das Item schon lokal vergeben war (addItem laeuft vor addXp/
+// Trophaeen), aber BEVOR irgendein trackEvent() lief -- der Scan landete
+// dann nie im Dashboard, obwohl der Spieler sein Item bekam. Jetzt laeuft
+// das Tracking zuerst und kann durch nichts danach mehr verhindert werden.
 //
 // Ein Eintrag PRO erkannter Bon-Zeile (nicht nach Artikel gruppiert/gezaehlt)
 // -- das Dashboard gruppiert beim Anzeigen ohnehin case-insensitiv nach
-// Artikeltext, siehe countByProductText() in dashboard-render.js.
-// fallbackCategoryKey: nur fuer den "kein Treffer"-Zweig (Bonuspaket) --
-// dort gibt es keinen Store, dessen Kategorie man verwenden koennte, also
-// die kosmetisch per OCR-Retailer-Erkennung ermittelte Kategorie. Fuer
-// echte Treffer traegt jeder Eintrag in rewardedMatches bereits seine EIGENE
-// (in matchReceiptText per resolveCategoryKeyForStore() aufgeloeste)
-// categoryKey.
-function trackReceiptScanForDashboard(rewardedMatches, bonusReward, fallbackCategoryKey) {
-  if (rewardedMatches.length === 0) {
-    // Kein hinterlegter Artikel erkannt -- der Kaufversuch zaehlt trotzdem
-    // (Kaeuferzahl, "treuer_shopper"-Ziel unten), UND jedes vergebene
-    // Bonus-Item bekommt sein eigenes Event (itemKey/rarity), aber OHNE
-    // erfundenen Umsatz/Artikeltext: Umsatz/Provision zaehlen laut Briefing
-    // nur noch aus tatsaechlich hinterlegten UND per Matching erkannten
-    // Artikeln.
-    Object.entries(bonusReward.bonusCounts).forEach(([itemKey, count]) => {
-      const item = ITEMS[itemKey];
-      for (let i = 0; i < count; i++) {
-        trackEvent("item_receipt_scanned", {
-          storeId: "receipt_scan",
-          category: fallbackCategoryKey,
-          itemKey,
-          rarity: item.rarity,
-          amountCents: null,
-          productText: null,
-        });
-      }
+// Artikeltext, siehe countByProductText() in dashboard-render.js. Treffer
+// bekommen item_key gesetzt (provisionsrelevant), nicht zugeordnete Zeilen
+// item_key: null (zaehlt im Dashboard als Umsatz, aber NICHT in die
+// Provision, siehe aggregateEvents()/aggregateAllTimeTotals() in
+// dashboard-render.js) -- diese Unterscheidung braucht kein eigenes Feld.
+function trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallbackCategoryKey) {
+  if (rewardedMatches.length === 0 && unmatchedArticles.length === 0) {
+    // Kein einziger Kandidat gefunden (z.B. komplett unlesbares Foto) --
+    // der Kaufversuch zaehlt trotzdem (Kaeuferzahl, "treuer_shopper"-Ziel
+    // unten), aber ohne erfundenen Umsatz/Artikeltext.
+    trackEvent("item_receipt_scanned", {
+      storeId: "receipt_scan",
+      category: fallbackCategoryKey,
+      itemKey: null,
+      rarity: null,
+      amountCents: null,
+      productText: null,
     });
     return;
   }
@@ -664,29 +657,41 @@ function trackReceiptScanForDashboard(rewardedMatches, bonusReward, fallbackCate
       productText: articleText,
     });
   });
+  unmatchedArticles.forEach(({ articleText, amountCents, categoryKey }) => {
+    trackEvent("item_receipt_scanned", {
+      storeId: "receipt_scan",
+      category: categoryKey,
+      itemKey: null,
+      rarity: null,
+      amountCents,
+      productText: articleText,
+    });
+  });
 }
 
-function grantReceiptItems(matchedArticles, fallbackCategoryKey, storeText) {
+function grantReceiptItems(matchedArticles, unmatchedArticles, fallbackCategoryKey, storeText) {
   const rewardedMatches = pickReceiptMatchRewards(matchedArticles);
-  const bonusReward = rewardedMatches.length === 0 ? pickBonusReward() : null;
-  trackReceiptScanForDashboard(rewardedMatches, bonusReward, fallbackCategoryKey);
+  trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallbackCategoryKey);
 
-  // Ab hier: die eigentliche Spiel-Belohnung (Item/XP/Muenzen/Trophaeen)
-  // und die Erfolgs-Anzeige -- bewusst in try/catch, damit ein Fehler hier
-  // (z.B. in der Level-Up-/Trophaeen-Logik) das oben bereits sicher
-  // verschickte Dashboard-Tracking nicht mehr rueckwirkend "mitreissen"
-  // kann. Im Fehlerfall bleibt das schon vergebene Item einfach ohne
-  // Erfolgs-Animation/Trophaeen-Check dieses eine Mal -- besser als ein
-  // Scan, der weder im Dashboard noch fuer den Spieler sichtbar ankommt.
+  // Ab hier: die eigentliche Spiel-Belohnung (Item/XP/Trophaeen) und die
+  // Erfolgs-Anzeige -- bewusst in try/catch, damit ein Fehler hier (z.B. in
+  // der Level-Up-/Trophaeen-Logik) das oben bereits sicher verschickte
+  // Dashboard-Tracking nicht mehr rueckwirkend "mitreissen" kann. Im
+  // Fehlerfall bleibt das schon vergebene Item einfach ohne Erfolgs-
+  // Animation/Trophaeen-Check dieses eine Mal -- besser als ein Scan, der
+  // weder im Dashboard noch fuer den Spieler sichtbar ankommt.
   try {
   let levelRewardEntries = [];
   const entries = [];
 
+  // Je Artikel-Treffer wurde bereits oben ein Zufalls-/Store-gewaehltes Item
+  // gezogen -- fuer die Erfolgs-Queue nach Item-Typ gruppiert/gestapelt,
+  // damit ein Bon mit z.B. 3 Treffern nicht 3 fast identische Karten
+  // erzeugt, falls mehrfach dasselbe Item gezogen wurde. Nicht zugeordnete
+  // Zeilen bekommen bewusst KEIN Item/keine Ersatzbelohnung mehr (siehe
+  // Briefing "Item-Vergabe von Umsatzerfassung entkoppeln") -- ihr Umsatz
+  // ist trotzdem bereits oben getrackt.
   if (rewardedMatches.length > 0) {
-    // Je Artikel-Treffer wurde bereits oben ein Zufalls-Item gezogen --
-    // fuer die Erfolgs-Queue nach Item-Typ gruppiert/gestapelt (wie zuvor),
-    // damit ein Bon mit z.B. 3 Treffern nicht 3 fast identische Karten
-    // erzeugt, falls mehrfach dasselbe Item gezogen wurde.
     const itemCounts = {};
     rewardedMatches.forEach(({ itemKey }) => {
       itemCounts[itemKey] = (itemCounts[itemKey] || 0) + 1;
@@ -696,25 +701,6 @@ function grantReceiptItems(matchedArticles, fallbackCategoryKey, storeText) {
       addItem(itemKey, count);
       levelRewardEntries = levelRewardEntries.concat(addXp(item.xp * count));
       entries.push({ type: "item", itemKey, count, storeText });
-    });
-  } else {
-    // Kein hinterlegter Artikel erkannt -> statt eines einzelnen
-    // Zufalls-Items gibt es ein kleines Bonuspaket: ein Slot ist IMMER
-    // Muenzen (neue Waehrung, siehe addCoins() in state.js + HUD-Anzeige
-    // am Avatar), der Rest zufaellige weisse Items (siehe
-    // BONSCAN_WHITE_BONUS_ITEM_POOL in js/data.js). Bereits oben per
-    // pickBonusReward() gezogen (fuer das Dashboard-Tracking), hier nur
-    // noch tatsaechlich vergeben. Gleiche Items werden zu einem Stapel
-    // zusammengefasst statt einzeln in der Erfolgs-Queue zu erscheinen.
-    addCoins(bonusReward.coinAmount);
-    trackEvent("coins_received", { storeId: "receipt_scan", category: fallbackCategoryKey, amount: bonusReward.coinAmount });
-    entries.push({ type: "coins", amount: bonusReward.coinAmount, storeText: "Bonus für deinen Einkauf 🧾" });
-
-    Object.entries(bonusReward.bonusCounts).forEach(([itemKey, count]) => {
-      const item = ITEMS[itemKey];
-      addItem(itemKey, count);
-      levelRewardEntries = levelRewardEntries.concat(addXp(item.xp * count));
-      entries.push({ type: "item", itemKey, count, storeText: "Bonus für deinen Einkauf 🧾" });
     });
   }
 
@@ -748,6 +734,21 @@ function grantReceiptItems(matchedArticles, fallbackCategoryKey, storeText) {
   }
 
   entries.push(...levelRewardEntries);
+
+  // Seit dem Wegfall des Bonuspakets kann "entries" jetzt tatsaechlich leer
+  // sein (kein Treffer, Trophaeen laengst freigeschaltet) --
+  // showItemSuccessQueue([]) wuerde auf entries[0] crashen. Einfache
+  // Bestaetigung statt gar keiner Rueckmeldung: der Umsatz wurde trotzdem
+  // erfasst (siehe trackReceiptScanForDashboard oben), nur eben ohne Item.
+  if (entries.length === 0) {
+    entries.push({
+      type: "info",
+      storeText,
+      title: "Danke für deinen Einkauf!",
+      message: "Für diesen Bon war aktuell kein bei diesem Store hinterlegter Artikel dabei — der Umsatz wurde trotzdem erfasst.",
+    });
+  }
+
   showItemSuccessQueue(entries);
   } catch (err) {
     console.error(

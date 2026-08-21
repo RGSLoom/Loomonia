@@ -465,8 +465,8 @@ const ITEMS = {
   //   unlockText  Anzeigetext fuer die Item-Detailkarte (siehe profile.js)
   // Die urspruenglich hier geplante "Gluecksmuenze" ist KEIN Item mehr,
   // sondern die neue Waehrung "Muenzen" (siehe addCoins() in js/state.js,
-  // BANK_DROP_COINS_MIN/MAX + BONSCAN_COINS_MIN/MAX unten) — HUD-Anzeige am
-  // Avatar statt Inventar-Karte.
+  // BANK_DROP_COINS_MIN/MAX unten) — HUD-Anzeige am Avatar statt
+  // Inventar-Karte.
   // Icons sind bewusst ein gemeinsames generisches Platzhalter-SVG — jedes
   // Item hat sein eigenes `icon`-Feld, finale Grafiken lassen sich also pro
   // Item einzeln eintragen, ohne die Datenstruktur anzufassen. `card` bleibt
@@ -783,18 +783,6 @@ function pickWeightedItemFromPool(pool, rarityWeights) {
   }
   return entries[entries.length - 1].key;
 }
-
-// ============ Bon-Scan-Bonus (nicht eindeutig erkannter Bon) ============
-// Wird kein Store/Artikel-Stichwort auf dem Bon eindeutig erkannt, gibt es
-// statt eines einzelnen Zufalls-Items ein kleines, hart begrenztes
-// Bonuspaket (siehe grantReceiptItems in js/bonscan.js):
-// BONSCAN_UNCLEAR_BONUS_SLOT_COUNT Slots insgesamt, davon IMMER genau einer
-// Muenzen (Zufallsbetrag), der Rest zufaellige weisse Items — bewusst
-// klein/vorhersehbar statt an den Kaufbetrag gekoppelt zu skalieren.
-const BONSCAN_WHITE_BONUS_ITEM_POOL = LOCATION_DROP_ITEM_POOL["Gewöhnlich"];
-const BONSCAN_UNCLEAR_BONUS_SLOT_COUNT = 4;
-const BONSCAN_COINS_MIN = 1;
-const BONSCAN_COINS_MAX = 5;
 
 // Episch/Legendaer sind laut Original-Kartentexten KEINE Zufalls-Drops aus
 // Stores, sondern Belohnungen fuer Trophaeen/seltene Quests (siehe
