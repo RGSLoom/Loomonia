@@ -281,7 +281,12 @@ function findReceiptTotalCents(text) {
 // wuerden sie sonst per Nachbarzeilen-Preis-Heuristik (siehe unten) faelschlich
 // den Preis des naechsten echten Artikels "erben" und als Produktname
 // durchgehen (gleiche Fehlerklasse wie die Store-Kopfzeile selbst).
-const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|\bstr\.|\b\d{5}\s+[a-zA-ZÀ-ÿ]/i;
+// "str." bewusst OHNE Wortgrenze davor: deutsche Strassennamen schreiben das
+// haeufig direkt an den Namen angehaengt ("Hauptstr.", "Karl-Bautz-Strasse"),
+// eine Wortgrenze vor "str." wuerde genau diesen haeufigsten Fall verpassen
+// (real beobachtet: "Hauptstr. 1" wurde nicht erkannt und erbte stattdessen
+// den Preis der naechsten echten Artikelzeile).
+const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|str\.|\b\d{5}\s+[a-zA-ZÀ-ÿ]/i;
 // \bpreis\b: Spaltenkopf wie "Preis EUR" (steht meist ganz ohne eigenen
 // Preis ueber der ersten Artikelzeile) — ohne diese Ausnahme wuerde die
 // Nachbarzeilen-Preis-Heuristik unten den Preis der naechsten echten
@@ -349,6 +354,12 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
   const found = [];
   const seenText = new Set();
   let footerStarted = false;
+  // Laufende Summe aller bisher gefundenen Artikelpreise -- Grundlage fuer
+  // die Summenzeilen-Erkennung per Betrag weiter unten (RECEIPT_TOTAL_KEYWORDS
+  // deckt nur den Fall ab, dass "Summe"/"Zwischensumme" lesbar OCR't wurde;
+  // dieser Betrags-Check erkennt die Summenzeile auch, wenn OCR das Wort
+  // selbst verstuemmelt hat, z.B. real beobachtet "Summe" -> "imag").
+  let runningSum = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (footerStarted) continue;
@@ -384,6 +395,26 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
     // Preis der naechsten, komplett unabhaengigen Zeile ("Rü.Wiener veg.
     // 1,98") zugewiesen, statt korrekt null zu bleiben.
     const ownAmount = extractLineAmountCents(line);
+
+    // Summenzeilen-Erkennung per Betrag: entspricht der EIGENE Preis dieser
+    // Zeile ungefaehr der Summe aller bisher gefundenen Artikel, ist das mit
+    // hoher Sicherheit die Summenzeile selbst -- unabhaengig davon, ob
+    // "Summe" als Wort erkennbar war. found.length > 0 verhindert, dass ein
+    // Bon mit nur EINEM Artikel (dessen Preis zwangslaeufig dem
+    // "Gesamtbetrag" entspricht) faelschlich als eigene Summenzeile gilt und
+    // verworfen wird -- ohne mindestens einen bereits gefundenen Artikel
+    // kann diese Zeile nicht "die Summe der anderen" sein.
+    // Toleranz bewusst grosszuegig (max. 50 Cent oder 5 % der Laufsumme) statt
+    // exaktem Abgleich: einzelne Artikel mit unlesbarem eigenem Preis (siehe
+    // ownAmount === null oben) fehlen in der Laufsumme, wodurch sie selbst
+    // bei korrekt gelesener Summenzeile leicht von ihr abweicht -- real
+    // beobachtet 72 Cent Differenz bei einem einzigen unlesbaren Artikel.
+    const totalMatchTolerance = Math.max(50, Math.round(runningSum * 0.05));
+    if (found.length > 0 && ownAmount !== null && Math.abs(ownAmount - runningSum) <= totalMatchTolerance) {
+      footerStarted = true;
+      continue;
+    }
+
     const amountCents = capToReceiptTotal(
       ownAmount ?? (lineHasOwnPriceAttempt(line)
         ? null
@@ -395,6 +426,7 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
     if (seenText.has(dedupeKey)) continue; // z.B. dieselbe Zeile doppelt ueber Preis-Lookaround erreicht
     seenText.add(dedupeKey);
     found.push({ text: cleaned, amountCents });
+    if (amountCents !== null) runningSum += amountCents;
   }
   return found;
 }
