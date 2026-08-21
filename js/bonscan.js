@@ -314,7 +314,13 @@ const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|str\.|\b\d{5}\s+[a-zA-ZÀ-ÿ]/i;
 // und schaltet ab dort per footerStarted konsequent den kompletten Rest der
 // Fusszeile stumm (robuster als jede einzelne Fusszeilen-Variante hier
 // nachzupflegen, siehe Kommentar bei findAllProductLines).
-const RECEIPT_NON_PRODUCT_LINE = /mwst|must\b|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|\bsepa\b|trace|terminal|posten|artikel:?\s*\d|\bpreis\b|pfand|\buid\b|signatur|coupon|ersparnis|gespart|rabatt/i;
+// ta-?nr / \bbnr\b: Transaktions-/Bon-Referenznummern-Zeile (z.B. Kaufland
+// "TA-Nr 375161 BNr 3706 pe") -- ohne diesen Ausschluss wird die Zeile als
+// Kandidat behandelt, hat aber selbst keinen erkennbaren Preis und "erbt"
+// per Nachbarzeilen-Lookaround (siehe findAllProductLines) faelschlich den
+// Preis der naechsten echten Artikelzeile, wodurch die echte Artikelzeile
+// danach faelschlich als bereits "verbraucht" bzw. als Summenzeile gilt.
+const RECEIPT_NON_PRODUCT_LINE = /mwst|must\b|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|ta-?nr|\bbnr\b|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|\bsepa\b|trace|terminal|posten|artikel:?\s*\d|\bpreis\b|pfand|\buid\b|signatur|coupon|ersparnis|gespart|rabatt/i;
 
 // Muss echte Wortbestandteile enthalten (nicht nur Ziffern/Symbole) --
 // verhindert, dass reine Artikelnummer-/Codezeilen (z.B. "1 1034320 1 |39
@@ -358,6 +364,14 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
   const lines = text.split(/\r?\n/).map((l) => l.trim());
   const found = [];
   const seenText = new Set();
+  // Zeilen-Indizes, deren Preis bereits einem Kandidaten zugeordnet wurde --
+  // eigener Preis genauso wie per Nachbarzeilen-Lookaround "geerbter" Preis.
+  // Verhindert, dass eine nachfolgende, ebenfalls preislose Muellzeile (z.B.
+  // OCR-Artefakt "la : | | ung | ==") sich per Rueckwaerts-Lookaround
+  // denselben Preis noch einmal "ausleiht" und den Umsatz dadurch doppelt
+  // zaehlt -- real beobachtet direkt nach "Nimm2 Funfari 0,99" auf einem
+  // Kaufland-Bon.
+  const usedPriceSourceLines = new Set();
   let footerStarted = false;
   // Laufende Summe aller bisher gefundenen Artikelpreise -- Grundlage fuer
   // die Summenzeilen-Erkennung per Betrag weiter unten (RECEIPT_TOTAL_KEYWORDS
@@ -407,34 +421,86 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
     const ownAmount = extractLineAmountCents(line);
 
     // Summenzeilen-Erkennung per Betrag: entspricht der EIGENE Preis dieser
-    // Zeile ungefaehr der Summe aller bisher gefundenen Artikel, ist das mit
-    // hoher Sicherheit die Summenzeile selbst -- unabhaengig davon, ob
-    // "Summe" als Wort erkennbar war. found.length > 0 verhindert, dass ein
-    // Bon mit nur EINEM Artikel (dessen Preis zwangslaeufig dem
-    // "Gesamtbetrag" entspricht) faelschlich als eigene Summenzeile gilt und
-    // verworfen wird -- ohne mindestens einen bereits gefundenen Artikel
-    // kann diese Zeile nicht "die Summe der anderen" sein.
-    // Toleranz bewusst grosszuegig (max. 50 Cent oder 5 % der Laufsumme) statt
-    // exaktem Abgleich: einzelne Artikel mit unlesbarem eigenem Preis (siehe
-    // ownAmount === null oben) fehlen in der Laufsumme, wodurch sie selbst
-    // bei korrekt gelesener Summenzeile leicht von ihr abweicht -- real
-    // beobachtet 72 Cent Differenz bei einem einzigen unlesbaren Artikel.
-    const totalMatchTolerance = Math.max(50, Math.round(runningSum * 0.05));
-    if (found.length > 0 && ownAmount !== null && Math.abs(ownAmount - runningSum) <= totalMatchTolerance) {
+    // Zeile ungefaehr dem Bon-Gesamtbetrag, ist das mit hoher Sicherheit die
+    // Summenzeile selbst -- unabhaengig davon, ob "Summe" als Wort erkennbar
+    // war. found.length > 0 verhindert, dass ein Bon mit nur EINEM Artikel
+    // (dessen Preis zwangslaeufig dem Gesamtbetrag entspricht) faelschlich
+    // als eigene Summenzeile gilt und verworfen wird.
+    //
+    // Bewusst gegen maxAmountCents (den bereits UNABHAENGIG per Keyword/
+    // Fallback ermittelten Bon-Gesamtbetrag, siehe findReceiptTotalCents)
+    // geprueft, NICHT gegen die Laufsumme der bisher gefundenen Artikel:
+    // bei kurzen Bons (2-3 Artikel) kann ein einzelner, spaeterer Artikel-
+    // preis zufaellig nahe an der Laufsumme der VORHERIGEN Positionen liegen
+    // und wuerde dann faelschlich als Summenzeile durchgehen -- real
+    // beobachtet auf einem REWE-Bon: Laufsumme 2,04€ nach 2 Artikeln, der
+    // naechste ECHTE Artikel kostete zufaellig 1,99€, lag also within
+    // Toleranz. Der unabhaengig ermittelte Gesamtbetrag kollidiert praktisch
+    // nie zufaellig mit einem einzelnen Artikelpreis. Ohne lesbaren
+    // Gesamtbetrag (maxAmountCents null) bleibt die Laufsumme als
+    // Ersatz-Ziel, besser als der Check komplett auszufallen.
+    // Toleranz bewusst grosszuegig (max. 50 Cent oder 5 % des Zielwerts)
+    // statt exaktem Abgleich: einzelne Artikel mit unlesbarem eigenem Preis
+    // (siehe ownAmount === null oben) fehlen in der Laufsumme, wodurch sie
+    // selbst bei korrekt gelesener Summenzeile leicht von ihr abweicht --
+    // real beobachtet 72 Cent Differenz bei einem einzigen unlesbaren
+    // Artikel.
+    const totalCheckTarget = maxAmountCents !== null ? maxAmountCents : runningSum;
+    const totalMatchTolerance = Math.max(50, Math.round(totalCheckTarget * 0.05));
+    // runningSum > 0 (nicht found.length > 0): found kann bereits eine
+    // Kandidatenzeile OHNE eigenen Preis enthalten (z.B. eine Store-
+    // Kopfzeile, die keinem RECEIPT_STORE_PATTERNS-Muster entsprach) --
+    // damit wuerde faelschlich schon der allererste ECHTE (und einzige)
+    // Artikel eines Bons als Summenzeile verworfen, obwohl noch gar kein
+    // Betrag gezaehlt wurde. runningSum > 0 fragt direkt "wurde bereits
+    // ECHTES Geld gezaehlt", real beobachtet bei einem Kaufland-Bon mit nur
+    // einer Position ("Nimm2 Funfari 0,99") und einer zuvor unerkannten
+    // Kopfzeile ("Kauf land DE 4080").
+    if (runningSum > 0 && ownAmount !== null && Math.abs(ownAmount - totalCheckTarget) <= totalMatchTolerance) {
       footerStarted = true;
       continue;
     }
 
-    const amountCents = capToReceiptTotal(
-      ownAmount ?? (lineHasOwnPriceAttempt(line)
-        ? null
-        : extractLineAmountCents(lines[i - 1] || "") ?? extractLineAmountCents(lines[i + 1] || "")),
-      maxAmountCents
-    );
+    let rawAmountCents = null;
+    let priceSourceLine = -1;
+    if (ownAmount !== null) {
+      rawAmountCents = ownAmount;
+      priceSourceLine = i;
+    } else if (!lineHasOwnPriceAttempt(line)) {
+      // Lookaround darf sich nie aus einer Summen-/Steuer-/Adresszeile
+      // bedienen -- besonders die VORWAERTS-Richtung schaut auf eine Zeile,
+      // die selbst noch gar nicht durch die obigen Ausschluss-Checks lief
+      // (die laufen erst, wenn die Schleife dort ankommt). Ohne diesen
+      // Guard "erbt" eine nameless Muellzeile kurz vor der Summenzeile
+      // deren Gesamtbetrag, bevor RECEIPT_TOTAL_KEYWORDS ueberhaupt greifen
+      // konnte -- real beobachtet direkt vor "SUMME EUR 0,99" auf einem
+      // Kaufland-Bon (OCR-Artefakt "la : | | ung | ==").
+      const isLookaroundSource = (candidate) =>
+        candidate &&
+        !RECEIPT_TOTAL_KEYWORDS.test(candidate) &&
+        !RECEIPT_NON_PRODUCT_LINE.test(candidate) &&
+        !RECEIPT_ADDRESS_LINE.test(candidate);
+      if (!usedPriceSourceLines.has(i - 1) && isLookaroundSource(lines[i - 1])) {
+        const prevAmount = extractLineAmountCents(lines[i - 1] || "");
+        if (prevAmount !== null) {
+          rawAmountCents = prevAmount;
+          priceSourceLine = i - 1;
+        }
+      }
+      if (rawAmountCents === null && !usedPriceSourceLines.has(i + 1) && isLookaroundSource(lines[i + 1])) {
+        const nextAmount = extractLineAmountCents(lines[i + 1] || "");
+        if (nextAmount !== null) {
+          rawAmountCents = nextAmount;
+          priceSourceLine = i + 1;
+        }
+      }
+    }
+    const amountCents = capToReceiptTotal(rawAmountCents, maxAmountCents);
     const cleaned = cleanProductNameText(line).slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH);
     const dedupeKey = cleaned.toLowerCase();
     if (seenText.has(dedupeKey)) continue; // z.B. dieselbe Zeile doppelt ueber Preis-Lookaround erreicht
     seenText.add(dedupeKey);
+    if (priceSourceLine !== -1) usedPriceSourceLines.add(priceSourceLine);
     found.push({ text: cleaned, amountCents });
     if (amountCents !== null) runningSum += amountCents;
   }
@@ -565,6 +631,32 @@ function extractReceiptHeaderText(text) {
   return text.split(/\r?\n/).slice(0, 6).join(" ");
 }
 
+// Token-basierter Adressabgleich, bewusst NICHT articleSimilarity (Levenshtein
+// ueber den GESAMTEN Textblock): die Kopfzeile enthaelt neben der Adresse
+// auch Store-Namen, Telefonnummer, UID usw., und selbst innerhalb der reinen
+// Adresse steht auf Kassenbons oft eine PLZ ZWISCHEN Strasse und Ort
+// ("Karl-Friedrich-Str. 97 79312 Emmendingen"), die die hinterlegte Adresse
+// ("Karl-Friedrich-Str. 97, Emmendingen") nicht enthaelt -- das bricht jeden
+// Substring- ODER Gesamt-Levenshtein-Vergleich, real beobachtet (Score 0,27
+// statt der erwarteten hohen Aehnlichkeit). Pro Adress-Wort wird stattdessen
+// geprueft, ob es (exakt bei kurzen/numerischen Woertern, sonst mit Toleranz
+// fuer OCR-Tippfehler) IRGENDWO im Kopfzeilen-Text vorkommt -- Reihenfolge
+// und dazwischenstehender Text (PLZ, Store-Name) spielen keine Rolle mehr.
+function addressTokenMatchScore(headerText, address) {
+  const headerTokens = normalizeArticleText(headerText).split(" ").filter(Boolean);
+  const addressTokens = normalizeArticleText(address).split(" ").filter(Boolean);
+  if (addressTokens.length === 0 || headerTokens.length === 0) return 0;
+  const matchedCount = addressTokens.filter((addrToken) => {
+    const requireExact = addrToken.length <= 3 || /^\d+$/.test(addrToken);
+    return headerTokens.some((headerToken) => {
+      if (requireExact || headerToken.length <= 3) return headerToken === addrToken;
+      const dist = levenshteinDistance(addrToken, headerToken);
+      return dist / Math.max(addrToken.length, headerToken.length) <= 0.25;
+    });
+  }).length;
+  return matchedCount / addressTokens.length;
+}
+
 // Vergleicht die Bon-Kopfzeile gegen die in der Standortverwaltung
 // hinterlegte Adresse jedes konfigurierten Stores (STORE_LOCATIONS, siehe
 // js/locations.js) -- verhindert, dass eine Bon-Zeile gegen die
@@ -581,7 +673,7 @@ function matchReceiptHeaderToStore(headerText, configuredStores) {
     const loc = STORE_LOCATIONS.find((l) => l.id === storeKey);
     const address = loc && loc.address;
     if (!address) return;
-    const score = articleSimilarity(headerText, address);
+    const score = addressTokenMatchScore(headerText, address);
     if (score >= STORE_ADDRESS_MATCH_THRESHOLD && (!best || score > best.score)) {
       best = { storeKey, score };
     }
