@@ -1113,6 +1113,21 @@ html, body {
   font-size: 11px;
 }
 .cell-label { font-size: 10px; text-align: center; opacity: 0.9; }
+.item-cell.equipped { box-shadow: 0 0 0 2px #c084fc, 0 0 16px -4px #c084fc; }
+.cell-equipped-tag {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #10101a;
+  background: #c084fc;
+  padding: 2px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
 
 .item-detail-card {
   text-align: center;
@@ -1289,12 +1304,56 @@ html, body {
 }
 .outfit-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .outfit-cell:active img { filter: brightness(1.2); }
+.outfit-cell.equipped { box-shadow: inset 0 0 0 2px #c084fc, 0 0 14px -2px rgba(192,132,252,0.7); }
+.outfit-cell-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--glass-fill-strong);
+  border: 1.5px solid color-mix(in srgb, var(--rarity-color) 65%, transparent);
+  box-shadow: 0 0 10px -2px var(--rarity-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.outfit-cell { position: relative; }
+.outfit-cell-badge img { width: 70%; height: 70%; object-fit: contain; }
 .outfit-stage {
   margin-top: 14px;
   border-radius: 14px;
   overflow: hidden;
+  background: url("../assets/generated/bg_outfit_stage.png") center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 0;
 }
 .outfit-stage img { width: 100%; display: block; }
+.outfit-slot-title { font-size: 15px; font-weight: 800; margin-bottom: 10px; }
+
+/* Avatar-Buehne: Silhouette + darueber gelegte Item-Icon-Ebenen pro Slot.
+   Grobe, prozentuale Positionierung als Platzhalter, solange es noch keine
+   auf den Body zugeschnittene Kleidungs-Grafik gibt (siehe AVATAR_SINGLE_SLOTS
+   in js/data.js bzw. renderAvatarStage() in js/profile.js). */
+.avatar-stage-figure { position: relative; width: 46%; max-width: 170px; margin: 0 auto; }
+.avatar-silhouette { width: 100%; display: block; }
+.avatar-layer { position: absolute; display: flex; align-items: center; justify-content: center; }
+.avatar-layer img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+}
+.avatar-layer--kopfteil { top: -6%; left: 27%; width: 46%; height: 24%; }
+.avatar-layer--oberteil { top: 30%; left: 18%; width: 64%; height: 30%; }
+.avatar-layer--hose { top: 58%; left: 22%; width: 56%; height: 26%; }
+.avatar-layer--sneaker { top: 84%; left: 20%; width: 60%; height: 16%; }
+.avatar-layer--accessoire { top: 34%; left: 66%; width: 26%; height: 26%; }
+.avatar-layer--outfit { top: 4%; left: 16%; width: 68%; height: 88%; }
 
 .settings-row {
   display: flex;

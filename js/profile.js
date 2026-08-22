@@ -2,6 +2,55 @@
 // Map-HUD/Untermenues) statt des frueheren Baked-Bilds. Die sechs Kacheln
 // oeffnen eigene Vollbild-Unterseiten mit eigenem Zurueck-Button.
 
+const OUTFIT_SLOT_LABELS = {
+  kopfteil: "Kopfteil",
+  oberteil: "Oberteil",
+  hose: "Hose",
+  sneaker: "Sneaker",
+  accessoire: "Accessoire",
+  outfit: "Outfit",
+};
+
+// Platzhalter-Ganzkoerpersilhouette fuer die Avatar-Buehne — es gibt noch
+// keine echte, auf den Avatar-Body zugeschnittene Grafik (siehe
+// AVATAR_SINGLE_SLOTS in data.js). Sobald echte Body-Art vorliegt, ersetzt
+// ein <img> diese Silhouette; die Ebenen-Positionierung (.avatar-layer--*
+// in style.css) bleibt unveraendert.
+const AVATAR_SILHOUETTE_SVG = `<svg class="avatar-silhouette" viewBox="0 0 100 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <circle cx="50" cy="34" r="26" fill="rgba(246,243,255,0.16)" />
+  <path d="M22 200 L26 96 Q50 78 74 96 L78 200 Z" fill="rgba(246,243,255,0.12)" />
+  <path d="M30 200 L33 130 L45 130 L43 200 Z" fill="rgba(246,243,255,0.16)" />
+  <path d="M70 200 L67 130 L55 130 L57 200 Z" fill="rgba(246,243,255,0.16)" />
+</svg>`;
+
+// Baut die Ganzkoerper-Buehne mit den aktuell angezogenen Items als Ebenen
+// (siehe .avatar-layer--* in style.css fuer die grobe Positionierung pro
+// Slot). Aktives Outfit ersetzt alle Einzelteil-Ebenen komplett, weil sich
+// Outfit und Einzelteile laut Ausschluss-Logik nie gleichzeitig ueberschneiden
+// (siehe equipItem() in state.js).
+function renderAvatarStage() {
+  const equipped = gameState.avatarEquipped;
+  if (equipped.outfit) {
+    const item = ITEMS[equipped.outfit];
+    return `<div class="avatar-stage-figure">
+      ${AVATAR_SILHOUETTE_SVG}
+      <div class="avatar-layer avatar-layer--outfit"><img src="${item.icon}" alt="${item.name}" /></div>
+    </div>`;
+  }
+  const layers = AVATAR_SINGLE_SLOTS
+    .map((slot) => {
+      const key = equipped[slot];
+      if (!key) return "";
+      const item = ITEMS[key];
+      return `<div class="avatar-layer avatar-layer--${slot}"><img src="${item.icon}" alt="${item.name}" /></div>`;
+    })
+    .join("");
+  return `<div class="avatar-stage-figure">
+    ${AVATAR_SILHOUETTE_SVG}
+    ${layers}
+  </div>`;
+}
+
 const PROFILE_TILE_ICONS = {
   outfit: '<path d="M6 7l6-3 6 3v3H6V7Z"/><path d="M6 10v10h12V10"/>',
   items: '<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M4 8l2-4h12l2 4"/>',
@@ -378,26 +427,80 @@ function renderOutfitGrid() {
     { key: "accessoire", label: "Accessoire", img: "assets/generated/tile_accessoire.png" },
   ];
   const cells = slots
-    .map((s) => `<button class="outfit-cell" data-slot="${s.key}"><img src="${s.img}" alt="${s.label}" /></button>`)
+    .map((s) => {
+      const equippedKey = gameState.avatarEquipped[s.key];
+      const equippedItem = equippedKey ? ITEMS[equippedKey] : null;
+      const badge = equippedItem
+        ? `<span class="outfit-cell-badge" style="--rarity-color:${RARITY_COLORS[equippedItem.rarity]}"><img src="${equippedItem.icon}" alt="${equippedItem.name}" /></span>`
+        : "";
+      return `<button class="outfit-cell${equippedItem ? " equipped" : ""}" data-slot="${s.key}"><img src="${s.img}" alt="${s.label}" />${badge}</button>`;
+    })
     .join("");
   return `
     <div class="outfit-grid">${cells}</div>
-    <div class="outfit-stage">
-      <img src="assets/generated/bg_outfit_stage.png" alt="" />
-    </div>`;
+    <div class="outfit-stage">${renderAvatarStage()}</div>`;
 }
 
 function attachOutfitGridHandlers() {
   document.querySelectorAll(".outfit-cell").forEach((cell) => {
     cell.addEventListener("click", () => {
-      const content = document.getElementById("outfit-content");
-      content.innerHTML = `
-        <button class="back-btn" id="btn-outfit-back" style="margin-bottom:12px;">← Übersicht</button>
-        <div class="placeholder-note">Screen folgt als Nächstes</div>`;
-      document.getElementById("btn-outfit-back").addEventListener("click", () => {
-        content.innerHTML = renderOutfitGrid();
-        attachOutfitGridHandlers();
-      });
+      openOutfitSlotDetail(cell.dataset.slot);
+    });
+  });
+}
+
+// Zeigt fuer einen Slot alle besessenen Items mit passendem slotType, mit
+// dem gerade angezogenen Item hervorgehoben. Tippen auf das angezogene Item
+// zieht es wieder aus; Tippen auf ein anderes besessenes Item zieht es an
+// (equipItem() in state.js kuemmert sich dabei automatisch um den
+// Outfit<->Einzelteil-Ausschluss).
+function openOutfitSlotDetail(slotKey) {
+  const content = document.getElementById("outfit-content");
+  content.innerHTML = renderOutfitSlotDetail(slotKey);
+  attachOutfitSlotDetailHandlers(slotKey);
+}
+
+function renderOutfitSlotDetail(slotKey) {
+  const equippedKey = gameState.avatarEquipped[slotKey];
+  const ownedItems = Object.values(ITEMS).filter(
+    (item) => item.slotType === slotKey && (gameState.inventory[item.key] || 0) > 0
+  );
+  const cells = ownedItems
+    .map((item) => {
+      const isEquipped = item.key === equippedKey;
+      return `<div class="item-cell${isEquipped ? " equipped" : ""}" data-outfit-item="${item.key}" style="--rarity-color:${RARITY_COLORS[item.rarity]}">
+        <img src="${item.icon}" alt="${item.name}" />
+        <span class="cell-label">${item.name}</span>
+        ${isEquipped ? `<span class="cell-equipped-tag">Angezogen</span>` : ""}
+      </div>`;
+    })
+    .join("");
+  const emptyNote = ownedItems.length === 0
+    ? `<div class="placeholder-note">Noch keine passenden Items im Inventar für diesen Slot.</div>`
+    : "";
+  return `
+    <button class="back-btn" id="btn-outfit-slot-back" style="margin-bottom:12px;">← Übersicht</button>
+    <div class="outfit-stage" style="margin-top:0; margin-bottom:14px;">${renderAvatarStage()}</div>
+    <div class="outfit-slot-title">${OUTFIT_SLOT_LABELS[slotKey]}</div>
+    <div class="item-grid">${cells}</div>
+    ${emptyNote}`;
+}
+
+function attachOutfitSlotDetailHandlers(slotKey) {
+  document.getElementById("btn-outfit-slot-back").addEventListener("click", () => {
+    const content = document.getElementById("outfit-content");
+    content.innerHTML = renderOutfitGrid();
+    attachOutfitGridHandlers();
+  });
+  document.querySelectorAll(".item-cell[data-outfit-item]").forEach((cell) => {
+    cell.addEventListener("click", () => {
+      const key = cell.dataset.outfitItem;
+      if (gameState.avatarEquipped[slotKey] === key) {
+        unequipSlot(slotKey);
+      } else {
+        equipItem(key);
+      }
+      openOutfitSlotDetail(slotKey);
     });
   });
 }

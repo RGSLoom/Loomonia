@@ -402,6 +402,7 @@ const ITEMS = {
     xp: 30,
     icon: "assets/items/gesundheitspaket_icon.png",
     type: "Anlegbar",
+    slotType: "accessoire",
     effect: "+25 % XP beim Anlegen",
     unlockText: "Kostenloser Drop an Standorten",
   },
@@ -412,6 +413,7 @@ const ITEMS = {
     xp: 60,
     icon: "assets/items/stylische-sneaker_icon.png",
     type: "Anlegbar",
+    slotType: "sneaker",
     effect: "+5 % Fangchance beim Anlegen",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
   },
@@ -422,6 +424,7 @@ const ITEMS = {
     xp: 60,
     icon: "assets/items/abenteuerrucksack_icon.png",
     type: "Anlegbar",
+    slotType: "accessoire",
     effect: "+5 Inventarplätze",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
   },
@@ -432,6 +435,7 @@ const ITEMS = {
     xp: 120,
     icon: "assets/items/epischer-hoodie_icon.png",
     type: "Anlegbar",
+    slotType: "oberteil",
     effect: "+25 % Fangchance beim Anlegen",
     unlockText: "Exklusive Belohnung einer bestimmten Trophäe",
   },
@@ -442,6 +446,7 @@ const ITEMS = {
     xp: 200,
     icon: "assets/items/energiearmband_icon.png",
     type: "Anlegbar",
+    slotType: "accessoire",
     effect: "+50 % XP beim Anlegen",
     unlockText: "Exklusive Belohnung einer bestimmten Trophäe",
   },
@@ -512,6 +517,7 @@ const ITEMS = {
     xp: 15,
     icon: "assets/items/schuhe_icon.png",
     type: "Anlegbar",
+    slotType: "sneaker",
     effect: "+5 % Fangchance beim Anlegen",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
@@ -523,6 +529,7 @@ const ITEMS = {
     xp: 15,
     icon: "assets/items/Uhr_icon.png",
     type: "Anlegbar",
+    slotType: "accessoire",
     effect: "+5 % XP beim Anlegen",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
@@ -607,6 +614,7 @@ const ITEMS = {
     xp: 30,
     icon: "assets/items/hose_icon.png",
     type: "Anlegbar",
+    slotType: "hose",
     effect: "+10 % Fangchance beim Anlegen",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
@@ -618,6 +626,7 @@ const ITEMS = {
     xp: 30,
     icon: "assets/items/oberteil_icon.png",
     type: "Anlegbar",
+    slotType: "oberteil",
     effect: "+10 % XP beim Anlegen",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
@@ -652,6 +661,7 @@ const ITEMS = {
     xp: 60,
     icon: "assets/items/stylische-kappe_icon.png",
     type: "Anlegbar",
+    slotType: "kopfteil",
     effect: "+10 % Fangchance dauerhaft beim Anlegen",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
@@ -667,7 +677,30 @@ const ITEMS = {
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
   },
+
+  // Outfit-Slot deckt ein komplettes Set ab und schliesst sich mit den
+  // fuenf Einzel-Slots gegenseitig aus (siehe equipItem() in state.js).
+  // Aktuell nur EIN Beispiel-Item als Machbarkeits-Nachweis fuer den Slot —
+  // weitere Outfits/Bezugswege (Drop-Gewichtung, eigene Grafiken) sind noch
+  // nicht final spezifiziert.
+  kosmoanzug: {
+    key: "kosmoanzug",
+    name: "Kosmoanzug",
+    rarity: "Legendär",
+    xp: 200,
+    icon: "assets/items/placeholder_new_item.svg",
+    type: "Anlegbar",
+    slotType: "outfit",
+    effect: "+15 % Fangchance und +15 % XP beim Anlegen",
+    unlockType: "kauf",
+    unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+  },
 };
+
+// Die fuenf unabhaengig kombinierbaren Einzel-Slots der Avatar-Ausruestung —
+// schliessen sich als Gruppe gegenseitig mit dem "outfit"-Slot aus (siehe
+// equipItem() in state.js).
+const AVATAR_SINGLE_SLOTS = ["kopfteil", "oberteil", "hose", "sneaker", "accessoire"];
 
 // ============ Item-Drop-Konfiguration (Standort) ============
 // Gewicht PRO EINZELNEM ITEM (nicht pro Seltenheitsstufe insgesamt!) fuer

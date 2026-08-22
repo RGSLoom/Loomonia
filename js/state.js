@@ -38,6 +38,11 @@ function defaultState() {
       // aktiv nach (siehe profile.js).
       allowItemDeletion: false,
     },
+    // Aktiv angezogene Avatar-Ausruestung: pro Slot entweder eine Item-Key
+    // oder null (siehe equipItem()/unequipSlot() unten). "outfit" und die
+    // fuenf Einzel-Slots schliessen sich gegenseitig aus — es kann nie
+    // gleichzeitig ein Wert in "outfit" UND einem Einzel-Slot stehen.
+    avatarEquipped: { kopfteil: null, oberteil: null, hose: null, sneaker: null, accessoire: null, outfit: null },
     storePositions: null, // { [storeKey]: { lat, lon } } — einmalig gesetzt
     playerId: null, // anonyme ID fuers Haendler-Dashboard (siehe tracking.js)
     trophies: {}, // trophyKey -> Freischalt-Zeitstempel (siehe TROPHIES in data.js)
@@ -185,6 +190,39 @@ function removeAllOfItem(key) {
   const owned = gameState.inventory[key] || 0;
   if (owned < 1) return false;
   delete gameState.inventory[key];
+  saveState();
+  return true;
+}
+
+// Zieht `key` an — schlaegt fehl (false, kein State-Change), wenn das Item
+// nicht existiert, nicht "Anlegbar" ist, kein slotType hat oder nicht im
+// Inventar liegt. Setzt sonst den Slot und wendet die gegenseitige
+// Ausschluss-Logik Outfit <-> Einzel-Slots an (siehe AVATAR_SINGLE_SLOTS in
+// data.js): ein Outfit zieht automatisch alle Einzelteile aus, ein
+// Einzelteil zieht automatisch ein aktives Outfit aus.
+function equipItem(key) {
+  const item = ITEMS[key];
+  if (!item || item.type !== "Anlegbar" || !item.slotType) return false;
+  if ((gameState.inventory[key] || 0) < 1) return false;
+
+  if (item.slotType === "outfit") {
+    AVATAR_SINGLE_SLOTS.forEach((slot) => {
+      gameState.avatarEquipped[slot] = null;
+    });
+  } else {
+    gameState.avatarEquipped.outfit = null;
+  }
+  gameState.avatarEquipped[item.slotType] = key;
+  saveState();
+  return true;
+}
+
+// Zieht das aktuell im angegebenen Slot angezogene Item wieder aus (wandert
+// zurueck ins Inventar, war ja nie draus entfernt — nur der Equipped-Status
+// aendert sich). Gibt false zurueck, falls der Slot ohnehin leer war.
+function unequipSlot(slotType) {
+  if (!gameState.avatarEquipped[slotType]) return false;
+  gameState.avatarEquipped[slotType] = null;
   saveState();
   return true;
 }
