@@ -462,8 +462,11 @@ function openOutfitSlotDetail(slotKey) {
 
 function renderOutfitSlotDetail(slotKey) {
   const equippedKey = gameState.avatarEquipped[slotKey];
+  // Das angezogene Item selbst bleibt hier auch bei Inventar-Bestand 0
+  // sichtbar (Anziehen verbraucht 1 Exemplar, siehe equipItem() in
+  // state.js) — sonst liesse es sich nicht mehr ausziehen.
   const ownedItems = Object.values(ITEMS).filter(
-    (item) => item.slotType === slotKey && (gameState.inventory[item.key] || 0) > 0
+    (item) => item.slotType === slotKey && ((gameState.inventory[item.key] || 0) > 0 || item.key === equippedKey)
   );
   const cells = ownedItems
     .map((item) => {

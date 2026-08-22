@@ -194,35 +194,50 @@ function removeAllOfItem(key) {
   return true;
 }
 
+// Zieht ein aktuell angezogenes Item aus Slot `slotType` wieder aus und legt
+// es zurueck ins Inventar (addItem) — Hilfsfunktion fuer equipItem()/
+// unequipSlot() unten, macht bei leerem Slot nichts.
+function returnEquippedItemToInventory(slotType) {
+  const key = gameState.avatarEquipped[slotType];
+  if (!key) return;
+  gameState.avatarEquipped[slotType] = null;
+  addItem(key);
+}
+
 // Zieht `key` an — schlaegt fehl (false, kein State-Change), wenn das Item
 // nicht existiert, nicht "Anlegbar" ist, kein slotType hat oder nicht im
-// Inventar liegt. Setzt sonst den Slot und wendet die gegenseitige
-// Ausschluss-Logik Outfit <-> Einzel-Slots an (siehe AVATAR_SINGLE_SLOTS in
-// data.js): ein Outfit zieht automatisch alle Einzelteile aus, ein
-// Einzelteil zieht automatisch ein aktives Outfit aus.
+// Inventar liegt. Verbraucht dabei 1 Exemplar aus dem Inventar (wie ein
+// Verbrauchsitem) — bei nur einem besessenen Exemplar verschwindet der
+// Artikel dadurch aus dem normalen Items-Screen, solange er angezogen ist.
+// Ein zuvor in diesem Slot (bzw. bei Outfit: in allen Einzel-Slots, bzw. bei
+// Einzelteilen: im Outfit-Slot) angezogenes Item wandert automatisch zurueck
+// ins Inventar, bevor das neue Item angezogen wird — das setzt die
+// gegenseitige Ausschluss-Logik Outfit <-> Einzel-Slots um (siehe
+// AVATAR_SINGLE_SLOTS in data.js).
 function equipItem(key) {
   const item = ITEMS[key];
   if (!item || item.type !== "Anlegbar" || !item.slotType) return false;
   if ((gameState.inventory[key] || 0) < 1) return false;
 
   if (item.slotType === "outfit") {
-    AVATAR_SINGLE_SLOTS.forEach((slot) => {
-      gameState.avatarEquipped[slot] = null;
-    });
+    AVATAR_SINGLE_SLOTS.forEach((slot) => returnEquippedItemToInventory(slot));
   } else {
-    gameState.avatarEquipped.outfit = null;
+    returnEquippedItemToInventory("outfit");
   }
+  returnEquippedItemToInventory(item.slotType);
+
+  removeItem(key);
   gameState.avatarEquipped[item.slotType] = key;
   saveState();
   return true;
 }
 
-// Zieht das aktuell im angegebenen Slot angezogene Item wieder aus (wandert
-// zurueck ins Inventar, war ja nie draus entfernt — nur der Equipped-Status
-// aendert sich). Gibt false zurueck, falls der Slot ohnehin leer war.
+// Zieht das aktuell im angegebenen Slot angezogene Item wieder aus und legt
+// das Exemplar zurueck ins Inventar. Gibt false zurueck, falls der Slot
+// ohnehin leer war.
 function unequipSlot(slotType) {
   if (!gameState.avatarEquipped[slotType]) return false;
-  gameState.avatarEquipped[slotType] = null;
+  returnEquippedItemToInventory(slotType);
   saveState();
   return true;
 }
