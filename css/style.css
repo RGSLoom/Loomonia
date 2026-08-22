@@ -1329,7 +1329,12 @@ html, body {
   object-fit: contain;
   filter: drop-shadow(0 0 8px var(--rarity-color));
 }
-.outfit-cell-caption { font-size: 11px; font-weight: 700; opacity: 0.9; }
+.outfit-cell-caption {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-light);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8), 0 0 10px rgba(0,0,0,0.6);
+}
 .outfit-stage {
   margin-top: 14px;
   border-radius: 14px;
