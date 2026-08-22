@@ -401,9 +401,8 @@ const ITEMS = {
     rarity: "Ungewöhnlich",
     xp: 30,
     icon: "assets/items/gesundheitspaket_icon.png",
-    type: "Anlegbar",
-    slotType: "accessoire",
-    effect: "+25 % XP beim Anlegen",
+    type: "Verbrauchbar",
+    effect: "+25 % XP-Boost beim Verwenden",
     unlockText: "Kostenloser Drop an Standorten",
   },
   sneaker: {
@@ -424,7 +423,9 @@ const ITEMS = {
     xp: 60,
     icon: "assets/items/abenteuerrucksack_icon.png",
     type: "Anlegbar",
-    slotType: "accessoire",
+    // Kein slotType -- erweitert spaeter die Inventarplaetze (eigene
+    // Mechanik), ist aber kein kosmetisches Avatar-Ausruestungsteil und
+    // taucht deshalb nicht im Outfit-Slot-System auf.
     effect: "+5 Inventarplätze",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
   },

@@ -174,9 +174,11 @@ function renderItemsGrid() {
       const count = gameState.inventory[item.key] || 0;
       const owned = count > 0;
       if (!owned) return `<div class="item-cell locked" data-item="${item.key}"></div>`;
-      return `<div class="item-cell" data-item="${item.key}" style="--rarity-color:${RARITY_COLORS[item.rarity]}">
+      const isEquipped = item.slotType && gameState.avatarEquipped[item.slotType] === item.key;
+      return `<div class="item-cell${isEquipped ? " equipped" : ""}" data-item="${item.key}" style="--rarity-color:${RARITY_COLORS[item.rarity]}">
         <img src="${item.icon}" alt="${item.name}" /><span class="cell-count">${count}</span>
         <span class="cell-label">${item.name}</span>
+        ${isEquipped ? `<span class="cell-equipped-tag">Angezogen</span>` : ""}
       </div>`;
     })
     .join("");
@@ -211,8 +213,19 @@ function showItemDetail(key) {
         <div class="detail-card-hint">${item.unlockText || "Dieses Item kann durch reale Käufe im Handel aktiviert werden."}</div>
       </div>`;
   const owned = gameState.inventory[key] || 0;
+
+  // Anziehen/Ausziehen direkt aus der Item-Detailkarte — nur fuer Items mit
+  // slotType (Teil des Outfit-Slot-Systems, siehe equipItem() in state.js).
+  const isEquippable = item.type === "Anlegbar" && !!item.slotType;
+  const isEquipped = isEquippable && gameState.avatarEquipped[item.slotType] === key;
+  const equipBtnHtml = isEquippable
+    ? isEquipped
+      ? `<button id="btn-item-unequip" class="secondary-btn" style="margin-top:14px;">Ausziehen</button>`
+      : `<button id="btn-item-equip" class="primary-btn" style="margin-top:14px;">Anziehen</button>`
+    : "";
+
   let deleteBtnHtml = "";
-  if (gameState.settings.allowItemDeletion) {
+  if (gameState.settings.allowItemDeletion && owned > 0) {
     deleteBtnHtml = owned > 1
       ? `<button id="btn-item-delete-one" class="danger-btn" style="margin-top:14px;">🗑 1 Stück löschen</button>
          <button id="btn-item-delete-all" class="danger-btn" style="margin-top:10px;">🗑 Ganzen Stapel löschen (${owned})</button>`
@@ -221,11 +234,26 @@ function showItemDetail(key) {
   content.innerHTML = `
     <button class="back-btn" id="btn-item-detail-back" style="margin-bottom:12px;">← Übersicht</button>
     ${cardHtml}
+    ${equipBtnHtml}
     ${deleteBtnHtml}`;
   document.getElementById("btn-item-detail-back").addEventListener("click", () => {
     content.innerHTML = renderItemsGrid();
     attachItemGridHandlers();
   });
+  const equipBtn = document.getElementById("btn-item-equip");
+  if (equipBtn) {
+    equipBtn.addEventListener("click", () => {
+      equipItem(key);
+      showItemDetail(key);
+    });
+  }
+  const unequipBtn = document.getElementById("btn-item-unequip");
+  if (unequipBtn) {
+    unequipBtn.addEventListener("click", () => {
+      unequipSlot(item.slotType);
+      showItemDetail(key);
+    });
+  }
   const deleteOneBtn = document.getElementById("btn-item-delete-one");
   if (deleteOneBtn) {
     deleteOneBtn.addEventListener("click", () => showDeleteItemConfirm(key, "one"));
@@ -430,10 +458,19 @@ function renderOutfitGrid() {
     .map((s) => {
       const equippedKey = gameState.avatarEquipped[s.key];
       const equippedItem = equippedKey ? ITEMS[equippedKey] : null;
-      const badge = equippedItem
-        ? `<span class="outfit-cell-badge" style="--rarity-color:${RARITY_COLORS[equippedItem.rarity]}"><img src="${equippedItem.icon}" alt="${equippedItem.name}" /></span>`
-        : "";
-      return `<button class="outfit-cell${equippedItem ? " equipped" : ""}" data-slot="${s.key}"><img src="${s.img}" alt="${s.label}" />${badge}</button>`;
+      // Belegter Slot: die Kachel zeigt das angezogene Item selbst statt des
+      // generischen Platzhalter-Kachelbilds (der Slot-Name wandert dafuer als
+      // eigenes Textlabel mit rein, da der Name sonst nur im Platzhalterbild
+      // eingebrannt war).
+      if (equippedItem) {
+        return `<button class="outfit-cell equipped" data-slot="${s.key}" style="--rarity-color:${RARITY_COLORS[equippedItem.rarity]}">
+          <div class="outfit-cell-filled">
+            <img src="${equippedItem.icon}" alt="${equippedItem.name}" />
+            <span class="outfit-cell-caption">${s.label}</span>
+          </div>
+        </button>`;
+      }
+      return `<button class="outfit-cell" data-slot="${s.key}"><img src="${s.img}" alt="${s.label}" /></button>`;
     })
     .join("");
   return `
