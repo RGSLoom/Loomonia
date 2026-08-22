@@ -445,23 +445,29 @@ function showTrophyDetail(key) {
   });
 }
 
+// Schlichtes Kleiderbuegel-Icon fuer unbesetzte Slots (siehe .icon-Konvention
+// in style.css: stroke-basiert, 24x24 viewBox) — ersetzt die frueheren
+// pseudo-realistischen Platzhalterbilder (tile_kopfteil.png etc.), die auf
+// den ersten Blick wie bereits angezogene Kleidung aussahen.
+const OUTFIT_EMPTY_SLOT_ICON = `<circle cx="12" cy="4.2" r="1.5"/><path d="M12 5.7V9"/><path d="M3.3 17.4 12 9l8.7 8.4a1 1 0 0 1-.7 1.7H4a1 1 0 0 1-.7-1.7Z"/>`;
+
 function renderOutfitGrid() {
   const slots = [
-    { key: "kopfteil", label: "Kopfteil", img: "assets/generated/tile_kopfteil.png" },
-    { key: "oberteil", label: "Oberteil", img: "assets/generated/tile_oberteil.png" },
-    { key: "hose", label: "Hose", img: "assets/generated/tile_hose.png" },
-    { key: "outfit", label: "Outfit", img: "assets/generated/tile_outfitfigur.png" },
-    { key: "sneaker", label: "Sneaker", img: "assets/generated/tile_outfitsneaker.png" },
-    { key: "accessoire", label: "Accessoire", img: "assets/generated/tile_accessoire.png" },
+    { key: "kopfteil", label: "Kopfteil" },
+    { key: "oberteil", label: "Oberteil" },
+    { key: "hose", label: "Hose" },
+    { key: "outfit", label: "Outfit" },
+    { key: "sneaker", label: "Sneaker" },
+    { key: "accessoire", label: "Accessoire" },
   ];
   const cells = slots
     .map((s) => {
       const equippedKey = gameState.avatarEquipped[s.key];
       const equippedItem = equippedKey ? ITEMS[equippedKey] : null;
-      // Belegter Slot: die Kachel zeigt das angezogene Item selbst statt des
-      // generischen Platzhalter-Kachelbilds (der Slot-Name wandert dafuer als
-      // eigenes Textlabel mit rein, da der Name sonst nur im Platzhalterbild
-      // eingebrannt war).
+      // Belegter Slot: die Kachel zeigt das angezogene Item selbst. Leerer
+      // Slot: schlichter, gedimmter Platzhalter statt eines detaillierten
+      // Bildes, damit auf den ersten Blick klar ist, dass hier nichts
+      // angezogen ist.
       if (equippedItem) {
         return `<button class="outfit-cell equipped" data-slot="${s.key}" style="--rarity-color:${RARITY_COLORS[equippedItem.rarity]}">
           <div class="outfit-cell-filled">
@@ -470,7 +476,12 @@ function renderOutfitGrid() {
           </div>
         </button>`;
       }
-      return `<button class="outfit-cell" data-slot="${s.key}"><img src="${s.img}" alt="${s.label}" /></button>`;
+      return `<button class="outfit-cell empty" data-slot="${s.key}">
+        <div class="outfit-cell-filled">
+          <svg class="icon outfit-cell-empty-icon" viewBox="0 0 24 24" aria-hidden="true">${OUTFIT_EMPTY_SLOT_ICON}</svg>
+          <span class="outfit-cell-caption">${s.label}</span>
+        </div>
+      </button>`;
     })
     .join("");
   return `

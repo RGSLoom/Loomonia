@@ -1335,6 +1335,12 @@ html, body {
   color: var(--text-light);
   text-shadow: 0 1px 4px rgba(0,0,0,0.8), 0 0 10px rgba(0,0,0,0.6);
 }
+.outfit-cell.empty {
+  background: var(--glass-fill);
+  border: 1.5px dashed var(--glass-border-strong);
+}
+.outfit-cell-empty-icon { width: 30%; height: 30%; opacity: 0.4; }
+.outfit-cell.empty .outfit-cell-caption { opacity: 0.55; text-shadow: none; }
 .outfit-stage {
   margin-top: 14px;
   border-radius: 14px;
