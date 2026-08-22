@@ -78,6 +78,52 @@ function formatNumber(n) {
   return Math.round(n).toLocaleString("de-DE");
 }
 
+// Anzeigetexte fuer aktive, zeitlich befristete Boost-Effekte (siehe
+// gameState.activeEffects in js/state.js) -- "energie_restore" und
+// "gesundheit_restore" tauchen hier bewusst nicht auf, die sind instant und
+// hinterlassen keinen aktiven Effekt-Zustand. Von js/map.js (Map-HUD-Pills)
+// UND js/profile.js (Items-Screen-Banner) genutzt, daher hier statt in einer
+// der beiden Dateien.
+const ACTIVE_EFFECT_LABELS = {
+  xp_boost: "⭐ XP-Boost",
+  fangchance_boost: "🎯 Fangchance-Boost",
+  loomas_anlocken: "🐾 Lockt Loomas an",
+};
+
+// Restzeit-Anzeige fuer aktive Boosts: unter 1 Std als lebendiger MM:SS-
+// Countdown (die meisten Verbrauchsitem-Boosts laufen 5-30 Min, siehe
+// effectDurationMs in js/data.js), darueber grob in Std/Tage (v.a. fuer den
+// 7-Tage-Lockduft-Flakon) -- eine Sekunden-Countdown-Anzeige waere dort
+// weder lesbar noch sinnvoll.
+function formatRemainingTime(ms) {
+  if (ms <= 0) return "0:00";
+  const totalSeconds = Math.ceil(ms / 1000);
+  if (totalSeconds < 3600) {
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+  const hours = Math.floor(totalSeconds / 3600);
+  if (hours < 24) return `${hours} Std ${Math.floor((totalSeconds % 3600) / 60)} Min`;
+  const days = Math.floor(hours / 24);
+  return `${days} Tag${days === 1 ? "" : "e"} ${hours % 24} Std`;
+}
+
+// Kurze Bestaetigungsmeldung (z.B. beim Verwenden eines Verbrauchsitems,
+// siehe applyBoostItem()/useHealItem()) -- body-weites #app-toast-Element
+// (siehe index.html), blendet sich per Opacity-Transition ein und nach
+// 2,2s wieder aus. Erneuter Aufruf waehrend die vorherige Meldung noch
+// steht ersetzt Text + Timer statt sich zu stapeln.
+let appToastHideTimer = null;
+function showToast(text) {
+  const el = document.getElementById("app-toast");
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add("visible");
+  clearTimeout(appToastHideTimer);
+  appToastHideTimer = setTimeout(() => el.classList.remove("visible"), 2200);
+}
+
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }

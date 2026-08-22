@@ -341,6 +341,65 @@ html, body {
 .quest-modal-reward { margin-bottom: 14px; }
 .quest-modal-hint { font-size: 12px; opacity: 0.7; margin-bottom: 18px; line-height: 1.4; }
 
+/* Aktive Boost-Effekte im Map-HUD (siehe gameState.activeEffects in
+   js/state.js) -- eigene Zeile direkt unter .hud-top, live-aktualisiert
+   per Sekunden-Timer (updateActiveBoostsHud() in js/map.js, gestartet in
+   js/main.js), damit die verbleibende Laufzeit sichtbar mitzaehlt. */
+.map-active-boosts {
+  position: absolute;
+  top: 78px;
+  left: 14px;
+  right: 14px;
+  z-index: 480;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  pointer-events: none;
+}
+.map-active-boosts.hidden { display: none; }
+.map-boost-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #a7f3d0;
+  background: rgba(10,7,24,0.75);
+  border: 1px solid rgba(74,222,128,0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.map-boost-pill .map-boost-time {
+  font-family: var(--font-mono);
+  opacity: 0.8;
+}
+
+/* Kurze Bestaetigungsmeldung beim Verwenden eines Verbrauchsitems (siehe
+   showToast() in js/utils.js). */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 100px;
+  transform: translateX(-50%) translateY(10px);
+  z-index: 2000;
+  max-width: 86vw;
+  padding: 10px 18px;
+  border-radius: 20px;
+  background: rgba(10,7,24,0.92);
+  border: 1px solid var(--accent-cyan);
+  color: var(--text-light);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 14px -2px var(--accent-cyan);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.app-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
 .gps-banner {
   position: absolute;
   top: 124px;

@@ -54,6 +54,7 @@ function useFokuszeit() {
   removeItem("fokuszeit");
   catchState.usedFokuszeit = true;
   catchState.slowFactor = FOKUSZEIT_SLOWDOWN_FACTOR;
+  showToast("✅ Fokuszeit eingesetzt");
   updateFokuszeitButtonUI();
   stopBarLoop();
   startBarLoop();
@@ -122,7 +123,9 @@ function useHealItem(key) {
   if ((gameState.inventory[key] || 0) < 1) return;
 
   removeItem(key);
+  const healthBefore = catchState.health;
   catchState.health = Math.min(HEALTH_MAX, catchState.health + HEALTH_MAX * item.effectValue);
+  showToast(`✅ ${item.name} eingesetzt (+${Math.round(catchState.health - healthBefore)} Gesundheit)`);
   updateHealthBarUI();
   updateHealButtonUI();
   updateCaughtCounter();
@@ -319,7 +322,7 @@ function onCatchSuccess() {
   const creature = isShiny ? CREATURES[shinyInfo.key] : baseCreature;
 
   addCaughtCreature(creature.key);
-  const levelRewardEntries = addXp(creature.xp);
+  const { awardedXp, entries: levelRewardEntries } = addXp(creature.xp);
   updateCaughtCounter();
 
   // Fang-bezogene Trophaeen (Anzahl gefangener Wesen je Seltenheitsstufe) —
@@ -362,7 +365,7 @@ function onCatchSuccess() {
   document.getElementById("success-creature-name").textContent = creature.name;
   document.getElementById("success-creature-meta").textContent =
     `${creature.elementIcon} ${creature.element} • ${creature.rarity}`;
-  document.getElementById("success-xp").textContent = `+${creature.xp} XP`;
+  document.getElementById("success-xp").textContent = `+${awardedXp} XP`;
 
   const shinyBannerEl = document.getElementById("success-shiny-banner");
   if (isShiny) {

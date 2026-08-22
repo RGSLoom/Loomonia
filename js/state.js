@@ -81,12 +81,16 @@ function saveState() {
 // auf jeden XP-Gewinn an, unabhaengig von der Quelle (Fang, Item-Aufnahme,
 // Trophaee, Levelaufstieg) -- der Effekttext der Boost-Items ("XP-Boost")
 // unterscheidet nicht nach Quelle, daher hier global statt nur beim Fang.
+// Gibt { awardedXp, entries } zurueck statt nur der Level-Belohnungen --
+// awardedXp ist der TATSAECHLICH gutgeschriebene (schon geboostete) Betrag,
+// damit Erfolgsmeldungen den echten Wert zeigen koennen statt des rohen
+// XP-Werts aus ITEMS/CREATURES/TROPHIES.
 function addXp(amount) {
   const boost = getActiveEffectValue("xp_boost");
-  const boostedAmount = boost > 0 ? Math.round(amount * (1 + boost)) : amount;
-  gameState.xp += boostedAmount;
+  const awardedXp = boost > 0 ? Math.round(amount * (1 + boost)) : amount;
+  gameState.xp += awardedXp;
   saveState();
-  return claimLevelRewards();
+  return { awardedXp, entries: claimLevelRewards() };
 }
 
 // Prueft, ob ein Boost-Effekt gerade aktiv ist (unabhaengig von seinem
@@ -142,7 +146,24 @@ function applyBoostItem(key) {
       break;
     }
     case "xp_boost":
-    case "fangchance_boost":
+    case "fangchance_boost": {
+      // Nur ein staerkerer (oder gleich starker) Wert ersetzt einen noch
+      // aktiven Boost desselben Typs -- ein schwaecheres Item soll ein
+      // laufendes NICHT abschwaechen/verkuerzen. Item bleibt in diesem Fall
+      // unverbraucht (kein removeItem()), der Aufrufer zeigt stattdessen
+      // einen Hinweis (siehe result.blocked in js/profile.js).
+      const currentValue = getActiveEffectValue(item.effectType);
+      if (currentValue > item.effectValue) {
+        return {
+          itemKey: key,
+          blocked: true,
+          text: `Bereits ein stärkerer Boost aktiv (+${Math.round(currentValue * 100)}%) — ${item.name} nicht verwendet`,
+        };
+      }
+      setActiveEffect(item.effectType, item.effectValue, item.effectDurationMs, key);
+      resultText = `${item.name} ist jetzt aktiv`;
+      break;
+    }
     case "loomas_anlocken":
       setActiveEffect(item.effectType, item.effectValue, item.effectDurationMs, key);
       resultText = `${item.name} ist jetzt aktiv`;
@@ -375,15 +396,20 @@ function claimTrophy(trophyKey) {
   // Level-Belohnungen, die durch die Trophaeen-XP selbst ausgeloest werden,
   // muessen mit zurueckgegeben werden (sonst wuerde addXp() sie zwar still
   // vergeben, aber nie in der Erfolgsmeldung anzeigen) — daher jeden
-  // addXp()-Rueckgabewert hier einsammeln statt zu verwerfen.
-  let levelRewardEntries = addXp(trophy.xp);
-  const entries = [{ type: "trophy", trophyKey }];
+  // addXp()-Rueckgabewert hier einsammeln statt zu verwerfen. xpAwarded auf
+  // den Entries ist der tatsaechlich (evtl. geboostete) gutgeschriebene
+  // Betrag, siehe addXp() oben -- main.js zeigt den statt des rohen
+  // trophy.xp/item.xp-Werts an.
+  const trophyXpResult = addXp(trophy.xp);
+  let levelRewardEntries = trophyXpResult.entries;
+  const entries = [{ type: "trophy", trophyKey, xpAwarded: trophyXpResult.awardedXp }];
   const rewardText = `Belohnung der Trophäe „${trophy.name}“ 🏆`;
 
   if (trophy.itemKey) {
     addItem(trophy.itemKey);
-    levelRewardEntries = levelRewardEntries.concat(addXp(ITEMS[trophy.itemKey].xp));
-    entries.push({ type: "item", itemKey: trophy.itemKey, count: 1, storeText: rewardText });
+    const itemXpResult = addXp(ITEMS[trophy.itemKey].xp);
+    levelRewardEntries = levelRewardEntries.concat(itemXpResult.entries);
+    entries.push({ type: "item", itemKey: trophy.itemKey, count: 1, storeText: rewardText, xpAwarded: itemXpResult.awardedXp });
   } else if (trophy.randomItemPool) {
     // Mehrfachtreffer auf dasselbe Item zu einem Stapel zusammenfassen
     // (analog zu grantReceiptItems() in bonscan.js), statt mehrere separate
@@ -395,8 +421,9 @@ function claimTrophy(trophyKey) {
     }
     Object.entries(picks).forEach(([key, count]) => {
       addItem(key, count);
-      levelRewardEntries = levelRewardEntries.concat(addXp(ITEMS[key].xp * count));
-      entries.push({ type: "item", itemKey: key, count, storeText: rewardText });
+      const itemXpResult = addXp(ITEMS[key].xp * count);
+      levelRewardEntries = levelRewardEntries.concat(itemXpResult.entries);
+      entries.push({ type: "item", itemKey: key, count, storeText: rewardText, xpAwarded: itemXpResult.awardedXp });
     });
   }
 

@@ -544,4 +544,27 @@ function updateCaughtCounter() {
   document.getElementById("hud-energy-fill").style.width = `${(energy / ENERGY_MAX) * 100}%`;
 
   document.getElementById("hud-coins-count").textContent = formatNumber(gameState.coins || 0);
+
+  updateActiveBoostsHud();
+}
+
+// Aktive, zeitlich befristete Boost-Effekte (siehe gameState.activeEffects
+// in js/state.js) als Pillen im Map-HUD, mit Restzeit -- wird zusaetzlich zu
+// jedem updateCaughtCounter()-Aufruf per Sekunden-Timer aufgerufen (siehe
+// js/main.js), damit die Restzeit auch ohne weitere Spieleraktion mitlaeuft.
+function updateActiveBoostsHud() {
+  const container = document.getElementById("map-active-boosts");
+  const rows = Object.entries(gameState.activeEffects || {})
+    .map(([effectType, entry]) => {
+      if (!entry || Date.now() >= entry.expiresAt) return "";
+      const label = ACTIVE_EFFECT_LABELS[effectType] || effectType;
+      const valueText = entry.value > 0 ? ` +${Math.round(entry.value * 100)}%` : "";
+      return `<div class="map-boost-pill">
+        <span>${label}${valueText}</span>
+        <span class="map-boost-time">${formatRemainingTime(entry.expiresAt - Date.now())}</span>
+      </div>`;
+    })
+    .join("");
+  container.innerHTML = rows;
+  container.classList.toggle("hidden", !rows);
 }

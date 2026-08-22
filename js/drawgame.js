@@ -208,7 +208,7 @@ function grantRandomItemFromStore(locationId) {
   const item = ITEMS[itemKey];
 
   addItem(itemKey);
-  const levelRewardEntries = addXp(item.xp);
+  const { awardedXp, entries: levelRewardEntries } = addXp(item.xp);
   updateCaughtCounter();
 
   trackEvent("item_free_received", {
@@ -219,7 +219,7 @@ function grantRandomItemFromStore(locationId) {
   });
 
   showItemSuccessQueue([
-    { itemKey, storeText: `Ihr Produkt als In-Game Drop bei ${category.name}` },
+    { itemKey, storeText: `Ihr Produkt als In-Game Drop bei ${category.name}`, xpAwarded: awardedXp },
     ...levelRewardEntries,
   ]);
 }

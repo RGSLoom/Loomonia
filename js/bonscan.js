@@ -927,8 +927,9 @@ function grantReceiptItems(matchedArticles, unmatchedArticles, fallbackCategoryK
     Object.entries(itemCounts).forEach(([itemKey, count]) => {
       const item = ITEMS[itemKey];
       addItem(itemKey, count);
-      levelRewardEntries = levelRewardEntries.concat(addXp(item.xp * count));
-      entries.push({ type: "item", itemKey, count, storeText });
+      const itemXpResult = addXp(item.xp * count);
+      levelRewardEntries = levelRewardEntries.concat(itemXpResult.entries);
+      entries.push({ type: "item", itemKey, count, storeText, xpAwarded: itemXpResult.awardedXp });
     });
   }
 

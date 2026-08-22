@@ -2,29 +2,6 @@
 // Map-HUD/Untermenues) statt des frueheren Baked-Bilds. Die sechs Kacheln
 // oeffnen eigene Vollbild-Unterseiten mit eigenem Zurueck-Button.
 
-// Anzeigetexte fuer aktive, zeitlich befristete Boost-Effekte (siehe
-// gameState.activeEffects in js/state.js) -- "energie_restore" und
-// "gesundheit_restore" tauchen hier bewusst nicht auf, die sind instant und
-// hinterlassen keinen aktiven Effekt-Zustand.
-const ACTIVE_EFFECT_LABELS = {
-  xp_boost: "⭐ XP-Boost",
-  fangchance_boost: "🎯 Fangchance-Boost",
-  loomas_anlocken: "🐾 Lockt Loomas an",
-};
-
-// Grobe, deutschsprachige Restzeit-Anzeige (Minuten/Stunden/Tage) fuer
-// aktive Boosts -- kein Live-Countdown noetig, der Items-Screen wird bei
-// jedem Aufruf neu gerendert.
-function formatRemainingTime(ms) {
-  if (ms <= 0) return "0 Min";
-  const minutes = Math.ceil(ms / 60000);
-  if (minutes < 60) return `${minutes} Min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} Std ${minutes % 60} Min`;
-  const days = Math.floor(hours / 24);
-  return `${days} Tag${days === 1 ? "" : "e"} ${hours % 24} Std`;
-}
-
 function renderActiveBoostsBanner() {
   const rows = Object.entries(gameState.activeEffects || {})
     .map(([effectType, entry]) => {
@@ -314,7 +291,9 @@ function showItemDetail(key) {
   const useBtn = document.getElementById("btn-item-use");
   if (useBtn) {
     useBtn.addEventListener("click", () => {
-      if (!applyBoostItem(key)) return;
+      const result = applyBoostItem(key);
+      if (!result) return;
+      showToast(`${result.blocked ? "⚠️" : "✅"} ${result.text}`);
       updateCaughtCounter();
       if ((gameState.inventory[key] || 0) > 0) {
         showItemDetail(key);

@@ -34,7 +34,11 @@ function renderItemSuccess(entry, position, total) {
       `<span class="rarity-pill" style="background:${TROPHY_TIER_COLORS[trophy.tier]}">${tierLabel}-Trophäe</span>`;
     document.getElementById("item-success-store").textContent = "";
     document.getElementById("item-success-effect").textContent = trophy.description;
-    document.getElementById("item-success-xp").textContent = `+${formatNumber(trophy.xp)} XP`;
+    // xpAwarded ist der tatsaechlich gutgeschriebene (evtl. per xp_boost
+    // geboostete) Betrag, siehe addXp()/claimTrophy() in js/state.js --
+    // Fallback auf trophy.xp nur fuer den theoretischen Fall, dass ein
+    // Aufrufer das Feld nicht mitgibt.
+    document.getElementById("item-success-xp").textContent = `+${formatNumber(entry.xpAwarded ?? trophy.xp)} XP`;
     return;
   }
 
@@ -83,7 +87,11 @@ function renderItemSuccess(entry, position, total) {
     `<span class="rarity-pill" style="background:${RARITY_COLORS[item.rarity]}">${item.rarity}</span>`;
   document.getElementById("item-success-store").textContent = entry.storeText;
   document.getElementById("item-success-effect").textContent = item.effect;
-  document.getElementById("item-success-xp").textContent = `+${item.xp * count} XP`;
+  // xpAwarded (tatsaechlich gutgeschriebener, evtl. geboosteter Betrag,
+  // siehe addXp() in js/state.js) fehlt nur bei Level-Up-Item-Belohnungen
+  // (claimLevelRewards() vergibt dafuer bewusst keine eigene Item-XP) --
+  // dort bleibt der rohe item.xp*count-Wert als Fallback.
+  document.getElementById("item-success-xp").textContent = `+${entry.xpAwarded ?? item.xp * count} XP`;
 }
 
 // Aufgaben-Hinweis-Button im Map-HUD: sichtbar, solange die erste Tutorial-
@@ -120,6 +128,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Energie regeneriert passiv mit echter Zeit — Anzeige alle 30s
   // auffrischen, damit man das Auffuellen auch bei offener App mitbekommt.
   setInterval(updateCaughtCounter, 30000);
+  // Aktive Boost-Effekte (siehe gameState.activeEffects in js/state.js)
+  // brauchen einen deutlich engeren Takt als die Energie-Anzeige, sonst
+  // wirkt der Live-Countdown im Map-HUD eingefroren (siehe
+  // updateActiveBoostsHud() in js/map.js).
+  setInterval(updateActiveBoostsHud, 1000);
 
   // Map-HUD
   document.getElementById("btn-avatar").addEventListener("click", openProfile);
