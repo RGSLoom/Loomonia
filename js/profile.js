@@ -445,11 +445,18 @@ function showTrophyDetail(key) {
   });
 }
 
-// Schlichtes Kleiderbuegel-Icon fuer unbesetzte Slots (siehe .icon-Konvention
-// in style.css: stroke-basiert, 24x24 viewBox) — ersetzt die frueheren
-// pseudo-realistischen Platzhalterbilder (tile_kopfteil.png etc.), die auf
-// den ersten Blick wie bereits angezogene Kleidung aussahen.
-const OUTFIT_EMPTY_SLOT_ICON = `<circle cx="12" cy="4.2" r="1.5"/><path d="M12 5.7V9"/><path d="M3.3 17.4 12 9l8.7 8.4a1 1 0 0 1-.7 1.7H4a1 1 0 0 1-.7-1.7Z"/>`;
+// Je Slot ein eigenes, schlichtes Linien-Icon fuer unbesetzte Slots (siehe
+// .icon-Konvention in style.css: stroke-basiert, 24x24 viewBox) — ersetzt
+// die frueheren pseudo-realistischen Platzhalterbilder (tile_kopfteil.png
+// etc.), die auf den ersten Blick wie bereits angezogene Kleidung aussahen.
+const OUTFIT_SLOT_EMPTY_ICONS = {
+  kopfteil: `<path d="M4 15a8 8 0 0 1 16 0"/><path d="M2.5 15h15.5a4 4 0 0 0 4-4"/>`,
+  oberteil: `<rect x="8" y="7.5" width="8" height="12.5" rx="1.5"/><rect x="4.5" y="7.5" width="3.2" height="5" rx="1"/><rect x="16.3" y="7.5" width="3.2" height="5" rx="1"/><path d="M9.5 7.5a2.5 2.5 0 0 1 5 0"/>`,
+  hose: `<rect x="7" y="3" width="10" height="4" rx="1"/><rect x="7" y="7.5" width="3.8" height="13.5" rx="1"/><rect x="13.2" y="7.5" width="3.8" height="13.5" rx="1"/>`,
+  sneaker: `<path d="M3 20v-4.5a2 2 0 0 1 1.4-1.9l3.6-1.2V10h3.3c.9 0 1.8.4 2.3 1.2l1.7 2.4c.3.4.7.7 1.2.9l3 1c1 .3 1.5 1.2 1.5 2.2V20Z"/><path d="M3 20h18"/>`,
+  accessoire: `<circle cx="12" cy="12" r="4.5"/><path d="M12 7.5V5"/><path d="M12 16.5V19"/><path d="M9.5 5h5"/><path d="M9.5 19h5"/>`,
+  outfit: `<circle cx="12" cy="5" r="2.2"/><path d="M8.5 20 9.5 10h5l1 10"/><path d="M9.5 10 6 13.5"/><path d="M14.5 10 18 13.5"/>`,
+};
 
 function renderOutfitGrid() {
   const slots = [
@@ -478,7 +485,7 @@ function renderOutfitGrid() {
       }
       return `<button class="outfit-cell empty" data-slot="${s.key}">
         <div class="outfit-cell-filled">
-          <svg class="icon outfit-cell-empty-icon" viewBox="0 0 24 24" aria-hidden="true">${OUTFIT_EMPTY_SLOT_ICON}</svg>
+          <svg class="icon outfit-cell-empty-icon" viewBox="0 0 24 24" aria-hidden="true">${OUTFIT_SLOT_EMPTY_ICONS[s.key]}</svg>
           <span class="outfit-cell-caption">${s.label}</span>
         </div>
       </button>`;

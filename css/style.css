@@ -1339,8 +1339,8 @@ html, body {
   background: var(--glass-fill);
   border: 1.5px dashed var(--glass-border-strong);
 }
-.outfit-cell-empty-icon { width: 30%; height: 30%; opacity: 0.4; }
-.outfit-cell.empty .outfit-cell-caption { opacity: 0.55; text-shadow: none; }
+.outfit-cell-empty-icon { width: 38%; height: 38%; color: var(--text-light); opacity: 0.85; stroke-width: 1.6; }
+.outfit-cell.empty .outfit-cell-caption { opacity: 0.7; text-shadow: none; }
 .outfit-stage {
   margin-top: 14px;
   border-radius: 14px;
