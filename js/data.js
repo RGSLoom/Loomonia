@@ -68,6 +68,17 @@ const ENERGY_MAX = 100;
 const ENERGY_PER_CATCH = 3;
 const ENERGY_REGEN_MS_PER_POINT = 2 * 60 * 1000;
 
+// ============ Spieler-Gesundheit (Fangszene) ============
+// Eigenstaendige Ressource NUR fuer die Dauer einer einzelnen Fangbegegnung
+// (siehe catchState.health in js/catchgame.js) -- bewusst NICHT in gameState/
+// localStorage persistiert, da sie mit jeder neuen Begegnung wieder auf voll
+// zurueckgesetzt wird. Sinkt bei einem verfehlten Fangversuch ("Gegner wehrt
+// sich"), Heilungsitems (usage_context "fangsystem_only") stellen sie wieder
+// her. Faellt sie auf 0, flieht das Wesen sofort, auch vor dem 2. Versuch.
+const HEALTH_MAX = 100;
+const HEALTH_LOSS_MIN_PER_MISS = 25;
+const HEALTH_LOSS_MAX_PER_MISS = 45;
+
 // ============ Levelsystem ============
 // Level 50 ist der Pilot-Cap (spaeter erweiterbar), erreicht bei 10 Mio.
 // Lebenszeit-XP. Kubische Kurve statt linear: fruehe Level gehen schnell,
@@ -374,6 +385,10 @@ const ITEMS = {
     type: "Verbrauchbar",
     effect: "+25 % XP-Boost für 30 Minuten",
     unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "jederzeit",
+    effectType: "xp_boost",
+    effectValue: 0.25,
+    effectDurationMs: 30 * 60 * 1000,
   },
   sprachbuch: {
     key: "sprachbuch",
@@ -384,6 +399,14 @@ const ITEMS = {
     type: "Verbrauchbar",
     effect: "+5 % Punkte in menschlicher Sprache",
     unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "jederzeit",
+    // "Punkte" hier als XP gelesen (Original-Kartentext, siehe
+    // store-walk-spielspezifikation.md) -- es gibt keine separate
+    // "Sprach-Punkte"-Ressource im Spiel, daher technisch ein kleiner
+    // XP-Boost wie die anderen Gewoehnlich-Boosts.
+    effectType: "xp_boost",
+    effectValue: 0.05,
+    effectDurationMs: 10 * 60 * 1000,
   },
   energiesnack: {
     key: "energiesnack",
@@ -394,6 +417,9 @@ const ITEMS = {
     type: "Verbrauchbar",
     effect: "+50 % Energie wiederherstellen",
     unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "jederzeit",
+    effectType: "energie_restore",
+    effectValue: 0.5,
   },
   gesundheitspaket: {
     key: "gesundheitspaket",
@@ -402,8 +428,16 @@ const ITEMS = {
     xp: 30,
     icon: "assets/items/gesundheitspaket_icon.png",
     type: "Verbrauchbar",
-    effect: "+25 % XP-Boost beim Verwenden",
+    // Urspruenglicher Effekttext ("+25% XP-Boost beim Verwenden") war ein
+    // Kopierfehler aus der Vorlage (siehe store-walk-spielspezifikation.md)
+    // und passte nicht zum Namen -- jetzt das einzige echte Heilungsitem im
+    // Sinne des Verbrauchsgegenstaende-Briefings (Spieler-Gesundheit in der
+    // Fangszene), daher usage_context "fangsystem_only".
+    effect: "+50 % Gesundheit sofort wiederherstellen (nur in der Fangszene)",
     unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "fangsystem_only",
+    effectType: "gesundheit_restore",
+    effectValue: 0.5,
   },
   sneaker: {
     key: "sneaker",
@@ -460,6 +494,9 @@ const ITEMS = {
     type: "Verbrauchbar",
     effect: "Läuft 7 Tage lang, lockt mehr Loomas an",
     unlockText: "Exklusive Belohnung einer bestimmten Trophäe",
+    usage_context: "jederzeit",
+    effectType: "loomas_anlocken",
+    effectDurationMs: 7 * 24 * 60 * 60 * 1000,
   },
 
   // ============ Item-Briefing (18 neue Items) ============
@@ -488,6 +525,9 @@ const ITEMS = {
     effect: "+10 % Energie sofort wiederherstellen",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "jederzeit",
+    effectType: "energie_restore",
+    effectValue: 0.1,
   },
   energieriegel: {
     key: "energieriegel",
@@ -499,6 +539,10 @@ const ITEMS = {
     effect: "+5 % XP-Boost für 10 Minuten",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "jederzeit",
+    effectType: "xp_boost",
+    effectValue: 0.05,
+    effectDurationMs: 10 * 60 * 1000,
   },
   kaffeebecher: {
     key: "kaffeebecher",
@@ -510,6 +554,9 @@ const ITEMS = {
     effect: "Zeigt Loomas in der Nähe für 10 Minuten an",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "jederzeit",
+    effectType: "loomas_anlocken",
+    effectDurationMs: 10 * 60 * 1000,
   },
   schuhe: {
     key: "schuhe",
@@ -545,6 +592,9 @@ const ITEMS = {
     effect: "Lockt 5 Minuten lang leicht mehr Loomas an",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "jederzeit",
+    effectType: "loomas_anlocken",
+    effectDurationMs: 5 * 60 * 1000,
   },
   futterportion: {
     key: "futterportion",
@@ -556,6 +606,10 @@ const ITEMS = {
     effect: "+10 % Fangchance für 5 Minuten",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "jederzeit",
+    effectType: "fangchance_boost",
+    effectValue: 0.1,
+    effectDurationMs: 5 * 60 * 1000,
   },
   snackpaket: {
     key: "snackpaket",
@@ -567,6 +621,10 @@ const ITEMS = {
     effect: "+5 % XP-Boost für 10 Minuten",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "jederzeit",
+    effectType: "xp_boost",
+    effectValue: 0.05,
+    effectDurationMs: 10 * 60 * 1000,
   },
   fokuszeit: {
     key: "fokuszeit",
@@ -580,9 +638,11 @@ const ITEMS = {
     effect: "Verlangsamt den Loomas für einen Fangversuch",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
-    // Einziges Item mit aktiver UI-Auswahl direkt in der Fangszene (siehe
+    // Kontextgebunden wie Heilungsitems (siehe Verbrauchsgegenstaende-
+    // Briefing), aber mit eigener bespoke-UI direkt in der Fangszene (siehe
     // btn-use-fokuszeit in index.html + useFokuszeit() in catchgame.js)
-    // statt passiver Inventar-Aktivierung wie alle anderen Verbrauchsitems.
+    // statt des generischen Heilungsitem-Auswahlmenues.
+    usage_context: "fangsystem_only",
     catchModeItem: true,
   },
 
@@ -596,6 +656,9 @@ const ITEMS = {
     effect: "+50 % Energie sofort wiederherstellen",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+    usage_context: "jederzeit",
+    effectType: "energie_restore",
+    effectValue: 0.5,
   },
   energieriegel_plus: {
     key: "energieriegel_plus",
@@ -607,6 +670,10 @@ const ITEMS = {
     effect: "+15 % XP-Boost für 30 Minuten",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+    usage_context: "jederzeit",
+    effectType: "xp_boost",
+    effectValue: 0.15,
+    effectDurationMs: 30 * 60 * 1000,
   },
   hose: {
     key: "hose",
@@ -642,6 +709,9 @@ const ITEMS = {
     effect: "+30 % Energie sofort wiederherstellen",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+    usage_context: "jederzeit",
+    effectType: "energie_restore",
+    effectValue: 0.3,
   },
 
   suessigkeit: {
@@ -654,6 +724,10 @@ const ITEMS = {
     effect: "+20 % XP-Boost für 30 Minuten",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+    usage_context: "jederzeit",
+    effectType: "xp_boost",
+    effectValue: 0.2,
+    effectDurationMs: 30 * 60 * 1000,
   },
   stylische_kappe: {
     key: "stylische_kappe",
@@ -677,6 +751,10 @@ const ITEMS = {
     effect: "+15 % Fangchance für 30 Minuten",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+    usage_context: "jederzeit",
+    effectType: "fangchance_boost",
+    effectValue: 0.15,
+    effectDurationMs: 30 * 60 * 1000,
   },
 
   // Outfit-Slot deckt ein komplettes Set ab und schliesst sich mit den

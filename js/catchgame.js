@@ -14,6 +14,10 @@ function openCatchSceneForCreature(entry) {
     isTest: !!entry.isTest,
     slowFactor: 1,
     usedFokuszeit: false,
+    // Spieler-Gesundheit NUR fuer diese eine Begegnung (siehe HEALTH_MAX in
+    // js/data.js) -- sinkt bei einem verfehlten Versuch, Heilungsitems
+    // stellen sie wieder her (siehe useHealItem() unten).
+    health: HEALTH_MAX,
   };
   const creature = CREATURES[creatureKey];
 
@@ -25,6 +29,9 @@ function openCatchSceneForCreature(entry) {
   document.getElementById("catch-attempt-label").textContent = "Versuch 1 von 2";
   setupCatchBackground(creature);
   updateFokuszeitButtonUI();
+  updateHealthBarUI();
+  updateHealButtonUI();
+  closeHealPicker();
 
   showScreen("screen-catch");
   startBarLoop();
@@ -50,6 +57,88 @@ function useFokuszeit() {
   updateFokuszeitButtonUI();
   stopBarLoop();
   startBarLoop();
+}
+
+// ---------- Spieler-Gesundheit + Heilungsitems (Verbrauchsgegenstaende-Briefing) ----------
+// Kontextgebundene Heilungsitems (usage_context "fangsystem_only",
+// effectType "gesundheit_restore") -- aktuell nur "gesundheitspaket", aber
+// generisch ueber ITEMS gefiltert, damit weitere Heilungsitems ohne
+// Code-Aenderung hier automatisch auftauchen.
+function getOwnedHealingItemKeys() {
+  return Object.values(ITEMS)
+    .filter((item) => item.usage_context === "fangsystem_only" && item.effectType === "gesundheit_restore")
+    .filter((item) => (gameState.inventory[item.key] || 0) > 0)
+    .map((item) => item.key);
+}
+
+function updateHealthBarUI() {
+  if (!catchState) return;
+  const pct = Math.max(0, Math.round((catchState.health / HEALTH_MAX) * 100));
+  document.getElementById("catch-health-fill").style.width = `${pct}%`;
+  document.getElementById("catch-health-label").textContent = `${Math.max(0, Math.round(catchState.health))}/${HEALTH_MAX}`;
+}
+
+function updateHealButtonUI() {
+  const btn = document.getElementById("btn-open-heal-picker");
+  const owned = getOwnedHealingItemKeys();
+  const totalOwned = owned.reduce((sum, key) => sum + (gameState.inventory[key] || 0), 0);
+  const usable = !!catchState && catchState.health < HEALTH_MAX && owned.length > 0;
+  btn.classList.toggle("hidden", !usable);
+  document.getElementById("heal-btn-badge").textContent = totalOwned;
+}
+
+function openHealPicker() {
+  if (!catchState) return;
+  const owned = getOwnedHealingItemKeys();
+  const list = document.getElementById("heal-picker-list");
+  list.innerHTML = owned
+    .map((key) => {
+      const item = ITEMS[key];
+      const count = gameState.inventory[key] || 0;
+      return `<button class="heal-picker-row" data-heal-item="${key}">
+        <img src="${item.icon}" alt="${item.name}" class="heal-picker-icon" />
+        <span class="heal-picker-info">
+          <span class="heal-picker-name">${item.name}</span>
+          <span class="heal-picker-effect">${item.effect}</span>
+        </span>
+        <span class="heal-picker-count">×${count}</span>
+      </button>`;
+    })
+    .join("");
+  list.querySelectorAll("[data-heal-item]").forEach((row) => {
+    row.addEventListener("click", () => useHealItem(row.dataset.healItem));
+  });
+  document.getElementById("heal-picker").classList.remove("hidden");
+}
+
+function closeHealPicker() {
+  document.getElementById("heal-picker").classList.add("hidden");
+}
+
+function useHealItem(key) {
+  if (!catchState) return;
+  const item = ITEMS[key];
+  if (!item || item.usage_context !== "fangsystem_only" || item.effectType !== "gesundheit_restore") return;
+  if ((gameState.inventory[key] || 0) < 1) return;
+
+  removeItem(key);
+  catchState.health = Math.min(HEALTH_MAX, catchState.health + HEALTH_MAX * item.effectValue);
+  updateHealthBarUI();
+  updateHealButtonUI();
+  updateCaughtCounter();
+  closeHealPicker();
+}
+
+// Verfehlter Versuch: das Wesen "wehrt sich", Spieler-Gesundheit sinkt um
+// einen zufaelligen Betrag (siehe HEALTH_LOSS_MIN/MAX_PER_MISS in js/data.js).
+// Gibt true zurueck, wenn die Gesundheit dadurch auf 0 gefallen ist -- der
+// Aufrufer laesst das Wesen dann sofort fliehen, auch vor dem 2. Versuch.
+function applyMissDamage() {
+  const loss = Math.round(randomBetween(HEALTH_LOSS_MIN_PER_MISS, HEALTH_LOSS_MAX_PER_MISS));
+  catchState.health = Math.max(0, catchState.health - loss);
+  updateHealthBarUI();
+  updateHealButtonUI();
+  return catchState.health <= 0;
 }
 
 // ---------- AR-Kamera-Hintergrund ----------
@@ -198,18 +287,25 @@ function handleFangenClick() {
   if (!catchState) return;
 
   const distanceFromCenter = Math.abs(catchState.currentPosition - 50);
+  // Aktiver "fangchance_boost"-Effekt (siehe applyBoostItem() in js/state.js)
+  // weitet die gruene Trefferzone relativ um seinen Prozentwert auf.
+  const fangchanceBoost = getActiveEffectValue("fangchance_boost");
+  const effectiveGreenHalfWidth = BAR_CONFIG.greenHalfWidth * (1 + fangchanceBoost);
 
-  if (distanceFromCenter <= BAR_CONFIG.greenHalfWidth) {
+  if (distanceFromCenter <= effectiveGreenHalfWidth) {
     stopBarLoop();
     onCatchSuccess();
-  } else if (catchState.attempt === 1) {
-    stopBarLoop();
+    return;
+  }
+
+  stopBarLoop();
+  const healthDepleted = applyMissDamage();
+  if (healthDepleted || catchState.attempt !== 1) {
+    onCatchFail();
+  } else {
     catchState.attempt = 2;
     document.getElementById("catch-attempt-label").textContent = "Versuch 2 von 2";
     startBarLoop();
-  } else {
-    stopBarLoop();
-    onCatchFail();
   }
 }
 
@@ -279,6 +375,8 @@ function onCatchSuccess() {
   showScreen("screen-catch-success");
   catchState = null;
   updateFokuszeitButtonUI();
+  updateHealButtonUI();
+  closeHealPicker();
 }
 
 function onCatchFail() {
@@ -287,6 +385,8 @@ function onCatchFail() {
   }
   catchState = null;
   updateFokuszeitButtonUI();
+  updateHealButtonUI();
+  closeHealPicker();
   showScreen("screen-map");
 }
 
@@ -294,5 +394,7 @@ function closeCatchScene() {
   stopBarLoop();
   catchState = null;
   updateFokuszeitButtonUI();
+  updateHealButtonUI();
+  closeHealPicker();
   showScreen("screen-map");
 }

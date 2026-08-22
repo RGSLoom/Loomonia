@@ -24,6 +24,15 @@ function isSpawnBoostActive() {
   return spawnBoostUntil !== null && Date.now() < spawnBoostUntil;
 }
 
+// Gilt zusaetzlich zum Einstiegs-Spawn-Boost oben, wenn der Spieler ein
+// "loomas_anlocken"-Item verwendet hat (Frischedeo/Kaffeebecher/
+// Lockduft-Flakon, siehe gameState.activeEffects in js/state.js) -- nutzt
+// bewusst dieselben SPAWN_BOOST_*-Werte statt eigener Konstanten, denn beide
+// Effekte bedeuten mechanisch dasselbe ("mehr/naeher spawnende Loomas").
+function isLoomaBoostActive() {
+  return isSpawnBoostActive() || isEffectActive("loomas_anlocken");
+}
+
 async function initMap() {
   const token = await getMapboxToken();
   mapboxgl.accessToken = token;
@@ -410,7 +419,7 @@ function onStoreMarkerClick(locationId) {
 // ---------- Wesen-Spawns ----------
 
 function fillCreatureSpawns() {
-  const maxActive = isSpawnBoostActive() ? SPAWN_BOOST_MAX_ACTIVE_CREATURES : MAX_ACTIVE_CREATURES;
+  const maxActive = isLoomaBoostActive() ? SPAWN_BOOST_MAX_ACTIVE_CREATURES : MAX_ACTIVE_CREATURES;
   while (activeCreatures.length < maxActive) {
     spawnCreature();
   }
@@ -419,7 +428,7 @@ function fillCreatureSpawns() {
 function spawnCreature() {
   if (!playerPos) return;
   const key = randomChoice(SPAWNABLE_CREATURE_KEYS);
-  const boost = isSpawnBoostActive();
+  const boost = isLoomaBoostActive();
   const storeSpawnRadius = boost ? SPAWN_BOOST_STORE_SPAWN_RADIUS_M : CREATURE_STORE_SPAWN_RADIUS_M;
   const freeSpawnRadius = boost ? SPAWN_BOOST_FREE_SPAWN_RADIUS_M : CREATURE_FREE_SPAWN_RADIUS_M;
   let lat, lon;
@@ -474,7 +483,7 @@ function onCreatureMarkerClick(entry) {
 function removeCreature(entry) {
   entry.marker.remove();
   activeCreatures = activeCreatures.filter((c) => c.id !== entry.id);
-  const delay = isSpawnBoostActive()
+  const delay = isLoomaBoostActive()
     ? randomBetween(SPAWN_BOOST_RESPAWN_MIN_MS, SPAWN_BOOST_RESPAWN_MAX_MS)
     : randomBetween(CREATURE_RESPAWN_MIN_MS, CREATURE_RESPAWN_MAX_MS);
   setTimeout(() => {

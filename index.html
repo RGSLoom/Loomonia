@@ -10,7 +10,7 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Store Walk</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.css" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=92" />
+<link rel="stylesheet" href="css/style.css?v=93" />
 </head>
 <body>
 <div id="app">
@@ -114,16 +114,32 @@
         <div id="catch-attempt-label" class="attempt-label"></div>
       </div>
     </div>
+    <div class="catch-health-bar">
+      <span class="catch-health-icon">❤️</span>
+      <div class="catch-health-track"><div id="catch-health-fill" class="catch-health-fill"></div></div>
+      <span id="catch-health-label" class="catch-health-label">100/100</span>
+    </div>
     <div class="catch-stage">
       <img id="catch-creature-img" class="catch-creature-img" alt="" />
       <div class="catch-bar-track">
         <div id="catch-bar-marker" class="catch-bar-marker"></div>
       </div>
       <div class="catch-hint">Irgendwo tippen zum Fangen!</div>
-      <button id="btn-use-fokuszeit" class="catch-item-btn hidden" title="Fokuszeit einsetzen">
-        <img src="assets/items/focuszeit_icon.png" alt="Fokuszeit" class="catch-item-icon" />
-        <span id="fokuszeit-btn-badge" class="icon-btn-badge">0</span>
-      </button>
+      <div class="catch-item-btn-row">
+        <button id="btn-use-fokuszeit" class="catch-item-btn hidden" title="Fokuszeit einsetzen">
+          <img src="assets/items/focuszeit_icon.png" alt="Fokuszeit" class="catch-item-icon" />
+          <span id="fokuszeit-btn-badge" class="icon-btn-badge">0</span>
+        </button>
+        <button id="btn-open-heal-picker" class="catch-item-btn hidden" title="Heilungsitem einsetzen">
+          <span class="catch-item-icon catch-heal-icon">🩹</span>
+          <span id="heal-btn-badge" class="icon-btn-badge">0</span>
+        </button>
+      </div>
+      <div id="heal-picker" class="heal-picker hidden">
+        <div class="heal-picker-title">Heilungsitem einsetzen</div>
+        <div id="heal-picker-list" class="heal-picker-list"></div>
+        <button id="btn-heal-picker-close" class="secondary-btn">Abbrechen</button>
+      </div>
     </div>
   </section>
 
@@ -284,18 +300,18 @@
 
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.js"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="js/data.js?v=92"></script>
+<script src="js/data.js?v=93"></script>
 <script src="js/utils.js?v=81"></script>
-<script src="js/state.js?v=79"></script>
+<script src="js/state.js?v=80"></script>
 <script src="js/supabase-config.js?v=78"></script>
 <script src="js/mapbox-config.js?v=78"></script>
 <script src="js/tracking.js?v=86"></script>
 <script src="js/locations.js?v=79"></script>
-<script src="js/map.js?v=80"></script>
-<script src="js/catchgame.js?v=83"></script>
+<script src="js/map.js?v=81"></script>
+<script src="js/catchgame.js?v=84"></script>
 <script src="js/drawgame.js?v=78"></script>
 <script src="js/bonscan.js?v=94"></script>
-<script src="js/profile.js?v=84"></script>
-<script src="js/main.js?v=83"></script>
+<script src="js/profile.js?v=85"></script>
+<script src="js/main.js?v=84"></script>
 </body>
 </html>

@@ -2,6 +2,46 @@
 // Map-HUD/Untermenues) statt des frueheren Baked-Bilds. Die sechs Kacheln
 // oeffnen eigene Vollbild-Unterseiten mit eigenem Zurueck-Button.
 
+// Anzeigetexte fuer aktive, zeitlich befristete Boost-Effekte (siehe
+// gameState.activeEffects in js/state.js) -- "energie_restore" und
+// "gesundheit_restore" tauchen hier bewusst nicht auf, die sind instant und
+// hinterlassen keinen aktiven Effekt-Zustand.
+const ACTIVE_EFFECT_LABELS = {
+  xp_boost: "⭐ XP-Boost",
+  fangchance_boost: "🎯 Fangchance-Boost",
+  loomas_anlocken: "🐾 Lockt Loomas an",
+};
+
+// Grobe, deutschsprachige Restzeit-Anzeige (Minuten/Stunden/Tage) fuer
+// aktive Boosts -- kein Live-Countdown noetig, der Items-Screen wird bei
+// jedem Aufruf neu gerendert.
+function formatRemainingTime(ms) {
+  if (ms <= 0) return "0 Min";
+  const minutes = Math.ceil(ms / 60000);
+  if (minutes < 60) return `${minutes} Min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} Std ${minutes % 60} Min`;
+  const days = Math.floor(hours / 24);
+  return `${days} Tag${days === 1 ? "" : "e"} ${hours % 24} Std`;
+}
+
+function renderActiveBoostsBanner() {
+  const rows = Object.entries(gameState.activeEffects || {})
+    .map(([effectType, entry]) => {
+      const value = getActiveEffectValue(effectType); // raeumt abgelaufene Eintraege mit auf
+      if (!entry || Date.now() >= entry.expiresAt) return "";
+      const label = ACTIVE_EFFECT_LABELS[effectType] || effectType;
+      const valueText = value > 0 ? ` +${Math.round(value * 100)}%` : "";
+      return `<div class="active-boost-row">
+        <span>${label}${valueText}</span>
+        <span class="active-boost-time">noch ${formatRemainingTime(entry.expiresAt - Date.now())}</span>
+      </div>`;
+    })
+    .join("");
+  if (!rows) return "";
+  return `<div class="active-boosts-banner">${rows}</div>`;
+}
+
 const OUTFIT_SLOT_LABELS = {
   kopfteil: "Kopfteil",
   oberteil: "Oberteil",
@@ -182,7 +222,7 @@ function renderItemsGrid() {
       </div>`;
     })
     .join("");
-  return `<div class="item-grid">${cells}</div>`;
+  return `${renderActiveBoostsBanner()}<div class="item-grid">${cells}</div>`;
 }
 
 function attachItemGridHandlers() {
@@ -224,6 +264,22 @@ function showItemDetail(key) {
       : `<button id="btn-item-equip" class="primary-btn" style="margin-top:14px;">Anziehen</button>`
     : "";
 
+  // Verwenden-Aktion fuer Verbrauchsitems (siehe Verbrauchsgegenstaende-
+  // Briefing): "jederzeit" nutzbare Boost-Items bekommen einen echten
+  // Verwenden-Button (siehe applyBoostItem() in js/state.js); kontextgebundene
+  // Heilungsitems ("fangsystem_only") werden hier NICHT als nutzbar
+  // angeboten, sondern nur als Hinweis ausgegraut — sie lassen sich
+  // ausschliesslich aus der aktiven Fangszene heraus einsetzen (siehe
+  // useHealItem() in js/catchgame.js).
+  let useBtnHtml = "";
+  if (item.type === "Verbrauchbar" && owned > 0) {
+    if (item.usage_context === "jederzeit") {
+      useBtnHtml = `<button id="btn-item-use" class="primary-btn" style="margin-top:14px;">Verwenden</button>`;
+    } else if (item.usage_context === "fangsystem_only") {
+      useBtnHtml = `<div class="item-detail-usage-hint">Nur während eines aktiven Fangversuchs nutzbar</div>`;
+    }
+  }
+
   let deleteBtnHtml = "";
   if (gameState.settings.allowItemDeletion && owned > 0) {
     deleteBtnHtml = owned > 1
@@ -235,6 +291,7 @@ function showItemDetail(key) {
     <button class="back-btn" id="btn-item-detail-back" style="margin-bottom:12px;">← Übersicht</button>
     ${cardHtml}
     ${equipBtnHtml}
+    ${useBtnHtml}
     ${deleteBtnHtml}`;
   document.getElementById("btn-item-detail-back").addEventListener("click", () => {
     content.innerHTML = renderItemsGrid();
@@ -252,6 +309,19 @@ function showItemDetail(key) {
     unequipBtn.addEventListener("click", () => {
       unequipSlot(item.slotType);
       showItemDetail(key);
+    });
+  }
+  const useBtn = document.getElementById("btn-item-use");
+  if (useBtn) {
+    useBtn.addEventListener("click", () => {
+      if (!applyBoostItem(key)) return;
+      updateCaughtCounter();
+      if ((gameState.inventory[key] || 0) > 0) {
+        showItemDetail(key);
+      } else {
+        content.innerHTML = renderItemsGrid();
+        attachItemGridHandlers();
+      }
     });
   }
   const deleteOneBtn = document.getElementById("btn-item-delete-one");

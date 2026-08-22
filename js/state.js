@@ -22,6 +22,13 @@ function defaultState() {
     caughtCreatures: {}, // key -> count
     inventory: {}, // itemKey -> count
     shadowEssence: 0,
+    // Aktive, zeitlich befristete Boost-Effekte aus frei nutzbaren
+    // Verbrauchsitems (usage_context "jederzeit", siehe applyBoostItem()
+    // unten) -- keyed nach effectType ("xp_boost"/"fangchance_boost"/
+    // "loomas_anlocken"), jeweils { value, expiresAt, itemKey }. Bewusst
+    // pro effectType statt pro Item: zwei Items mit gleichem Effekttyp
+    // sollen sich ersetzen/auffrischen statt sich zu stapeln.
+    activeEffects: {},
     // Neue Waehrung "Muenzen" (siehe addCoins() unten) — bewusst KEIN
     // Inventar-Item, sondern ein eigener Zaehler mit HUD-Anzeige am Avatar
     // (siehe hud-coins-badge in index.html), da Muenzen spaeter als
@@ -70,10 +77,83 @@ function saveState() {
   }
 }
 
+// Wendet einen evtl. aktiven "xp_boost"-Effekt (siehe applyBoostItem() unten)
+// auf jeden XP-Gewinn an, unabhaengig von der Quelle (Fang, Item-Aufnahme,
+// Trophaee, Levelaufstieg) -- der Effekttext der Boost-Items ("XP-Boost")
+// unterscheidet nicht nach Quelle, daher hier global statt nur beim Fang.
 function addXp(amount) {
-  gameState.xp += amount;
+  const boost = getActiveEffectValue("xp_boost");
+  const boostedAmount = boost > 0 ? Math.round(amount * (1 + boost)) : amount;
+  gameState.xp += boostedAmount;
   saveState();
   return claimLevelRewards();
+}
+
+// Prueft, ob ein Boost-Effekt gerade aktiv ist (unabhaengig von seinem
+// `value`, z.B. fuer "loomas_anlocken", das keinen Prozentwert hat) --
+// raeumt abgelaufene Eintraege dabei gleich aus gameState.activeEffects auf.
+function isEffectActive(effectType) {
+  const entry = gameState.activeEffects[effectType];
+  if (!entry) return false;
+  if (Date.now() >= entry.expiresAt) {
+    delete gameState.activeEffects[effectType];
+    saveState();
+    return false;
+  }
+  return true;
+}
+
+// Liefert den aktuellen Wert eines aktiven, zeitlich befristeten Boost-
+// Effekts (0, falls keiner aktiv oder bereits abgelaufen ist).
+function getActiveEffectValue(effectType) {
+  if (!isEffectActive(effectType)) return 0;
+  return gameState.activeEffects[effectType].value || 0;
+}
+
+// Setzt/aktualisiert einen aktiven Boost-Effekt (loescht keine anderen
+// Effekttypen) -- neue Nutzung ersetzt eine evtl. noch laufende gleichen Typs
+// komplett (kein Stapeln von Dauer oder Wert), das haelt die Regel simpel und
+// fuer den Spieler nachvollziehbar.
+function setActiveEffect(effectType, value, durationMs, itemKey) {
+  gameState.activeEffects[effectType] = {
+    value: value || 0,
+    expiresAt: Date.now() + durationMs,
+    itemKey,
+  };
+  saveState();
+}
+
+// Verwendet ein frei nutzbares Boost-Item (usage_context "jederzeit") direkt
+// aus dem Inventar -- siehe Verbrauchsgegenstaende-Briefing. Gibt bei Erfolg
+// ein kurzes Ergebnis-Objekt zurueck (fuer eine Bestaetigungsmeldung in der
+// UI), sonst null (Item nicht vorhanden/nicht passend).
+function applyBoostItem(key) {
+  const item = ITEMS[key];
+  if (!item || item.type !== "Verbrauchbar" || item.usage_context !== "jederzeit") return null;
+  if ((gameState.inventory[key] || 0) < 1) return null;
+
+  let resultText = "";
+  switch (item.effectType) {
+    case "energie_restore": {
+      settleEnergy();
+      const gained = Math.round(ENERGY_MAX * item.effectValue);
+      gameState.energy = Math.min(ENERGY_MAX, gameState.energy + gained);
+      resultText = `+${gained} Energie`;
+      break;
+    }
+    case "xp_boost":
+    case "fangchance_boost":
+    case "loomas_anlocken":
+      setActiveEffect(item.effectType, item.effectValue, item.effectDurationMs, key);
+      resultText = `${item.name} ist jetzt aktiv`;
+      break;
+    default:
+      return null;
+  }
+
+  removeItem(key);
+  saveState();
+  return { itemKey: key, text: resultText };
 }
 
 // Vergibt die garantierten Level-Belohnungen (siehe LEVEL_REWARDS-Kommentar
