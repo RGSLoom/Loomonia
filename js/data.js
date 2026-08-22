@@ -449,6 +449,7 @@ const ITEMS = {
     slotType: "sneaker",
     effect: "+5 % Fangchance beim Anlegen",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+    equipBonuses: { fangchance_boost: 0.05 },
   },
   rucksack: {
     key: "rucksack",
@@ -459,7 +460,11 @@ const ITEMS = {
     type: "Anlegbar",
     // Kein slotType -- erweitert spaeter die Inventarplaetze (eigene
     // Mechanik), ist aber kein kosmetisches Avatar-Ausruestungsteil und
-    // taucht deshalb nicht im Outfit-Slot-System auf.
+    // taucht deshalb nicht im Outfit-Slot-System auf. Bewusst OHNE
+    // equipBonuses: es gibt aktuell gar keine Inventarplatz-Obergrenze im
+    // Spiel (Items stapeln unbegrenzt), es fehlt also die Mechanik, die
+    // dieser Bonus ueberhaupt aufheben wuerde -- siehe Rueckmeldung an den
+    // User dazu.
     effect: "+5 Inventarplätze",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
   },
@@ -473,6 +478,7 @@ const ITEMS = {
     slotType: "oberteil",
     effect: "+25 % Fangchance beim Anlegen",
     unlockText: "Exklusive Belohnung einer bestimmten Trophäe",
+    equipBonuses: { fangchance_boost: 0.25 },
   },
   armband: {
     key: "armband",
@@ -484,6 +490,7 @@ const ITEMS = {
     slotType: "accessoire",
     effect: "+50 % XP beim Anlegen",
     unlockText: "Exklusive Belohnung einer bestimmten Trophäe",
+    equipBonuses: { xp_boost: 0.5 },
   },
   lockduftflakon: {
     key: "lockduftflakon",
@@ -569,6 +576,7 @@ const ITEMS = {
     effect: "+5 % Fangchance beim Anlegen",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
+    equipBonuses: { fangchance_boost: 0.05 },
   },
   uhr: {
     key: "uhr",
@@ -581,6 +589,7 @@ const ITEMS = {
     effect: "+5 % XP beim Anlegen",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
+    equipBonuses: { xp_boost: 0.05 },
   },
   frischedeo: {
     key: "frischedeo",
@@ -686,6 +695,7 @@ const ITEMS = {
     effect: "+10 % Fangchance beim Anlegen",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+    equipBonuses: { fangchance_boost: 0.1 },
   },
   oberteil: {
     key: "oberteil",
@@ -698,6 +708,7 @@ const ITEMS = {
     effect: "+10 % XP beim Anlegen",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+    equipBonuses: { xp_boost: 0.1 },
   },
   wasserflasche_plus: {
     key: "wasserflasche_plus",
@@ -740,6 +751,7 @@ const ITEMS = {
     effect: "+10 % Fangchance dauerhaft beim Anlegen",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+    equipBonuses: { fangchance_boost: 0.1 },
   },
   kraeuterelixier: {
     key: "kraeuterelixier",
@@ -773,6 +785,7 @@ const ITEMS = {
     effect: "+15 % Fangchance und +15 % XP beim Anlegen",
     unlockType: "kauf",
     unlockText: "Dieses Item kann durch reale Käufe im Handel aktiviert werden",
+    equipBonuses: { fangchance_boost: 0.15, xp_boost: 0.15 },
   },
 };
 

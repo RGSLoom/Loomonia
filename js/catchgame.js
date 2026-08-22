@@ -290,9 +290,11 @@ function handleFangenClick() {
   if (!catchState) return;
 
   const distanceFromCenter = Math.abs(catchState.currentPosition - 50);
-  // Aktiver "fangchance_boost"-Effekt (siehe applyBoostItem() in js/state.js)
-  // weitet die gruene Trefferzone relativ um seinen Prozentwert auf.
-  const fangchanceBoost = getActiveEffectValue("fangchance_boost");
+  // Aktiver "fangchance_boost"-Verbrauchsitem-Effekt (siehe applyBoostItem()
+  // in js/state.js) PLUS dauerhafter Bonus angezogener Ausruestung (siehe
+  // getEquippedBonusTotal() in js/state.js) weiten die gruene Trefferzone
+  // gemeinsam relativ um ihren Prozentwert auf.
+  const fangchanceBoost = getActiveEffectValue("fangchance_boost") + getEquippedBonusTotal("fangchance_boost");
   const effectiveGreenHalfWidth = BAR_CONFIG.greenHalfWidth * (1 + fangchanceBoost);
 
   if (distanceFromCenter <= effectiveGreenHalfWidth) {

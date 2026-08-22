@@ -77,16 +77,31 @@ function saveState() {
   }
 }
 
+// Summiert den Bonus eines Effekttyps ("xp_boost"/"fangchance_boost") ueber
+// ALLE aktuell angezogenen Ausruestungsteile (siehe gameState.avatarEquipped
+// + ITEMS[key].equipBonuses in js/data.js) -- anders als Verbrauchsitem-
+// Boosts sind das dauerhafte, nicht ablaufende Bonis, solange das Teil
+// angezogen bleibt. Da sich Outfit-Slot und Einzel-Slots gegenseitig
+// ausschliessen (siehe equipItem()), ist hier nie mehr als 1 Outfit- ODER
+// bis zu 5 Einzelteile gleichzeitig aktiv, nie beides gemischt.
+function getEquippedBonusTotal(effectType) {
+  return Object.values(gameState.avatarEquipped)
+    .filter(Boolean)
+    .reduce((sum, key) => sum + ((ITEMS[key].equipBonuses || {})[effectType] || 0), 0);
+}
+
 // Wendet einen evtl. aktiven "xp_boost"-Effekt (siehe applyBoostItem() unten)
-// auf jeden XP-Gewinn an, unabhaengig von der Quelle (Fang, Item-Aufnahme,
-// Trophaee, Levelaufstieg) -- der Effekttext der Boost-Items ("XP-Boost")
-// unterscheidet nicht nach Quelle, daher hier global statt nur beim Fang.
-// Gibt { awardedXp, entries } zurueck statt nur der Level-Belohnungen --
-// awardedXp ist der TATSAECHLICH gutgeschriebene (schon geboostete) Betrag,
-// damit Erfolgsmeldungen den echten Wert zeigen koennen statt des rohen
-// XP-Werts aus ITEMS/CREATURES/TROPHIES.
+// UND den dauerhaften Bonus angezogener Ausruestung (siehe
+// getEquippedBonusTotal() oben) auf jeden XP-Gewinn an, unabhaengig von der
+// Quelle (Fang, Item-Aufnahme, Trophaee, Levelaufstieg) -- der Effekttext
+// der Boost-/Ausruestungsitems ("XP-Boost") unterscheidet nicht nach Quelle,
+// daher hier global statt nur beim Fang. Gibt { awardedXp, entries } zurueck
+// statt nur der Level-Belohnungen -- awardedXp ist der TATSAECHLICH
+// gutgeschriebene (schon geboostete) Betrag, damit Erfolgsmeldungen den
+// echten Wert zeigen koennen statt des rohen XP-Werts aus
+// ITEMS/CREATURES/TROPHIES.
 function addXp(amount) {
-  const boost = getActiveEffectValue("xp_boost");
+  const boost = getActiveEffectValue("xp_boost") + getEquippedBonusTotal("xp_boost");
   const awardedXp = boost > 0 ? Math.round(amount * (1 + boost)) : amount;
   gameState.xp += awardedXp;
   saveState();
