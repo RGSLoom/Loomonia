@@ -35,6 +35,7 @@ const VALID_CATEGORY_KEYS = [
   "fastfood",
   "restaurant",
   "bar",
+  "tankstelle",
 ];
 const VALID_TYPES = ["store", "landmark"];
 const MAX_TEXT_LENGTH = 200;

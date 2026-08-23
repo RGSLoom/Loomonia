@@ -17,6 +17,7 @@ const DASHBOARD_STORES = {
   fastfood: { name: "Fastfood" },
   restaurant: { name: "Restaurant" },
   bar: { name: "Bar" },
+  tankstelle: { name: "Tankstelle" },
 };
 
 // Quelle: ITEMS in ../../js/data.js — nur Name/Rarity, fuer die

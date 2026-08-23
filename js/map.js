@@ -444,6 +444,7 @@ const STORE_EMOJI = {
   fastfood: "🍔",
   restaurant: "🍽️",
   bar: "🍹",
+  tankstelle: "⛽",
 };
 
 // Landmarks (type "landmark") sind reine Orientierungspunkte auf der Karte

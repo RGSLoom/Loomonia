@@ -1104,6 +1104,12 @@ const STORE_CATEGORIES = {
     scene: "assets/generated/bg_store_bar.svg",
     itemPool: ["fruchtkorb", "energiesnack"],
   },
+  tankstelle: {
+    key: "tankstelle",
+    name: "Tankstelle",
+    scene: "assets/generated/bg_store_tankstelle.svg",
+    itemPool: COMMON_ITEM_POOL,
+  },
 };
 
 // ============ Bon-Scan (echter Kauf -> Item-Drop, siehe js/bonscan.js) ============
@@ -1158,6 +1164,13 @@ const RECEIPT_STORE_PATTERNS = [
   { pattern: /sante/i, categoryKey: "drogerie" },
   { pattern: /beiersdorf/i, categoryKey: "drogerie" },
   { pattern: /henkel/i, categoryKey: "drogerie" },
+  { pattern: /\bshell\b/i, categoryKey: "tankstelle" },
+  { pattern: /\baral\b/i, categoryKey: "tankstelle" },
+  { pattern: /\besso\b/i, categoryKey: "tankstelle" },
+  { pattern: /\btotal(energies)?\b/i, categoryKey: "tankstelle" },
+  { pattern: /\bjet\b/i, categoryKey: "tankstelle" },
+  { pattern: /\bstar\b/i, categoryKey: "tankstelle" }, // Tankstellenkette, nicht zu verwechseln mit anderen "star"-Marken
+  { pattern: /\bavia\b/i, categoryKey: "tankstelle" },
   { pattern: /puma/i, categoryKey: "sneaker" },
   { pattern: /nike/i, categoryKey: "sneaker" },
   { pattern: /adidas/i, categoryKey: "sneaker" },
