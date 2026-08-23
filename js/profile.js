@@ -398,6 +398,24 @@ function showLoomaExchangeDetail(key) {
   const owned = gameState.caughtCreatures[key] || 0;
   if (owned < 1) return;
   const isCompanion = gameState.activeCompanion === key;
+  // Der aktive Begleiter ruht im Habitat und darf nicht mit eingetauscht
+  // werden (siehe exchangeableCreatureCount() in js/state.js + User-Feedback:
+  // "bei 10 Stück dürfen max nur 9 getauscht werden, da ich einen im Habitat
+  // habe"). Bleibt dadurch nichts Eintauschbares uebrig (nur 1 besessen UND
+  // aktiver Begleiter), gibt es gar keinen Eintausch-Bereich, nur einen
+  // Hinweis statt Slider/Button.
+  const exchangeable = exchangeableCreatureCount(key);
+
+  const exchangeSectionHtml = exchangeable > 0
+    ? `<div class="looma-exchange-rate">1 Wesen = ${SHADOW_ESSENCE_PER_CREATURE} Schatten-Essenz</div>
+      <div class="looma-exchange-slider-row">
+        <input type="range" id="looma-exchange-slider" min="1" max="${exchangeable}" value="1" step="1" ${exchangeable === 1 ? "disabled" : ""} />
+      </div>
+      <div class="looma-exchange-preview">
+        <span id="looma-exchange-qty">1</span> Wesen → <span id="looma-exchange-result">${SHADOW_ESSENCE_PER_CREATURE}</span> Schatten-Essenz
+      </div>
+      <button id="btn-looma-exchange-confirm" class="primary-btn">Eintauschen</button>`
+    : `<div class="looma-exchange-rate">Dein aktiver Begleiter ist im Habitat reserviert und kann nicht eingetauscht werden.</div>`;
 
   content.innerHTML = `
     <button class="back-btn" id="btn-looma-detail-back" style="margin-bottom:12px;">← Übersicht</button>
@@ -405,35 +423,33 @@ function showLoomaExchangeDetail(key) {
       <div class="detail-card-name">${creature.name}</div>
       <div class="detail-card-rarity" style="color:${RARITY_COLORS[creature.rarity]}">${creature.rarity}</div>
       <img src="${creatureIconCache[key] || creature.icon}" alt="${creature.name}" class="detail-card-icon" />
-      <div class="looma-exchange-owned">Gefangen: ${owned}</div>
+      <div class="looma-exchange-owned">Gefangen: ${owned}${isCompanion ? " (1 als Begleiter reserviert)" : ""}</div>
       ${isCompanion
         ? `<div class="looma-companion-active-note">✓ Aktiver Begleiter</div>`
         : `<button id="btn-looma-set-companion" class="secondary-btn" style="margin-bottom:16px;">Als Begleiter wählen</button>`}
-      <div class="looma-exchange-rate">1 Wesen = ${SHADOW_ESSENCE_PER_CREATURE} Schatten-Essenz</div>
-      <div class="looma-exchange-slider-row">
-        <input type="range" id="looma-exchange-slider" min="1" max="${owned}" value="1" step="1" ${owned === 1 ? "disabled" : ""} />
-      </div>
-      <div class="looma-exchange-preview">
-        <span id="looma-exchange-qty">1</span> Wesen → <span id="looma-exchange-result">${SHADOW_ESSENCE_PER_CREATURE}</span> Schatten-Essenz
-      </div>
-      <button id="btn-looma-exchange-confirm" class="primary-btn">Eintauschen</button>
+      ${exchangeSectionHtml}
     </div>`;
 
   const slider = document.getElementById("looma-exchange-slider");
-  const qtyLabel = document.getElementById("looma-exchange-qty");
-  const resultLabel = document.getElementById("looma-exchange-result");
-  slider.addEventListener("input", () => {
-    const qty = Number(slider.value);
-    qtyLabel.textContent = qty;
-    resultLabel.textContent = qty * SHADOW_ESSENCE_PER_CREATURE;
-  });
+  if (slider) {
+    const qtyLabel = document.getElementById("looma-exchange-qty");
+    const resultLabel = document.getElementById("looma-exchange-result");
+    slider.addEventListener("input", () => {
+      const qty = Number(slider.value);
+      qtyLabel.textContent = qty;
+      resultLabel.textContent = qty * SHADOW_ESSENCE_PER_CREATURE;
+    });
+  }
 
-  document.getElementById("btn-looma-exchange-confirm").addEventListener("click", () => {
-    const qty = Number(slider.value);
-    if (!exchangeCreatureForEssence(key, qty)) return;
-    content.innerHTML = renderLoomasGrid();
-    attachLoomasGridHandlers();
-  });
+  const exchangeConfirmBtn = document.getElementById("btn-looma-exchange-confirm");
+  if (exchangeConfirmBtn) {
+    exchangeConfirmBtn.addEventListener("click", () => {
+      const qty = Number(slider.value);
+      if (!exchangeCreatureForEssence(key, qty)) return;
+      content.innerHTML = renderLoomasGrid();
+      attachLoomasGridHandlers();
+    });
+  }
 
   const setCompanionBtn = document.getElementById("btn-looma-set-companion");
   if (setCompanionBtn) {

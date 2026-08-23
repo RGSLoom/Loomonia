@@ -322,13 +322,25 @@ function totalCaughtCount() {
     .reduce((sum, [, count]) => sum + count, 0);
 }
 
+// Anzahl von `key`, die eintauschbar ist -- der Bestand MINUS 1, falls `key`
+// gerade der aktive Begleiter ist (der ruht im Habitat und darf nicht mit
+// eingetauscht werden, siehe Habitat-Briefing/User-Feedback: "bei 10 Stück
+// duerfen max nur 9 getauscht werden, da ich einen im Habitat habe"). Ohne
+// aktiven Begleiter dieser Art entspricht das einfach dem vollen Bestand.
+function exchangeableCreatureCount(key) {
+  const owned = gameState.caughtCreatures[key] || 0;
+  const reserved = gameState.activeCompanion === key ? 1 : 0;
+  return Math.max(0, owned - reserved);
+}
+
 // Tauscht `qty` gefangene Exemplare von `key` gegen Schatten-Essenz
 // (SHADOW_ESSENCE_PER_CREATURE pro Stück, siehe data.js). Gibt false zurück
 // und aendert nichts, falls qty ungueltig ist oder mehr verlangt wird als
-// vorhanden — so bleibt der Aufrufer (Loomas-UI) einfach.
+// eintauschbar (siehe exchangeableCreatureCount() oben) — so bleibt der
+// Aufrufer (Loomas-UI) einfach.
 function exchangeCreatureForEssence(key, qty) {
   const owned = gameState.caughtCreatures[key] || 0;
-  if (!Number.isInteger(qty) || qty < 1 || qty > owned) return false;
+  if (!Number.isInteger(qty) || qty < 1 || qty > exchangeableCreatureCount(key)) return false;
   gameState.caughtCreatures[key] = owned - qty;
   gameState.shadowEssence += qty * SHADOW_ESSENCE_PER_CREATURE;
   saveState();
