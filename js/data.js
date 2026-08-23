@@ -997,10 +997,41 @@ const RECEIPT_MATCH_ITEM_POOL = buildPoolByActualRarity(ANY_STORE_ITEM_POOL);
 // Nirgends echte Marken-/Retailer-Namen (siehe Spielspezifikation Abschnitt 9)
 // — nur Branchenbezeichnungen, das gilt auch fuer alles, was hier steht.
 const STORE_CATEGORIES = {
-  feinkost: {
-    key: "feinkost",
-    name: "Feinkost & Snacks",
+  // War bisher "feinkost" ("Feinkost & Snacks", fasste Vollsortimenter und
+  // Discounter gemeinsam) -- auf Nutzerwunsch aufgeteilt in "supermarkt"
+  // (EDEKA/REWE/Kaufland-artig) und "discounter" (Aldi/Lidl-artig).
+  // Schluessel umbenannt statt "feinkost" weiter zu verwenden, gleiches
+  // Prinzip wie beim fastfood/restaurant-Split oben -- ein bestehender
+  // Standort mit dem alten Schluessel zeigt bis zur naechsten Bearbeitung
+  // einfach den rohen (kosmetischen) Fallback.
+  supermarkt: {
+    key: "supermarkt",
+    name: "Supermarkt",
     scene: "assets/generated/store_feinkost_real.jpg",
+    itemPool: COMMON_ITEM_POOL,
+  },
+  discounter: {
+    key: "discounter",
+    name: "Discounter",
+    scene: "assets/generated/bg_store_discounter.svg",
+    itemPool: COMMON_ITEM_POOL,
+  },
+  apotheke: {
+    key: "apotheke",
+    name: "Apotheke",
+    scene: "assets/generated/bg_store_apotheke.svg",
+    itemPool: ["gesundheitspaket", "fruchtkorb", "sprachbuch"],
+  },
+  baumarkt: {
+    key: "baumarkt",
+    name: "Baumarkt",
+    scene: "assets/generated/bg_store_baumarkt.svg",
+    itemPool: COMMON_ITEM_POOL,
+  },
+  elektronik: {
+    key: "elektronik",
+    name: "Elektronik",
+    scene: "assets/generated/bg_store_elektronik.svg",
     itemPool: COMMON_ITEM_POOL,
   },
   sneaker: {
@@ -1089,15 +1120,36 @@ const STORE_CATEGORIES = {
 // (siehe resolveCategoryKeyForStore in js/bonscan.js).
 const RECEIPT_STORE_PATTERNS = [
   { pattern: /deichmann/i, categoryKey: "sneaker" },
-  { pattern: /edeka/i, categoryKey: "feinkost" },
-  { pattern: /lidl/i, categoryKey: "feinkost" }, // deckt auch "Lidl International" ab
-  { pattern: /rewe/i, categoryKey: "feinkost" }, // deckt auch "ZooRoyal / REWE Group" ab, falls "REWE" im Text steht
-  { pattern: /zooroyal/i, categoryKey: "feinkost" },
-  { pattern: /kaufland/i, categoryKey: "feinkost" },
-  { pattern: /aldi/i, categoryKey: "feinkost" }, // deckt "ALDI SÜD" und "ALDI DX" ab
-  { pattern: /ferrero/i, categoryKey: "feinkost" },
-  { pattern: /bahlsen/i, categoryKey: "feinkost" },
-  { pattern: /fressnapf/i, categoryKey: "feinkost" }, // kein Tierbedarf-Item vorhanden, generischer Pool als Uebergang
+  // Supermarkt (Vollsortimenter) vs. Discounter getrennt -- vorher beide
+  // gemeinsam unter "feinkost", das verwischte den eigentlich deutlichen
+  // Unterschied zwischen z.B. EDEKA und Aldi.
+  { pattern: /edeka/i, categoryKey: "supermarkt" },
+  { pattern: /rewe/i, categoryKey: "supermarkt" }, // deckt auch "ZooRoyal / REWE Group" ab, falls "REWE" im Text steht
+  { pattern: /zooroyal/i, categoryKey: "supermarkt" },
+  { pattern: /kaufland/i, categoryKey: "supermarkt" },
+  { pattern: /ferrero/i, categoryKey: "supermarkt" },
+  { pattern: /bahlsen/i, categoryKey: "supermarkt" },
+  { pattern: /fressnapf/i, categoryKey: "supermarkt" }, // kein Tierbedarf-Item vorhanden, generischer Pool als Uebergang
+  { pattern: /lidl/i, categoryKey: "discounter" }, // deckt auch "Lidl International" ab
+  { pattern: /aldi/i, categoryKey: "discounter" }, // deckt "ALDI SÜD" und "ALDI DX" ab
+  { pattern: /\bnetto\b/i, categoryKey: "discounter" },
+  { pattern: /\bpenny\b/i, categoryKey: "discounter" },
+  { pattern: /\bnorma\b/i, categoryKey: "discounter" },
+  // Apotheken sind in Deutschland ueberwiegend unabhaengig gefuehrt (keine
+  // einzelne dominante Kette wie bei Supermaerkten) -- generisches Muster
+  // auf das Wort "Apotheke" selbst statt einzelner Markennamen, das steht
+  // auf echten Apotheken-Kassenbons so gut wie immer im Store-Namen (z.B.
+  // "Stadt-Apotheke", "Rosen-Apotheke").
+  { pattern: /apotheke/i, categoryKey: "apotheke" },
+  { pattern: /hornbach/i, categoryKey: "baumarkt" },
+  { pattern: /\bobi\b/i, categoryKey: "baumarkt" },
+  { pattern: /bauhaus/i, categoryKey: "baumarkt" },
+  { pattern: /\btoom\b/i, categoryKey: "baumarkt" },
+  { pattern: /hagebau/i, categoryKey: "baumarkt" },
+  { pattern: /saturn/i, categoryKey: "elektronik" },
+  { pattern: /mediamarkt/i, categoryKey: "elektronik" },
+  { pattern: /\bexpert\b/i, categoryKey: "elektronik" },
+  { pattern: /euronics/i, categoryKey: "elektronik" },
   { pattern: /douglas/i, categoryKey: "drogerie" },
   { pattern: /rossmann/i, categoryKey: "drogerie" },
   { pattern: /\bdm\b/i, categoryKey: "drogerie" },
@@ -1129,10 +1181,10 @@ const RECEIPT_STORE_PATTERNS = [
   { pattern: /red ?bull/i, categoryKey: "cafe" },
   // Niederlaendische Ketten (Test-Faelle im Ausland, siehe js/bonscan.js —
   // Store-Erkennung ist bewusst sprachunabhaengig vom OCR-Text).
-  { pattern: /albert heijn/i, categoryKey: "feinkost" },
-  { pattern: /\bjumbo\b/i, categoryKey: "feinkost" },
-  { pattern: /\bhema\b/i, categoryKey: "feinkost" },
-  { pattern: /\baction\b/i, categoryKey: "feinkost" },
+  { pattern: /albert heijn/i, categoryKey: "supermarkt" },
+  { pattern: /\bjumbo\b/i, categoryKey: "supermarkt" },
+  { pattern: /\bhema\b/i, categoryKey: "discounter" }, // niederlaend. Budget-Kaufhauskette, naeher an Discounter als Supermarkt
+  { pattern: /\baction\b/i, categoryKey: "discounter" }, // niederlaend. Non-Food-Discounter
   { pattern: /kruidvat/i, categoryKey: "drogerie" },
   { pattern: /\betos\b/i, categoryKey: "drogerie" },
   { pattern: /\bzeeman\b/i, categoryKey: "fashion" },
@@ -1158,8 +1210,8 @@ const RECEIPT_STORE_PATTERNS = [
 // werden dem Nutzer NIE angezeigt, sichtbar ist ausschliesslich der
 // Kategorie-Anzeigename aus STORE_CATEGORIES (siehe Abschnitt 9 der Spec).
 const STORE_LOCATIONS_FALLBACK = [
-  { id: "rewe", type: "store", categoryKey: "feinkost", coords: { lat: 48.11885648062791, lon: 7.849983861819728 } },
-  { id: "kaufland", type: "store", categoryKey: "feinkost", coords: { lat: 48.11736079020843, lon: 7.848150177677171 } },
+  { id: "rewe", type: "store", categoryKey: "supermarkt", coords: { lat: 48.11885648062791, lon: 7.849983861819728 } },
+  { id: "kaufland", type: "store", categoryKey: "supermarkt", coords: { lat: 48.11736079020843, lon: 7.848150177677171 } },
   { id: "baeckerei", type: "store", categoryKey: "cafe", coords: { lat: 48.11926205204506, lon: 7.848623981867512 } },
   { id: "modebox", type: "store", categoryKey: "fashion", coords: { lat: 48.12005556052317, lon: 7.849796063929734 } },
   { id: "volksbank", type: "store", categoryKey: "bank", coords: { lat: 48.12025582830878, lon: 7.8492661991757045 } },
@@ -1168,7 +1220,7 @@ const STORE_LOCATIONS_FALLBACK = [
   { id: "dm", type: "store", categoryKey: "drogerie", coords: { lat: 48.120860450673504, lon: 7.850241027354685 } },
   { id: "mcdonalds", type: "store", categoryKey: "fastfood", coords: { lat: 48.113096001026086, lon: 7.852438811998206 } },
   { id: "cheers", type: "store", categoryKey: "bar", coords: { lat: 48.10948560102508, lon: 7.854155425715709 } },
-  { id: "feinkost_custom", type: "store", categoryKey: "feinkost", coords: { lat: 52.2581271, lon: 5.4698785 } },
+  { id: "feinkost_custom", type: "store", categoryKey: "supermarkt", coords: { lat: 52.2581271, lon: 5.4698785 } },
   // Keine echte Koordinate hinterlegt -> zufaellig um den Spieler-Start
   { id: "sneaker_default", type: "store", categoryKey: "sneaker", coords: null },
   { id: "juwelier_default", type: "store", categoryKey: "juwelier", coords: null },

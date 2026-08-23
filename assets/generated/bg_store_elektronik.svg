@@ -1,0 +1,31 @@
+<svg viewBox="0 0 600 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ele" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f1a33"/>
+      <stop offset="100%" stop-color="#1a2b52"/>
+    </linearGradient>
+    <linearGradient id="eleBolt" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="1000" fill="url(#ele)"/>
+  <g opacity="0.85">
+    <rect x="0" y="0" width="600" height="14" fill="#60a5fa"/>
+    <rect x="0" y="986" width="600" height="14" fill="#60a5fa"/>
+  </g>
+  <g transform="translate(300,320)">
+    <ellipse cx="0" cy="180" rx="160" ry="26" fill="#000000" opacity="0.3"/>
+    <rect x="-150" y="-60" width="300" height="180" rx="10" fill="#0b1220" stroke="#60a5fa" stroke-width="4"/>
+    <rect x="-40" y="120" width="80" height="14" fill="#334155"/>
+    <rect x="-70" y="134" width="140" height="10" rx="4" fill="#1e293b"/>
+    <path d="M20 -30 L-30 30 L0 30 L-15 75 L45 5 L15 5 Z" fill="url(#eleBolt)"/>
+  </g>
+  <g fill="#93c5fd" opacity="0.55">
+    <circle cx="90" cy="150" r="3"/>
+    <circle cx="520" cy="200" r="3"/>
+    <circle cx="60" cy="700" r="2.5"/>
+    <circle cx="540" cy="760" r="3"/>
+  </g>
+  <rect width="600" height="1000" fill="#050a17" opacity="0.35"/>
+</svg>

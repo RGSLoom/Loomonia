@@ -1,0 +1,28 @@
+<svg viewBox="0 0 600 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="apo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f2a1c"/>
+      <stop offset="100%" stop-color="#164a2c"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="1000" fill="url(#apo)"/>
+  <g opacity="0.85">
+    <rect x="0" y="0" width="600" height="14" fill="#d94e3a"/>
+    <rect x="0" y="986" width="600" height="14" fill="#d94e3a"/>
+  </g>
+  <g transform="translate(300,380)">
+    <ellipse cx="0" cy="150" rx="150" ry="26" fill="#000000" opacity="0.3"/>
+    <circle cx="0" cy="0" r="130" fill="#f5f3ff" opacity="0.95"/>
+    <g fill="#d94e3a">
+      <rect x="-70" y="-24" width="140" height="48" rx="10"/>
+      <rect x="-24" y="-70" width="48" height="140" rx="10"/>
+    </g>
+  </g>
+  <g fill="#8fd9a8" opacity="0.6">
+    <circle cx="90" cy="150" r="3"/>
+    <circle cx="520" cy="200" r="3"/>
+    <circle cx="60" cy="700" r="2.5"/>
+    <circle cx="540" cy="760" r="3"/>
+  </g>
+  <rect width="600" height="1000" fill="#051a0e" opacity="0.35"/>
+</svg>

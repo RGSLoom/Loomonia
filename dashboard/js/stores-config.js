@@ -3,7 +3,11 @@
 // bleibt). Quelle: STORE_CATEGORIES in ../../js/data.js — bei neuen/
 // umbenannten Stores dort auch hier nachziehen.
 const DASHBOARD_STORES = {
-  feinkost: { name: "Feinkost & Snacks" },
+  supermarkt: { name: "Supermarkt" },
+  discounter: { name: "Discounter" },
+  apotheke: { name: "Apotheke" },
+  baumarkt: { name: "Baumarkt" },
+  elektronik: { name: "Elektronik" },
   sneaker: { name: "Sneaker & Streetwear" },
   juwelier: { name: "Juwelier" },
   cafe: { name: "Café" },

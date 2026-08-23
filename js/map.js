@@ -430,7 +430,11 @@ function ensureStorePositions() {
 }
 
 const STORE_EMOJI = {
-  feinkost: "🥪",
+  supermarkt: "🥪",
+  discounter: "🛒",
+  apotheke: "⚕️",
+  baumarkt: "🔨",
+  elektronik: "📺",
   sneaker: "👟",
   juwelier: "💎",
   cafe: "☕",

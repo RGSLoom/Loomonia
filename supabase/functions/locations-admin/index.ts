@@ -21,7 +21,11 @@ import { proxyToTable } from "../_shared/rest-proxy.ts";
 // der Admin danach erneut, wird der Standort unbemerkt auf die falsche
 // Kategorie umgestellt (siehe QA-Bug-Liste).
 const VALID_CATEGORY_KEYS = [
-  "feinkost",
+  "supermarkt",
+  "discounter",
+  "apotheke",
+  "baumarkt",
+  "elektronik",
   "sneaker",
   "juwelier",
   "cafe",
