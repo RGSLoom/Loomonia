@@ -1034,14 +1034,6 @@ const STORE_CATEGORIES = {
     scene: "assets/generated/bg_store_elektronik.svg",
     itemPool: COMMON_ITEM_POOL,
   },
-  sneaker: {
-    key: "sneaker",
-    name: "Sneaker & Streetwear",
-    scene: "assets/generated/store_sneaker_real.jpg",
-    // Sneaker/Rucksack gibt es hier nur noch per echtem Bon-Scan, nicht
-    // mehr im Minigame — daher derselbe generische Fallback-Pool.
-    itemPool: COMMON_ITEM_POOL,
-  },
   juwelier: {
     key: "juwelier",
     name: "Juwelier",
@@ -1058,9 +1050,18 @@ const STORE_CATEGORIES = {
     scene: "assets/generated/store_cafe_real.jpg",
     itemPool: ["fruchtkorb", "energiesnack"],
   },
-  fashion: {
-    key: "fashion",
-    name: "Mode & Accessoires",
+  // War bisher zwei Kategorien ("sneaker": Sneaker & Streetwear, "fashion":
+  // Mode & Accessoires) -- auf Nutzerwunsch zu einer gemeinsamen "Mode"-
+  // Kategorie zusammengelegt, da sich beide inhaltlich stark ueberschnitten
+  // (Schuh-/Streetwear-Marken sind letztlich auch Modemarken). Schluessel
+  // "mode" ist neu -- weder "sneaker" noch "fashion" weiterverwendet, damit
+  // kein bestehender Standort unbeabsichtigt nur EINER der beiden alten
+  // Kategorien zugeordnet bleibt; beide alten Schluessel werden gleich
+  // behandelt (siehe categoryLabel-Fallback in dashboard/js/standorte.js
+  // fuer den Uebergang bis zur naechsten Bearbeitung bestehender Standorte).
+  mode: {
+    key: "mode",
+    name: "Mode",
     scene: "assets/generated/store_fashion_real.jpg",
     itemPool: COMMON_ITEM_POOL,
   },
@@ -1125,7 +1126,7 @@ const STORE_CATEGORIES = {
 // Kategorie stattdessen aus dem tatsaechlich getroffenen Store aufgeloest
 // (siehe resolveCategoryKeyForStore in js/bonscan.js).
 const RECEIPT_STORE_PATTERNS = [
-  { pattern: /deichmann/i, categoryKey: "sneaker" },
+  { pattern: /deichmann/i, categoryKey: "mode" },
   // Supermarkt (Vollsortimenter) vs. Discounter getrennt -- vorher beide
   // gemeinsam unter "feinkost", das verwischte den eigentlich deutlichen
   // Unterschied zwischen z.B. EDEKA und Aldi.
@@ -1171,15 +1172,15 @@ const RECEIPT_STORE_PATTERNS = [
   { pattern: /\bjet\b/i, categoryKey: "tankstelle" },
   { pattern: /\bstar\b/i, categoryKey: "tankstelle" }, // Tankstellenkette, nicht zu verwechseln mit anderen "star"-Marken
   { pattern: /\bavia\b/i, categoryKey: "tankstelle" },
-  { pattern: /puma/i, categoryKey: "sneaker" },
-  { pattern: /nike/i, categoryKey: "sneaker" },
-  { pattern: /adidas/i, categoryKey: "sneaker" },
-  { pattern: /snipes/i, categoryKey: "sneaker" },
-  { pattern: /intersport/i, categoryKey: "sneaker" },
-  { pattern: /hugo boss/i, categoryKey: "fashion" },
-  { pattern: /\bc&a\b/i, categoryKey: "fashion" },
-  { pattern: /takko/i, categoryKey: "fashion" },
-  { pattern: /mammut/i, categoryKey: "fashion" },
+  { pattern: /puma/i, categoryKey: "mode" },
+  { pattern: /nike/i, categoryKey: "mode" },
+  { pattern: /adidas/i, categoryKey: "mode" },
+  { pattern: /snipes/i, categoryKey: "mode" },
+  { pattern: /intersport/i, categoryKey: "mode" },
+  { pattern: /hugo boss/i, categoryKey: "mode" },
+  { pattern: /\bc&a\b/i, categoryKey: "mode" },
+  { pattern: /takko/i, categoryKey: "mode" },
+  { pattern: /mammut/i, categoryKey: "mode" },
   // Quick-Service (Fastfood) vs. Sitzrestaurant (Restaurant) getrennt --
   // Wienerwald/Hans im Glueck sind Restaurants mit Bedienung am Tisch, keine
   // Fastfood-Ketten, gehoerten hier vorher faelschlich in denselben Topf wie
@@ -1200,7 +1201,7 @@ const RECEIPT_STORE_PATTERNS = [
   { pattern: /\baction\b/i, categoryKey: "discounter" }, // niederlaend. Non-Food-Discounter
   { pattern: /kruidvat/i, categoryKey: "drogerie" },
   { pattern: /\betos\b/i, categoryKey: "drogerie" },
-  { pattern: /\bzeeman\b/i, categoryKey: "fashion" },
+  { pattern: /\bzeeman\b/i, categoryKey: "mode" },
 ];
 
 // STORE_LOCATIONS = einzelne physische Standorte (Stores + reine
@@ -1226,7 +1227,7 @@ const STORE_LOCATIONS_FALLBACK = [
   { id: "rewe", type: "store", categoryKey: "supermarkt", coords: { lat: 48.11885648062791, lon: 7.849983861819728 } },
   { id: "kaufland", type: "store", categoryKey: "supermarkt", coords: { lat: 48.11736079020843, lon: 7.848150177677171 } },
   { id: "baeckerei", type: "store", categoryKey: "cafe", coords: { lat: 48.11926205204506, lon: 7.848623981867512 } },
-  { id: "modebox", type: "store", categoryKey: "fashion", coords: { lat: 48.12005556052317, lon: 7.849796063929734 } },
+  { id: "modebox", type: "store", categoryKey: "mode", coords: { lat: 48.12005556052317, lon: 7.849796063929734 } },
   { id: "volksbank", type: "store", categoryKey: "bank", coords: { lat: 48.12025582830878, lon: 7.8492661991757045 } },
   { id: "sparkasse", type: "store", categoryKey: "bank", coords: { lat: 48.119719552613226, lon: 7.8501486459263585 } },
   { id: "mueller", type: "store", categoryKey: "drogerie", coords: { lat: 48.11931058495179, lon: 7.849707348109254 } },
@@ -1235,7 +1236,7 @@ const STORE_LOCATIONS_FALLBACK = [
   { id: "cheers", type: "store", categoryKey: "bar", coords: { lat: 48.10948560102508, lon: 7.854155425715709 } },
   { id: "feinkost_custom", type: "store", categoryKey: "supermarkt", coords: { lat: 52.2581271, lon: 5.4698785 } },
   // Keine echte Koordinate hinterlegt -> zufaellig um den Spieler-Start
-  { id: "sneaker_default", type: "store", categoryKey: "sneaker", coords: null },
+  { id: "sneaker_default", type: "store", categoryKey: "mode", coords: null },
   { id: "juwelier_default", type: "store", categoryKey: "juwelier", coords: null },
 ];
 
