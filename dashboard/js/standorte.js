@@ -26,6 +26,12 @@ let resolvedCoords = null; // { lat, lon } — erst nach erfolgreichem Geocoding
 let idManuallyEdited = false;
 let geocodeMap = null;
 let geocodeMarker = null;
+// Zuletzt von loadLocations() geladene Zeilen -- Grundlage fuer die
+// Duplikat-Pruefung in onSaveClick() (siehe dort): ohne sie wuerde ein
+// zweiter Standort mit gleichem/aehnlichem Namen (identischer Auto-Slug)
+// den ersten beim Speichern kommentarlos ueberschreiben (Upsert per
+// "Prefer: resolution=merge-duplicates"), siehe QA-Bug-Liste.
+let loadedLocationRows = [];
 
 function slugify(str) {
   return str
@@ -191,6 +197,22 @@ async function onSaveClick() {
     lat: resolvedCoords.lat,
     lon: resolvedCoords.lon,
   };
+
+  // Nur beim NEUANLEGEN pruefen (editingId === null) -- beim Bearbeiten ist
+  // row.id == editingId absichtlich bereits vergeben. Die ID wird aus dem
+  // Namen per slugify() automatisch erzeugt (siehe updateAutoId) -- zwei
+  // Standorte mit gleichem/sehr aehnlichem Namen (z.B. zwei "REWE"-Filialen)
+  // erzeugen sonst dieselbe ID, und der Upsert (Prefer:
+  // resolution=merge-duplicates) wuerde den ZUERST angelegten Standort beim
+  // Speichern des zweiten kommentarlos ueberschreiben -- ohne Fehler, ohne
+  // Warnung (real reproduziert, siehe QA-Bug-Liste).
+  if (editingId === null && loadedLocationRows.some((r) => r.id === row.id)) {
+    setFormStatus(
+      `Ein Standort mit der ID „${row.id}“ existiert bereits. Bitte einen anderen Namen wählen oder die Interne ID manuell ändern, sonst wird der bestehende Standort überschrieben.`,
+      "error"
+    );
+    return;
+  }
 
   const btn = document.getElementById("btn-save");
   btn.disabled = true;
@@ -411,6 +433,7 @@ async function loadLocations() {
     ]);
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     const rows = await res.json();
+    loadedLocationRows = rows;
 
     document.getElementById("locations-count").textContent =
       `${rows.length} Standort${rows.length === 1 ? "" : "e"} in der Tabelle.`;
@@ -428,18 +451,39 @@ async function loadLocations() {
       const coordsLabel = row.lat != null && row.lon != null
         ? `${row.lat.toFixed(5)}, ${row.lon.toFixed(5)}`
         : "zufällig (kein Ort hinterlegt)";
+      // Bewusst per textContent statt innerHTML/Template-String: row.name,
+      // row.category_key (Fallback in categoryLabel) und row.store_number
+      // kommen unveraendert aus der Datenbank (locations-admin validiert
+      // sie nicht serverseitig) -- ein per API angelegter Standort mit z.B.
+      // "<img src=x onerror=...>" als Name wuerde per innerHTML bei jedem
+      // Admin, der diese Liste laedt, ausgefuehrt (gespeichertes XSS, siehe
+      // QA-Bug-Liste).
       const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${row.name}</td>
-        <td><span class="status-pill ${row.type === "store" ? "status-pill-active" : "status-pill-planned"}">${row.type === "store" ? "Store" : "Landmark"}</span></td>
-        <td>${categoryLabel}</td>
-        <td>${row.store_number || "–"}</td>
-        <td>${coordsLabel}</td>
-        <td>${formatUpdatedAt(row.updated_at)}</td>
-        <td></td>
-        <td></td>
-      `;
-      const linkCell = tr.children[6];
+      const nameCell = document.createElement("td");
+      nameCell.textContent = row.name;
+      const typeCell = document.createElement("td");
+      const typePill = document.createElement("span");
+      typePill.className = `status-pill ${row.type === "store" ? "status-pill-active" : "status-pill-planned"}`;
+      typePill.textContent = row.type === "store" ? "Store" : "Landmark";
+      typeCell.appendChild(typePill);
+      const categoryCell = document.createElement("td");
+      categoryCell.textContent = categoryLabel;
+      const storeNumberCell = document.createElement("td");
+      storeNumberCell.textContent = row.store_number || "–";
+      const coordsCell = document.createElement("td");
+      coordsCell.textContent = coordsLabel;
+      const updatedCell = document.createElement("td");
+      updatedCell.textContent = formatUpdatedAt(row.updated_at);
+      const linkCell = document.createElement("td");
+      const actionsCellEl = document.createElement("td");
+      tr.appendChild(nameCell);
+      tr.appendChild(typeCell);
+      tr.appendChild(categoryCell);
+      tr.appendChild(storeNumberCell);
+      tr.appendChild(coordsCell);
+      tr.appendChild(updatedCell);
+      tr.appendChild(linkCell);
+      tr.appendChild(actionsCellEl);
       linkCell.appendChild(buildLinkCell(row, storeLinks[row.id]));
 
       const actionsCell = tr.lastElementChild;

@@ -4,6 +4,17 @@ let catchState = null; // { creatureKey, entry, attempt, rafId, startTime, isTes
 let cameraStream = null; // MediaStream der Fangszenen-Kamera (AR-Hintergrund)
 
 function openCatchSceneForCreature(entry) {
+  // Energie-Gate: das Fuss-HUD zeigt Energie als begrenzte Ressource an
+  // (sinkt pro Fangversuch, regeneriert passiv ueber Zeit, siehe
+  // settleEnergy() in js/state.js) -- bisher konnte trotz 0/100 Energie
+  // beliebig weitergefangen werden, die Anzeige war rein kosmetisch (siehe
+  // QA-Bug-Liste). Testfaenge (Dev-Button, entry.isTest) bleiben bewusst
+  // ausgenommen, die sollen unabhaengig vom Spielzustand jederzeit
+  // funktionieren.
+  if (!entry.isTest && getEnergy() < ENERGY_PER_CATCH) {
+    showToast("Nicht genug Energie zum Fangen — kurz warten oder ein Energie-Item verwenden.");
+    return;
+  }
   const creatureKey = entry.key;
   catchState = {
     creatureKey,
@@ -266,6 +277,22 @@ function startBarLoop() {
   const durationMs = baseDurationMs * (catchState.slowFactor || 1);
   const cycleMs = durationMs * 2;
 
+  // Einmal pro Versuch berechnet und auf catchState gemerkt statt in
+  // handleFangenClick() ein zweites Mal -- dieselbe Zonenbreite steuert
+  // sowohl die tatsaechliche Trefferauswertung (siehe dort) als auch die
+  // sichtbare gruene Zone im Balken (CSS-Variablen unten), damit beide nie
+  // auseinanderlaufen koennen (siehe QA-Bug-Liste: bisher blieb die
+  // sichtbare Zone bei Boost fest, obwohl die Trefferzone dahinter breiter
+  // war).
+  const fangchanceBoost = getActiveEffectValue("fangchance_boost") + getEquippedBonusTotal("fangchance_boost");
+  const effectiveGreenHalfWidth = BAR_CONFIG.greenHalfWidth * (1 + fangchanceBoost);
+  catchState.effectiveGreenHalfWidth = effectiveGreenHalfWidth;
+  const track = document.querySelector(".catch-bar-track");
+  if (track) {
+    track.style.setProperty("--catch-green-start", `${50 - effectiveGreenHalfWidth}%`);
+    track.style.setProperty("--catch-green-end", `${50 + effectiveGreenHalfWidth}%`);
+  }
+
   function frame(now) {
     const elapsed = (now - catchState.startTime) % cycleMs;
     const position =
@@ -293,9 +320,10 @@ function handleFangenClick() {
   // Aktiver "fangchance_boost"-Verbrauchsitem-Effekt (siehe applyBoostItem()
   // in js/state.js) PLUS dauerhafter Bonus angezogener Ausruestung (siehe
   // getEquippedBonusTotal() in js/state.js) weiten die gruene Trefferzone
-  // gemeinsam relativ um ihren Prozentwert auf.
-  const fangchanceBoost = getActiveEffectValue("fangchance_boost") + getEquippedBonusTotal("fangchance_boost");
-  const effectiveGreenHalfWidth = BAR_CONFIG.greenHalfWidth * (1 + fangchanceBoost);
+  // gemeinsam relativ um ihren Prozentwert auf -- bereits in startBarLoop()
+  // fuer diesen Versuch berechnet und gemerkt, damit Trefferauswertung und
+  // sichtbare Zone garantiert uebereinstimmen.
+  const effectiveGreenHalfWidth = catchState.effectiveGreenHalfWidth ?? BAR_CONFIG.greenHalfWidth;
 
   if (distanceFromCenter <= effectiveGreenHalfWidth) {
     stopBarLoop();

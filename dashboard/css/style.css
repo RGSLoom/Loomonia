@@ -266,6 +266,16 @@ h1, h2, h3 { font-family: var(--font-heading); color: var(--heading); }
 
 .hidden { display: none !important; }
 
+.data-error-banner {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
 .reset-btn {
   background: #fff;
   border: 1px solid #f3b4b4;

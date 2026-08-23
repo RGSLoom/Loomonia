@@ -145,10 +145,17 @@ function fetchAllTimeTotals(storeKey) {
 
 function loadStats(storeKey) {
   fetchEvents(storeKey)
-    .then((events) => renderStats(aggregateEvents(events, DAYS_WINDOW)))
+    .then((events) => {
+      renderStats(aggregateEvents(events, DAYS_WINDOW));
+      reportDataLoadSuccess();
+    })
     .catch(() => {
       // Supabase evtl. kurz nicht erreichbar/Config fehlt noch — beim
-      // naechsten Refresh-Tick automatisch erneut versuchen.
+      // naechsten Refresh-Tick automatisch erneut versuchen. Nach mehreren
+      // Fehlschlagen in Folge zeigt reportDataLoadFailure() den
+      // #data-error-banner, damit ein Admin einen dauerhaft kaputten
+      // Datenabruf nicht mit "einfach keine Aktivitaet" verwechselt.
+      reportDataLoadFailure();
     });
 
   fetchAllTimeTotals(storeKey)
@@ -196,7 +203,22 @@ async function confirmResetTestData() {
   btn.textContent = "Lösche…";
 
   try {
-    const res = await fetchWithAdminAuth(`${EVENTS_ADMIN_URL}?ts=lt.2099-01-01T00:00:00Z`, {
+    // Auf den aktuell gewaehlten Store scopen (wie fetchEvents/
+    // fetchAllTimeTotals oben) -- ohne diesen Filter loescht "Testdaten
+    // zuruecksetzen" IMMER die komplette events-Tabelle, unabhaengig davon,
+    // welcher Store gerade ausgewaehlt ist. Aktuell (Pitch-Phase: ein Store,
+    // ein Admin-Zugang) folgenlos, wird aber scharf, sobald mehrere Stores
+    // sich denselben Admin-Zugang teilen (siehe renderStoreGrid/selectStore
+    // -- der Code dafuer ist bereits vorbereitet) -- der Button-Text/die
+    // Bestaetigungsbox suggerieren schon jetzt "nur dieser Store" (siehe
+    // QA-Bug-Liste). storeKey "all" (GodAdmin-Gesamtansicht) loescht bewusst
+    // weiterhin alles, dort gibt es keinen engeren Scope.
+    const storeKey = sessionStorage.getItem(STORE_KEY) || "all";
+    let url = `${EVENTS_ADMIN_URL}?ts=lt.2099-01-01T00:00:00Z`;
+    if (storeKey !== "all") {
+      url += `&category=eq.${encodeURIComponent(storeKey)}`;
+    }
+    const res = await fetchWithAdminAuth(url, {
       method: "DELETE",
       headers: { Prefer: "return=minimal" },
     });

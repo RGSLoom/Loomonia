@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=13" />
+<link rel="stylesheet" href="css/style.css?v=14" />
 <link rel="stylesheet" href="css/standorte.css?v=11" />
 </head>
 <body>
@@ -82,10 +82,27 @@
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/></svg>
         <span class="nav-label">Einstellungen</span>
       </button>
+      <!-- Bisher gab es keinen Weg, den lokal gemerkten Passwort-Hash wieder
+           loszuwerden (siehe admin-auth-shared.js ADMIN_HASH_KEY) -- auf
+           einem geteilten/oeffentlichen Rechner blieb das Dashboard-Geruest
+           dadurch unbegrenzt zugaenglich (siehe QA-Bug-Liste). -->
+      <button class="nav-item" id="btn-admin-logout" type="button">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        <span class="nav-label">Sperren</span>
+      </button>
     </nav>
   </aside>
 
   <main class="content">
+
+    <!-- Zeigt sich NUR, wenn Datenabrufe (Events-Function) dauerhaft
+         fehlschlagen (fehlendes Secret, kaputtes Deployment, Netzwerk) --
+         siehe showDataErrorBanner()/hideDataErrorBanner() in
+         dashboard-render.js. Ohne diesen Hinweis war "0 Spieler heute" nicht
+         von "Datenabruf kaputt" zu unterscheiden (siehe QA-Bug-Liste). -->
+    <div id="data-error-banner" class="data-error-banner hidden">
+      ⚠️ Zahlen konnten nicht aktualisiert werden — die letzte erfolgreich geladene Ansicht wird angezeigt. Wird automatisch erneut versucht.
+    </div>
 
     <!-- ============ DASHBOARD ============ -->
     <section id="panel-dashboard" class="view-panel active">
@@ -349,10 +366,10 @@
 </section>
 
 <script src="../js/supabase-config.js?v=14"></script>
-<script src="js/stores-config.js?v=15"></script>
+<script src="js/stores-config.js?v=16"></script>
 <script src="js/admin-auth-shared.js?v=15"></script>
-<script src="js/dashboard-render.js?v=18"></script>
-<script src="js/dashboard-auth.js?v=14"></script>
-<script src="js/dashboard.js?v=17"></script>
+<script src="js/dashboard-render.js?v=19"></script>
+<script src="js/dashboard-auth.js?v=15"></script>
+<script src="js/dashboard.js?v=18"></script>
 </body>
 </html>

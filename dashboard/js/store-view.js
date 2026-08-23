@@ -139,8 +139,17 @@ function fetchAllTimeTotals() {
 
 function loadStats() {
   fetchEvents()
-    .then((events) => renderStats(aggregateEvents(events, DAYS_WINDOW)))
-    .catch(() => {});
+    .then((events) => {
+      renderStats(aggregateEvents(events, DAYS_WINDOW));
+      reportDataLoadSuccess();
+    })
+    .catch(() => {
+      // Siehe reportDataLoadFailure() in dashboard-render.js -- zeigt nach
+      // mehreren Fehlschlaegen in Folge den #data-error-banner, statt
+      // dauerhaft kaputte Datenabrufe stillschweigend als "0 Aktivitaet"
+      // erscheinen zu lassen.
+      reportDataLoadFailure();
+    });
 
   fetchAllTimeTotals()
     .then((events) => renderAllTimeStats(aggregateAllTimeTotals(events)))

@@ -10,6 +10,32 @@
 const DAYS_WINDOW = 14;
 const COMMISSION_RATE = 0.01; // 1% Haendler-Provision auf den geschaetzten Umsatz
 
+// Gemeinsamer Hinweis-Banner (siehe #data-error-banner in dashboard/index.html
+// UND dashboard/store-view.html), falls ein Datenabruf fehlschlaegt --
+// vorher fielen dashboard.js/store-view.js bei jedem Fehler still auf leere
+// Werte ("0"/"–") zurueck, ohne dass ein Admin "keine Aktivitaet" von
+// "Datenabruf kaputt" (fehlendes Secret, kaputtes Deployment, Netzwerk)
+// unterscheiden konnte (siehe QA-Bug-Liste). failureCount zaehlt
+// AUFEINANDERFOLGENDE Fehlschlaege eines einzelnen Ladevorgangs -- ein
+// einzelner kurzer Ausrutscher (z.B. Cold-Start-Timeout) soll nicht sofort
+// eine Fehlermeldung zeigen, der naechste automatische Refresh-Tick klappt
+// meist schon wieder.
+const DATA_ERROR_BANNER_THRESHOLD = 2;
+let dataErrorStreak = 0;
+
+function reportDataLoadSuccess() {
+  dataErrorStreak = 0;
+  const el = document.getElementById("data-error-banner");
+  if (el) el.classList.add("hidden");
+}
+
+function reportDataLoadFailure() {
+  dataErrorStreak++;
+  if (dataErrorStreak < DATA_ERROR_BANNER_THRESHOLD) return;
+  const el = document.getElementById("data-error-banner");
+  if (el) el.classList.remove("hidden");
+}
+
 // ============ Artikelverwaltung (geteilt zwischen beiden Dashboards) ============
 // Reines DOM-Rendering/-Auslesen der 15 Artikel-Eingabefelder -- IDENTISCH
 // auf beiden Dashboard-Seiten (siehe Briefing: "Artikelverwaltung muss auf

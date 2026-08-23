@@ -39,6 +39,18 @@ function getMapboxToken() {
       .then((body) => {
         if (!body.token) throw new Error("Mapbox-Token-Antwort enthielt keinen Token.");
         return body.token;
+      })
+      .catch((err) => {
+        // Ein einmal fehlgeschlagener Abruf (Netzwerkfehler, Cold-Start-
+        // Timeout, Supabase-Wartung) darf NICHT dauerhaft als rejected
+        // Promise gecacht bleiben -- initMap() haengt komplett von diesem
+        // Token ab (Karte, GPS, Standorte, Spawns), ein permanent
+        // gecachter Fehler wuerde das Spiel bis zum naechsten vollstaendigen
+        // Reload unspielbar machen. mapboxTokenPromise auf null zuruecksetzen
+        // erlaubt dem naechsten Aufrufer (retryMapInit(), siehe map.js) einen
+        // frischen Versuch.
+        mapboxTokenPromise = null;
+        throw err;
       });
   }
   return mapboxTokenPromise;

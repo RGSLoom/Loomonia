@@ -464,6 +464,7 @@ html, body {
 .dev-btn-right { right: 14px; }
 .dev-btn-center { left: 50%; transform: translateX(-50%); }
 .dev-btn-center:active { transform: translateX(-50%) scale(0.9); }
+.dev-btn.hidden { display: none; }
 
 /* Ein-Finger-Halten-und-Ziehen zum Kippen/Drehen (siehe setupOneFingerLook()
    in js/map.js) -- Cursor-Feedback fuer Desktop-Tests, auf Touch ohne
@@ -701,12 +702,19 @@ html, body {
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.3);
   box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+  /* --catch-green-start/-end: von startBarLoop() (js/catchgame.js) live pro
+     Fangversuch gesetzt -- die gruene Trefferzone weitet sich rechnerisch
+     bei aktivem Fangchance-Boost (siehe effectiveGreenHalfWidth dort), ohne
+     diese Variablen blieb die HIER sichtbare Zone immer fest bei 40%/60%,
+     unabhaengig vom tatsaechlich geltenden, breiteren Bonus (siehe
+     QA-Bug-Liste). Default 40%/60% entspricht BAR_CONFIG.greenHalfWidth
+     ohne Boost, falls die Variablen ausnahmsweise nicht gesetzt sind. */
   background: linear-gradient(
     to right,
     #ef4444 0%, #ef4444 25%,
-    #eab308 25%, #eab308 40%,
-    #22c55e 40%, #22c55e 60%,
-    #eab308 60%, #eab308 75%,
+    #eab308 25%, #eab308 var(--catch-green-start, 40%),
+    #22c55e var(--catch-green-start, 40%), #22c55e var(--catch-green-end, 60%),
+    #eab308 var(--catch-green-end, 60%), #eab308 75%,
     #ef4444 75%, #ef4444 100%
   );
 }

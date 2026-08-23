@@ -147,8 +147,30 @@ function loadConfiguredStores() {
     .catch(() => []);
 }
 
+// Verhindert, dass ein zweiter Scan (z.B. Doppel-Tap auf "Bon fotografieren"
+// waehrend die OCR des ersten noch laeuft) resetScanUI() mitten in einem
+// laufenden Durchlauf aufruft und Status/Fehlertext/lastBonOcrText
+// ueberschreibt -- ohne diese Sperre koennen zwei parallele Laeufe je nach
+// Fertig-Reihenfolge unerwartet den Erfolgs-Screen des jeweils ANDEREN
+// Laufs anzeigen oder dessen Fehlermeldung ueberschreiben.
+let scanInProgress = false;
+
+// Grosszuegiges Limit GEGEN das Bild-Decoding selbst (createImageBitmap in
+// normalizeImageForOcr decodiert die komplette Originaldatei, bevor die
+// Groessenbegrenzung dort ueberhaupt greifen kann) -- ein ungewoehnlich
+// grosses Foto (z.B. unkomprimiertes RAW-aehnliches Format) wuerde sonst
+// den Tab spuerbar belasten, bevor irgendeine Verkleinerung greift.
+const RECEIPT_PHOTO_MAX_BYTES = 25 * 1024 * 1024;
+
 async function processReceiptImage(imageSource) {
+  if (scanInProgress) return;
+  scanInProgress = true;
   resetScanUI();
+  if (imageSource && typeof imageSource.size === "number" && imageSource.size > RECEIPT_PHOTO_MAX_BYTES) {
+    setScanError("Foto ist zu groß. Bitte ein kleineres Bild (unter 25 MB) verwenden.");
+    scanInProgress = false;
+    return;
+  }
   setScanStatus("Bon wird gelesen…");
   try {
     // Parallel zur (mehrere Sekunden dauernden) OCR gestartet statt danach
@@ -168,6 +190,18 @@ async function processReceiptImage(imageSource) {
     console.log("Bon-OCR-Text:", result.data.text);
     showBonOcrCopyButton(result.data.text);
     const configuredStores = await storesPromise;
+    // storeLocationsReady (js/map.js) wird erst aufgeloest, wenn STORE_LOCATIONS
+    // die echten Adressen aus Supabase enthaelt statt des adresslosen
+    // STORE_LOCATIONS_FALLBACK -- ohne dieses Warten wuerde
+    // matchReceiptHeaderToStore() bei einem sehr fruehen Scan (kurz nach
+    // App-Start, bevor Standorte geladen sind) fuer JEDEN Store an
+    // "if (!address) return;" scheitern und nie einen Store identifizieren.
+    // Das Promise loest laut js/locations.js in JEDEM Fall auf (auch bei
+    // Netzwerkfehler, dann bleibt einfach der Fallback aktiv) -- kann hier
+    // also nie haengen bleiben.
+    if (typeof storeLocationsReady !== "undefined" && storeLocationsReady) {
+      await storeLocationsReady;
+    }
     matchReceiptText(result.data.text || "", configuredStores);
   } catch (err) {
     console.warn("OCR fehlgeschlagen:", err && err.message ? err.message : err);
@@ -176,6 +210,8 @@ async function processReceiptImage(imageSource) {
       "Bon konnte nicht gelesen werden. Bitte erneut versuchen (heller/schärfer fotografieren, stabile Internetverbindung fürs erste Mal nötig)." +
         (err && err.message ? `\n\n(Technischer Grund: ${err.message})` : "")
     );
+  } finally {
+    scanInProgress = false;
   }
 }
 
@@ -187,7 +223,15 @@ async function processReceiptImage(imageSource) {
 // ungewoehnlichen Bon-Layouts danebenliegen oder ganz fehlen; dann lieber
 // kein Preis als ein falscher (Dashboard zeigt den Umsatz klar als
 // "geschaetzt").
-const RECEIPT_AMOUNT_PATTERN = /\d{1,4}[.,]\d{2}/g;
+// (?:[.,]\d{3})* faengt Tausendertrennzeichen ab (z.B. "1.234,56") -- ohne
+// diesen Teil zerlegt das Pattern einen solchen Betrag faelschlich in ZWEI
+// Treffer ("1.23" und "4,56"), extractLineAmountCents() nimmt dann den
+// LETZTEN Treffer und liest 4,56 statt 1.234,56 -- bei Bons ueber 999,99 €
+// wird dadurch ueber capToReceiptTotal() praktisch jeder Artikelpreis
+// faelschlich verworfen, weil er ploetzlich "hoeher als der Gesamtbetrag"
+// erscheint. Bei normalen zweistelligen Centbetraegen ohne Gruppierung
+// (z.B. "1,79") matcht die Gruppe einfach null Mal, Verhalten unveraendert.
+const RECEIPT_AMOUNT_PATTERN = /\d{1,3}(?:[.,]\d{3})*[.,]\d{2}/g;
 
 // Maximale Laenge fuer den rohen OCR-Zeilentext, der als "Produktname" ans
 // Dashboard (Artikel-Ansicht) durchgereicht wird — echte Bon-Zeilen sind
@@ -286,7 +330,27 @@ function findReceiptTotalCents(text) {
 // eine Wortgrenze vor "str." wuerde genau diesen haeufigsten Fall verpassen
 // (real beobachtet: "Hauptstr. 1" wurde nicht erkannt und erbte stattdessen
 // den Preis der naechsten echten Artikelzeile).
-const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|str\.|\b\d{5}\s+[a-zA-ZÀ-ÿ]/i;
+// \b\d{5}\s+[a-zA-ZÀ-ÿ]... $: verlangt zusaetzlich, dass NACH der PLZ+Ort-
+// artigen Stelle bis zum Zeilenende nur noch Buchstaben/Leerzeichen/
+// Bindestriche folgen (kein weiterer Preis mehr) -- eine echte "PLZ Ort"-
+// Zeile wie "79312 Emmendingen" endet dort, waehrend eine ganz normale
+// Artikelzeile mit vorangestelltem 5-stelligen Artikelcode wie "12345 Butter
+// 250g 2,49" DANACH noch weitere Ziffern (Menge, Preis) traegt und deshalb
+// bewusst NICHT mehr matcht -- ohne diesen Anker wuerde eine solche
+// Artikelzeile faelschlich als Adresszeile verworfen (real im Dashboard
+// beobachtet: Kopfzeilen-Reste landeten in der Artikel-Liste, weil echte
+// Artikelzeilen stattdessen als Adresse aussortiert wurden).
+const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|str\.|\b\d{5}\s+[a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ\s\-.]*$/i;
+
+// Generischer Rechtsform-/Firmierungs-Hinweis (GmbH, AG, OHG, KG, e.K., ...)
+// in den ersten Zeilen des Bons -- ergaenzt RECEIPT_STORE_PATTERNS fuer
+// Retailer, die dort NICHT hinterlegt sind, oder deren Name durch einen
+// OCR-Fehler entstellt wurde (real beobachtet: "REWE" wurde von der OCR zu
+// "RE WE" mit Leerzeichen erkannt, das Store-Pattern /rewe/i griff deshalb
+// nicht mehr -- "RE WE Regiemarkt GmbH" landete dadurch als "Artikel" im
+// Dashboard). "regiemarkt" ergaenzt, weil es auf REWE-Bons haeufig direkt
+// neben dem GmbH-Zusatz steht und denselben Fehlerfall abdeckt.
+const RECEIPT_COMPANY_SUFFIX = /\bgmbh\b|\bag\b|\bohg\b|\bkg\b|\be\.?\s?k\.?\b|\bregiemarkt\b/i;
 // \bpreis\b: Spaltenkopf wie "Preis EUR" (steht meist ganz ohne eigenen
 // Preis ueber der ersten Artikelzeile) — ohne diese Ausnahme wuerde die
 // Nachbarzeilen-Preis-Heuristik unten den Preis der naechsten echten
@@ -299,6 +363,14 @@ const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|str\.|\b\d{5}\s+[a-zA-ZÀ-ÿ]/i;
 // zusammengesetztes Wort ohne Trenner (z.B. "EINWEGPFAND", "Flaschenpfand"),
 // eine Wortgrenze vor "pfand" wuerde diese Faelle verpassen (real beobachtet
 // auf einem Rossmann-Bon).
+// RECEIPT_NEGATIVE_AMOUNT: Zeile mit einem MINUS-Betrag (Rabatt/Storno/
+// Pfand-Rueckgabe) OHNE eines der oben gelisteten Schluesselwoerter -- die
+// bisherige Wortliste (coupon/ersparnis/gespart/rabatt) deckt nicht jede
+// denkbare Formulierung ab (z.B. "Sparpreis -0,50", "Gutschein -2,00").
+// Das eigentliche Preis-Pattern (RECEIPT_AMOUNT_PATTERN) erfasst nie ein
+// vorangestelltes Minus, ohne diesen Ausschluss wuerde ein negativer Betrag
+// also als GANZ NORMALER, positiver Artikelpreis gezaehlt.
+const RECEIPT_NEGATIVE_AMOUNT = /-\s*\d{1,4}[.,]\d{2}/;
 // uid/signatur: TSE-Pflichtangaben (Kassenbon-Signatur/UID-Nummer nach
 // Kassensicherungsverordnung) sind kryptische Zufallsstrings, kein Artikel.
 // gesa[mn]tbetrag: deckt sowohl "Gesamtbetrag" als auch den haeufigen
@@ -320,7 +392,15 @@ const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|str\.|\b\d{5}\s+[a-zA-ZÀ-ÿ]/i;
 // per Nachbarzeilen-Lookaround (siehe findAllProductLines) faelschlich den
 // Preis der naechsten echten Artikelzeile, wodurch die echte Artikelzeile
 // danach faelschlich als bereits "verbraucht" bzw. als Summenzeile gilt.
-const RECEIPT_NON_PRODUCT_LINE = /mwst|must\b|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|ta-?nr|\bbnr\b|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|\bsepa\b|trace|terminal|posten|artikel:?\s*\d|\bpreis\b|pfand|\buid\b|signatur|coupon|ersparnis|gespart|rabatt/i;
+// tel/te1/fax: Telefon-/Faxzeile im Bon-Kopf -- "te1" deckt den haeufigen
+// OCR-Lesefehler l->1 ab (real beobachtet: "Tel:07641/9325458" wurde zu
+// "Te1:07641/9325458" erkannt und landete dadurch unerkannt als "Artikel"
+// im Dashboard, da weder ein Store- noch ein Adress-Pattern griff).
+// ust-idnr/steuernr/de\d{9}: USt-IdNr.-Zeile (deutsches Format "DE" + 9
+// Ziffern) -- "steuer" oben deckt nur das Wort "Steuer" (MwSt-Aufschluesse-
+// lung), nicht die eigentliche USt-IdNr.-Zeile selbst (real beobachtet:
+// "DE213413774" landete unerkannt als eigener "Artikel" im Dashboard).
+const RECEIPT_NON_PRODUCT_LINE = /mwst|must\b|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|ta-?nr|\bbnr\b|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|\bsepa\b|trace|terminal|posten|artikel:?\s*\d|\bpreis\b|pfand|\buid\b|signatur|coupon|ersparnis|gespart|rabatt|\btel\b|\bte1\b|\bfax\b|telefon|ust-?idnr|steuernr|\bde\d{9}\b/i;
 
 // Muss echte Wortbestandteile enthalten (nicht nur Ziffern/Symbole) --
 // verhindert, dass reine Artikelnummer-/Codezeilen (z.B. "1 1034320 1 |39
@@ -363,7 +443,6 @@ const RECEIPT_LINE_HAS_WORD = /[a-zA-ZÀ-ÿ]{2,}/;
 function findAllProductLines(text, excludeLines, maxAmountCents) {
   const lines = text.split(/\r?\n/).map((l) => l.trim());
   const found = [];
-  const seenText = new Set();
   // Zeilen-Indizes, deren Preis bereits einem Kandidaten zugeordnet wurde --
   // eigener Preis genauso wie per Nachbarzeilen-Lookaround "geerbter" Preis.
   // Verhindert, dass eine nachfolgende, ebenfalls preislose Muellzeile (z.B.
@@ -389,6 +468,7 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
       continue;
     }
     if (RECEIPT_NON_PRODUCT_LINE.test(line)) continue;
+    if (RECEIPT_NEGATIVE_AMOUNT.test(line)) continue;
     if (RECEIPT_ADDRESS_LINE.test(line)) continue;
     if (!RECEIPT_LINE_HAS_WORD.test(line)) continue;
     // Store-Kopfzeile (z.B. "EDEKA MARKT") ist kein Artikel — nutzt dieselben
@@ -400,7 +480,11 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
     // einem fremden Bon auftauchen koennen (z.B. "RED BULL 250ML 1,79 A")
     // -- ohne diese Begrenzung wuerde so eine echte Artikelzeile faelschlich
     // als Store-Kopfzeile verworfen.
-    if (i < 3 && RECEIPT_STORE_PATTERNS.some((entry) => entry.pattern.test(line))) continue;
+    if (
+      i < 3 &&
+      (RECEIPT_STORE_PATTERNS.some((entry) => entry.pattern.test(line)) || RECEIPT_COMPANY_SUFFIX.test(line))
+    )
+      continue;
     // amountCents kann null bleiben -- z.B. wenn OCR auf einem schlecht
     // lesbaren Foto das Dezimaltrennzeichen verschluckt hat ("2,66" wird zu
     // "266", passt dann nicht mehr auf RECEIPT_AMOUNT_PATTERN). Die Zeile
@@ -497,9 +581,12 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
     }
     const amountCents = capToReceiptTotal(rawAmountCents, maxAmountCents);
     const cleaned = cleanProductNameText(line).slice(0, RECEIPT_PRODUCT_TEXT_MAX_LENGTH);
-    const dedupeKey = cleaned.toLowerCase();
-    if (seenText.has(dedupeKey)) continue; // z.B. dieselbe Zeile doppelt ueber Preis-Lookaround erreicht
-    seenText.add(dedupeKey);
+    // Bewusst KEIN Dedupe nach Zeilentext mehr: usedPriceSourceLines oben
+    // verhindert bereits zuverlaessig, dass sich zwei Zeilen denselben Preis
+    // per Nachbarzeilen-Lookaround "ausleihen" -- ein Dedupe nach reinem
+    // Textinhalt traf daneben aber auch echte Mehrfachkaeufe (z.B. zwei
+    // separate Bon-Zeilen "Red Bull 250ml 1,79") und verwarf die zweite
+    // davon faelschlich komplett, statt sie als eigenen Kauf zu zaehlen.
     if (priceSourceLine !== -1) usedPriceSourceLines.add(priceSourceLine);
     found.push({ text: cleaned, amountCents });
     if (amountCents !== null) runningSum += amountCents;
@@ -562,12 +649,31 @@ function levenshteinDistance(a, b) {
 // EW") -- eine reine Editierdistanz wuerde das bei stark unterschiedlicher
 // Laenge zu Unrecht als unaehnlich werten, deshalb zusaetzlich ein fixer,
 // hoher Score, sobald der kuerzere Text komplett im laengeren enthalten ist.
+// Prueft, ob ALLE Woerter von "shorterWords" als zusammenhaengende Folge in
+// "longerWords" vorkommen -- Wort-/Token-Ebene statt roher Zeichenkette:
+// "milch 1l" ist zwar als reine ZEICHENKETTE Teilstring von "buttermilch
+// 1l" (das deutsche Kompositum haengt "milch" ohne Trennzeichen direkt an
+// "butter"), auf WORT-Ebene ist "milch" aber ein komplett anderes Token als
+// "buttermilch" -- ohne diese Unterscheidung wuerden zusammengesetzte
+// deutsche Woerter (Milch/Buttermilch, Saft/Kirschsaft, Keks/Butterkeks)
+// staendig faelschlich als Treffer durchgehen.
+function containsAsWordSequence(shorterWords, longerWords) {
+  if (shorterWords.length === 0) return false;
+  for (let i = 0; i <= longerWords.length - shorterWords.length; i++) {
+    if (shorterWords.every((word, j) => longerWords[i + j] === word)) return true;
+  }
+  return false;
+}
+
 function articleSimilarity(lineText, configuredArticle) {
   const a = normalizeArticleText(lineText);
   const b = normalizeArticleText(configuredArticle);
   if (!a || !b) return 0;
   if (a === b) return 1;
-  if (a.includes(b) || b.includes(a)) return 0.85;
+  const aWords = a.split(" ");
+  const bWords = b.split(" ");
+  const [shorterWords, longerWords] = aWords.length <= bWords.length ? [aWords, bWords] : [bWords, aWords];
+  if (containsAsWordSequence(shorterWords, longerWords)) return 0.85;
   return 1 - levenshteinDistance(a, b) / Math.max(a.length, b.length);
 }
 

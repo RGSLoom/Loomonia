@@ -33,6 +33,38 @@ function isLoomaBoostActive() {
   return isSpawnBoostActive() || isEffectActive("loomas_anlocken");
 }
 
+// Automatische Wiederholung, falls initMap() fehlschlaegt (z.B. Mapbox-
+// Token-Edge-Function kurzzeitig nicht erreichbar/Cold-Start-Timeout) --
+// initMap() wird in main.js bewusst NICHT awaited, ein Fehler dort blieb
+// bisher komplett unsichtbar: keine Karte, kein GPS (startGeolocation()
+// wird erst INNERHALB von initMap() aufgerufen), keine Store-Marker, keine
+// Wesen-Spawns, ohne jede Fehlermeldung -- das Spiel wirkte dann einfach
+// "kaputt", ohne dass User oder Support das haetten nachvollziehen koennen
+// (siehe QA-Bug-Liste). getMapboxToken() (js/mapbox-config.js) setzt sein
+// gecachtes Promise bei einem Fehler selbst zurueck, ein neuer Versuch hier
+// startet also wirklich einen frischen Abruf statt am selben rejected
+// Promise haengen zu bleiben.
+let mapInitRetryCount = 0;
+const MAP_INIT_MAX_RETRIES = 3;
+const MAP_INIT_RETRY_DELAY_MS = 4000;
+
+function initMapWithRetry() {
+  initMap().catch((err) => {
+    console.warn("Kartenaufbau fehlgeschlagen:", err && err.message ? err.message : err);
+    if (mapInitRetryCount < MAP_INIT_MAX_RETRIES) {
+      mapInitRetryCount++;
+      showGpsBanner(
+        `Karte konnte nicht geladen werden, neuer Versuch (${mapInitRetryCount}/${MAP_INIT_MAX_RETRIES})…`
+      );
+      setTimeout(initMapWithRetry, MAP_INIT_RETRY_DELAY_MS);
+    } else {
+      showGpsBanner(
+        "Karte konnte nicht geladen werden. Bitte Internetverbindung prüfen und die Seite neu laden."
+      );
+    }
+  });
+}
+
 async function initMap() {
   const token = await getMapboxToken();
   mapboxgl.accessToken = token;
@@ -404,7 +436,20 @@ function renderStoreMarkers() {
           <span class="marker-tooltip">${location.name || "Ort"}</span>
         </div>`;
     } else {
-      const category = STORE_CATEGORIES[location.categoryKey];
+      // Fallback fuer einen unbekannten/fehlenden categoryKey (z.B. Standort
+      // manuell im Supabase-Studio angelegt, oder ein noch nicht deployter
+      // locations-admin-Validator liess ihn durch) -- ohne diesen Fallback
+      // wirft STORE_CATEGORIES[...] undefined einen TypeError beim Zugriff
+      // auf .scene/.name und bricht die GESAMTE forEach-Schleife ab, sodass
+      // auch alle NACHFOLGENDEN Standorte gar nicht mehr gezeichnet werden
+      // (siehe QA-Bug-Liste).
+      const category = STORE_CATEGORIES[location.categoryKey] || {
+        scene: "assets/generated/store_feinkost_real.jpg",
+        name: location.name || "Store",
+      };
+      if (!STORE_CATEGORIES[location.categoryKey]) {
+        console.warn(`Unbekannter categoryKey "${location.categoryKey}" bei Standort "${location.id}" -- Fallback-Anzeige verwendet.`);
+      }
       html = `<div class="store-marker" data-store="${location.id}" style="background-image:url('${category.scene}')">
           <span class="store-marker-badge">${STORE_EMOJI[location.categoryKey] || "🏬"}</span>
           <span class="marker-tooltip">${category.name}</span>
@@ -540,11 +585,15 @@ function removeCreature(entry) {
   const delay = isLoomaBoostActive()
     ? randomBetween(SPAWN_BOOST_RESPAWN_MIN_MS, SPAWN_BOOST_RESPAWN_MAX_MS)
     : randomBetween(CREATURE_RESPAWN_MIN_MS, CREATURE_RESPAWN_MAX_MS);
-  setTimeout(() => {
-    if (document.getElementById("screen-map").classList.contains("active") || true) {
-      spawnCreature();
-    }
-  }, delay);
+  // War frueher an "Map-Screen aktiv?" gebunden, per liegen gelassenem
+  // "|| true" (Debug-/Test-Zustand) laengst wirkungslos -- die Mapbox-Karte
+  // bleibt ohnehin durchgehend im DOM bestehen, auch waehrend ein anderer
+  // Screen sichtbar ist, ein Respawn hier hat also so oder so keinen
+  // sichtbaren Nebeneffekt auf andere Screens. Bewusst als unbedingter
+  // Aufruf aufgeraeumt statt die alte, ungenutzte Bedingung zu reaktivieren
+  // (siehe QA-Bug-Liste) -- deren urspruengliche Absicht laesst sich im
+  // Nachhinein nicht mehr zuverlaessig rekonstruieren.
+  setTimeout(spawnCreature, delay);
 }
 
 // ---------- Frischedeo: garantierter periodischer Nahspawn ----------

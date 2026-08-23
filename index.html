@@ -10,7 +10,7 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Store Walk</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.css" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=94" />
+<link rel="stylesheet" href="css/style.css?v=95" />
 </head>
 <body>
 <div id="app">
@@ -105,14 +105,19 @@
 
     <!-- Dev-Testknöpfe (siehe Spezifikation Abschnitt 8 — vor Kunden-Demo
          entfernen/verstecken). Gestrichelter Rand markiert sie bewusst als
-         Test-Tools statt echter Spielfunktion. -->
-    <button id="btn-test-catch" class="dev-btn dev-btn-left" title="Dev: Testfang auslösen">
+         Test-Tools statt echter Spielfunktion. Bewusst mit "hidden" im
+         Markup (nicht per CSS-Display-Regel): waren bisher fuer JEDEN
+         Besucher der Live-Seite sichtbar/klickbar (siehe QA-Bug-Liste) --
+         main.js blendet sie nur noch ein, wenn der Dev-Modus per
+         "?dev=1"-URL-Parameter aktiviert wurde (dann dauerhaft per
+         localStorage auf diesem Geraet gemerkt, siehe initDevTools()). -->
+    <button id="btn-test-catch" class="dev-btn dev-btn-left hidden" title="Dev: Testfang auslösen">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="16.5" rx="5" ry="4"/><ellipse cx="4.5" cy="10" rx="2" ry="2.5"/><ellipse cx="9" cy="6" rx="2" ry="2.5"/><ellipse cx="15" cy="6" rx="2" ry="2.5"/><ellipse cx="19.5" cy="10" rx="2" ry="2.5"/></svg>
     </button>
-    <button id="btn-test-item" class="dev-btn dev-btn-right" title="Dev: Testitem auslösen">
+    <button id="btn-test-item" class="dev-btn dev-btn-right hidden" title="Dev: Testitem auslösen">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7Z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7Z"/></svg>
     </button>
-    <button id="btn-test-bonscan" class="dev-btn dev-btn-center" title="Dev: Bon-Scan simulieren (löst erste Quest/Trophäe aus)">
+    <button id="btn-test-bonscan" class="dev-btn dev-btn-center hidden" title="Dev: Bon-Scan simulieren (löst erste Quest/Trophäe aus)">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4Z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/></svg>
     </button>
   </section>
@@ -319,14 +324,14 @@
 <script src="js/utils.js?v=83"></script>
 <script src="js/state.js?v=86"></script>
 <script src="js/supabase-config.js?v=78"></script>
-<script src="js/mapbox-config.js?v=78"></script>
+<script src="js/mapbox-config.js?v=79"></script>
 <script src="js/tracking.js?v=86"></script>
 <script src="js/locations.js?v=79"></script>
-<script src="js/map.js?v=85"></script>
-<script src="js/catchgame.js?v=86"></script>
-<script src="js/drawgame.js?v=79"></script>
-<script src="js/bonscan.js?v=95"></script>
+<script src="js/map.js?v=86"></script>
+<script src="js/catchgame.js?v=87"></script>
+<script src="js/drawgame.js?v=80"></script>
+<script src="js/bonscan.js?v=96"></script>
 <script src="js/profile.js?v=87"></script>
-<script src="js/main.js?v=86"></script>
+<script src="js/main.js?v=87"></script>
 </body>
 </html>

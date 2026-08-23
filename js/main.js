@@ -122,8 +122,18 @@ function showScreen(id) {
   document.getElementById(id).classList.add("active");
 }
 
+const DEV_TOOLS_STORAGE_KEY = "loomonia_dev_tools";
+
+function initDevTools() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("dev") === "1") localStorage.setItem(DEV_TOOLS_STORAGE_KEY, "1");
+  if (params.get("dev") === "0") localStorage.removeItem(DEV_TOOLS_STORAGE_KEY);
+  const enabled = localStorage.getItem(DEV_TOOLS_STORAGE_KEY) === "1";
+  document.querySelectorAll(".dev-btn").forEach((btn) => btn.classList.toggle("hidden", !enabled));
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-  initMap(); // async (holt erst den Mapbox-Token) -- bewusst nicht awaited, blockiert den Rest der Initialisierung hier nicht
+  initMapWithRetry(); // async (holt erst den Mapbox-Token) -- bewusst nicht awaited, blockiert den Rest der Initialisierung hier nicht; wiederholt bei Fehlschlag automatisch, siehe js/map.js
   updateCaughtCounter();
   // Energie regeneriert passiv mit echter Zeit — Anzeige alle 30s
   // auffrischen, damit man das Auffuellen auch bei offener App mitbekommt.
@@ -234,7 +244,14 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => showScreen(subScreenReturnTo));
   });
 
-  // Dev-Testknöpfe (siehe Spezifikation Abschnitt 8 — vor Kunden-Demo entfernen/verstecken)
+  // Dev-Testknöpfe (siehe Spezifikation Abschnitt 8 — vor Kunden-Demo
+  // entfernen/verstecken): bisher fuer JEDEN Besucher der Live-Seite
+  // sichtbar/klickbar (siehe QA-Bug-Liste). "?dev=1" in der URL schaltet sie
+  // frei und merkt das dauerhaft per localStorage auf diesem Geraet (kein
+  // erneutes Anhaengen des Parameters bei jedem Aufruf noetig) -- "?dev=0"
+  // schaltet sie explizit wieder aus (z.B. auf einem geteilten Geraet nach
+  // einer Demo).
+  initDevTools();
   document.getElementById("btn-test-catch").addEventListener("click", () => {
     const key = randomChoice(SPAWNABLE_CREATURE_KEYS);
     openCatchSceneForCreature({ key, isTest: true });

@@ -43,6 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("lock-password").addEventListener("keydown", (e) => {
     if (e.key === "Enter") handleLockSubmit();
   });
+  document.getElementById("btn-admin-logout").addEventListener("click", () => {
+    clearAdminHash();
+    window.reshowAdminLock("");
+  });
 
   if (getAdminHash()) {
     showAdminScreen();

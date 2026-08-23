@@ -9,10 +9,17 @@
 import { corsHeaders } from "./cors.ts";
 import { isAuthorized } from "./admin-auth.ts";
 
+// validateBody (optional): laeuft VOR dem eigentlichen Schreibzugriff und
+// bekommt den geparsten JSON-Body (bei POST i.d.R. ein Array von Zeilen bei
+// Upsert, bei PATCH ein einzelnes Objekt) -- gibt bei einem ungueltigen Wert
+// eine Fehlermeldung zurueck, sonst null. proxyToTable selbst bleibt dadurch
+// weiterhin ein generischer, tabellen-unabhaengiger Proxy (Defense-in-Depth
+// pro Tabelle bleibt Sache des jeweiligen Aufrufers, siehe locations-admin).
 export async function proxyToTable(
   req: Request,
   table: string,
   allowedMethods: string[],
+  validateBody?: (body: unknown, method: string) => string | null,
 ): Promise<Response> {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -32,6 +39,21 @@ export async function proxyToTable(
   const targetUrl = `${supabaseUrl}/rest/v1/${table}${incomingUrl.search}`;
 
   const hasBody = req.method === "POST" || req.method === "PATCH";
+  const bodyText = hasBody ? await req.text() : undefined;
+
+  if (hasBody && validateBody) {
+    let parsedBody: unknown;
+    try {
+      parsedBody = bodyText ? JSON.parse(bodyText) : null;
+    } catch {
+      return jsonResponse({ error: "Ungueltiges JSON im Request-Body" }, 400);
+    }
+    const validationError = validateBody(parsedBody, req.method);
+    if (validationError) {
+      return jsonResponse({ error: validationError }, 400);
+    }
+  }
+
   const res = await fetch(targetUrl, {
     method: req.method,
     headers: {
@@ -40,7 +62,7 @@ export async function proxyToTable(
       "Content-Type": "application/json",
       Prefer: req.headers.get("Prefer") || "return=representation",
     },
-    body: hasBody ? await req.text() : undefined,
+    body: hasBody ? bodyText : undefined,
   });
 
   const body = await res.text();

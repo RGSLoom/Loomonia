@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=3" />
+<link rel="stylesheet" href="css/style.css?v=4" />
 <link rel="stylesheet" href="css/standorte.css?v=1" />
 </head>
 <body>
@@ -63,6 +63,12 @@
   </aside>
 
   <main class="content">
+
+    <!-- Zeigt sich NUR, wenn Datenabrufe dauerhaft fehlschlagen -- siehe
+         showDataErrorBanner()/hideDataErrorBanner() in dashboard-render.js. -->
+    <div id="data-error-banner" class="data-error-banner hidden">
+      ⚠️ Zahlen konnten nicht aktualisiert werden — die letzte erfolgreich geladene Ansicht wird angezeigt. Wird automatisch erneut versucht.
+    </div>
 
     <!-- ============ DASHBOARD ============ -->
     <section id="panel-dashboard" class="view-panel active">
@@ -276,8 +282,8 @@
 </section>
 
 <script src="../js/supabase-config.js?v=1"></script>
-<script src="js/stores-config.js?v=2"></script>
-<script src="js/dashboard-render.js?v=5"></script>
-<script src="js/store-view.js?v=4"></script>
+<script src="js/stores-config.js?v=3"></script>
+<script src="js/dashboard-render.js?v=6"></script>
+<script src="js/store-view.js?v=5"></script>
 </body>
 </html>

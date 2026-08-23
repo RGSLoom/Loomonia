@@ -78,7 +78,13 @@ function openDrawSceneForStore(locationId) {
   }
 
   const location = STORE_LOCATIONS.find((l) => l.id === locationId);
-  const category = STORE_CATEGORIES[location.categoryKey];
+  // Fallback fuer unbekannten/fehlenden categoryKey -- siehe Kommentar bei
+  // renderStoreMarkers() in js/map.js, gleiche Fehlerklasse (TypeError beim
+  // Zugriff auf .scene/.name eines undefined-Eintrags).
+  const category = STORE_CATEGORIES[location.categoryKey] || {
+    scene: "assets/generated/store_feinkost_real.jpg",
+    name: location.name || "Store",
+  };
   const shape = randomChoice(DRAW_CONFIG.shapes);
   const { d, points } = buildShape(shape);
 
@@ -186,7 +192,11 @@ function showDrawFeedback(text, success) {
 
 function grantRandomItemFromStore(locationId) {
   const location = STORE_LOCATIONS.find((l) => l.id === locationId);
-  const category = STORE_CATEGORIES[location.categoryKey];
+  // Fallback fuer unbekannten/fehlenden categoryKey -- siehe Kommentar bei
+  // renderStoreMarkers() in js/map.js.
+  const category = STORE_CATEGORIES[location.categoryKey] || {
+    name: location.name || "Store",
+  };
 
   // Sonderregel: Bank-Standorte geben ausschliesslich Muenzen (neue
   // Waehrung, siehe addCoins() in state.js), nie ein normales Item — alle
