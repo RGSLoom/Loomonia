@@ -1470,34 +1470,37 @@ html, body {
 .habitat-rested-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--cosmic-accent), var(--accent-cyan)); transition: width 0.4s ease; }
 .habitat-rested-text { font-size: 12px; opacity: 0.8; line-height: 1.4; }
 
-.habitat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-.habitat-tile {
-  aspect-ratio: 1.2;
-  border-radius: 14px;
+/* Einzelnes Habitat-Fenster (nur das Element des aktiven Begleiters, siehe
+   renderHabitatContent() in js/profile.js) -- data-habitat-element ist der
+   Haken fuer spaeter, wenn jedes Habitat einen eigenen Hintergrund je
+   Element bekommt, z.B. .habitat-window[data-habitat-element="Feuer"] {...}. */
+.habitat-window {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 18px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  position: relative;
-  padding: 10px;
+  overflow: hidden;
 }
-.habitat-tile--active { border-color: var(--cosmic-accent-2); box-shadow: 0 0 16px -6px var(--cosmic-accent-2); }
-.habitat-tile-icon { font-size: 26px; }
-.habitat-tile-name { font-size: 12px; opacity: 0.85; }
-.habitat-tile-element-badge {
+.habitat-window-element-badge {
   position: absolute;
-  top: 6px;
-  right: 8px;
-  font-size: 15px;
-  line-height: 1;
+  top: 12px;
+  right: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(0,0,0,0.35);
 }
-.habitat-tile-companion-img {
-  width: 56%;
-  height: 56%;
+.habitat-window-companion-img {
+  width: 48%;
+  height: 48%;
   object-fit: contain;
-  filter: drop-shadow(0 0 8px rgba(74,222,128,0.6));
+  filter: drop-shadow(0 0 14px rgba(74,222,128,0.55));
 }
+.habitat-window--empty { padding: 24px; }
+.habitat-window-empty-text { text-align: center; font-size: 13px; opacity: 0.8; line-height: 1.5; }
 
 /* Anzeige aktiver, zeitlich befristeter Boost-Effekte (siehe
    gameState.activeEffects in js/state.js) oben im Items-Screen -- macht

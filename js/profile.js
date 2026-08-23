@@ -487,26 +487,25 @@ function renderHabitatContent() {
       </div>`
     : "";
 
-  // Belegtes Habitat: das Looma ist der Hauptblickfang (groß, zentriert),
-  // das Element rutscht als kleines Badge oben rechts daneben -- umgekehrt
-  // zu den unbelegten Habitaten, wo das Element-Icon selbst gross im
-  // Zentrum steht (siehe User-Feedback: "genau anders herum").
-  const habitatTilesHtml = HABITATS.map((h) => {
-    const isActiveHabitat = companion && habitatElementForCreature(companion) === h.element;
-    if (isActiveHabitat) {
-      return `<div class="habitat-tile glass habitat-tile--active">
-        <span class="habitat-tile-element-badge">${h.icon}</span>
-        <img class="habitat-tile-companion-img" src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />
-        <div class="habitat-tile-name">${h.element}</div>
+  // Nur EIN Habitat-Fenster statt aller sechs Elemente nebeneinander --
+  // der Spieler hat immer nur einen aktiven Begleiter, die anderen fuenf
+  // Habitate waeren also zwangslaeufig immer leer (siehe User-Feedback: "so
+  // macht das keinen Sinn"). Zeigt das zum Begleiter-Element passende
+  // Habitat gross, das Looma darin gross zentriert, das Element nur als
+  // kleines Badge -- data-habitat-element als Haken fuer spaeter, wenn jedes
+  // Habitat optisch (Hintergrund je Element) eigens gestaltet wird.
+  const habitatElement = companion && habitatElementForCreature(companion);
+  const habitatInfo = habitatElement && HABITATS.find((h) => h.element === habitatElement);
+  const habitatWindowHtml = companion
+    ? `<div class="habitat-window glass" data-habitat-element="${habitatElement}">
+        <span class="habitat-window-element-badge">${habitatInfo.icon} ${habitatInfo.element}</span>
+        <img class="habitat-window-companion-img" src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />
+      </div>`
+    : `<div class="habitat-window habitat-window--empty glass">
+        <div class="habitat-window-empty-text">Wähle im Loomas-Screen einen aktiven Begleiter, damit sein Habitat hier erscheint.</div>
       </div>`;
-    }
-    return `<div class="habitat-tile glass">
-      <div class="habitat-tile-icon">${h.icon}</div>
-      <div class="habitat-tile-name">${h.element}</div>
-    </div>`;
-  }).join("");
 
-  return `${companionBannerHtml}${restedCardHtml}<div class="habitat-grid">${habitatTilesHtml}</div>`;
+  return `${companionBannerHtml}${restedCardHtml}${habitatWindowHtml}`;
 }
 
 function renderTrophiesGrid() {
