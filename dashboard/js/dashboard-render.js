@@ -347,15 +347,34 @@ function renderTopItems(bodyId, topItems, emptyText) {
   }
 
   topItems.forEach((entry, i) => {
+    // Faellt bei einem unbekannten itemKey auf den ROHEN Key zurueck (siehe
+    // Kommentar in dashboard/js/stores-config.js) -- entry.itemKey kommt aus
+    // events.item_key, und die "events"-Tabelle nimmt per RLS-Policy JEDEN
+    // INSERT vom oeffentlichen anon-Key ohne Inhaltspruefung an (siehe
+    // supabase/rls_lockdown.sql). Ein praeparierter item_key (z.B. per
+    // direktem REST-Call ohne das Spiel zu nutzen) ist also nutzer-
+    // kontrollierter Inhalt, genau wie product_text bei renderTopArticles()
+    // unten -- deshalb hier per textContent statt innerHTML gesetzt (war
+    // vorher eine gespeicherte XSS-Luecke, siehe QA-Bug-Liste).
     const meta = DASHBOARD_ITEMS[entry.itemKey] || { name: entry.itemKey, rarity: "Gewöhnlich" };
     const color = DASHBOARD_RARITY_COLORS[meta.rarity] || "#6b7280";
     const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${i + 1}</td>
-      <td>${meta.name}</td>
-      <td><span class="rarity-pill" style="background:${color}">${meta.rarity}</span></td>
-      <td>${entry.count}</td>
-    `;
+    const rankCell = document.createElement("td");
+    rankCell.textContent = String(i + 1);
+    const nameCell = document.createElement("td");
+    nameCell.textContent = meta.name;
+    const rarityCell = document.createElement("td");
+    const pill = document.createElement("span");
+    pill.className = "rarity-pill";
+    pill.style.background = color;
+    pill.textContent = meta.rarity;
+    rarityCell.appendChild(pill);
+    const countCell = document.createElement("td");
+    countCell.textContent = String(entry.count);
+    row.appendChild(rankCell);
+    row.appendChild(nameCell);
+    row.appendChild(rarityCell);
+    row.appendChild(countCell);
     body.appendChild(row);
   });
 }

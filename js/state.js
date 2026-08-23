@@ -93,7 +93,13 @@ function saveState() {
 function getEquippedBonusTotal(effectType) {
   return Object.values(gameState.avatarEquipped)
     .filter(Boolean)
-    .reduce((sum, key) => sum + ((ITEMS[key].equipBonuses || {})[effectType] || 0), 0);
+    // ITEMS[key] kann fehlen, wenn ein Item nach dem Anziehen aus der
+    // Item-Definition entfernt/umbenannt wurde (veralteter State) -- ohne
+    // diesen Guard wirft das einen TypeError, und da diese Funktion bei
+    // JEDEM XP-Gewinn ueber addXp() laeuft (Fang, Item, Trophaee,
+    // Levelaufstieg), legt ein einzelner verwaister equipped-Key das
+    // gesamte XP-System lahm (siehe QA-Bug-Liste).
+    .reduce((sum, key) => sum + ((ITEMS[key] && ITEMS[key].equipBonuses || {})[effectType] || 0), 0);
 }
 
 // Wendet einen evtl. aktiven "xp_boost"-Effekt (siehe applyBoostItem() unten)
@@ -287,7 +293,13 @@ function addCaughtCreature(key) {
 }
 
 function totalCaughtCount() {
-  return Object.values(gameState.caughtCreatures).reduce((a, b) => a + b, 0);
+  // Nur Keys zaehlen, die noch in CREATURES existieren -- sonst weicht diese
+  // Gesamtzahl von der Summe der tatsaechlich sichtbaren Kacheln in
+  // renderLoomasGrid() (profile.js) ab, wenn der State einen veralteten
+  // Kreatur-Key enthaelt (siehe QA-Bug-Liste).
+  return Object.entries(gameState.caughtCreatures)
+    .filter(([key]) => CREATURES[key])
+    .reduce((sum, [, count]) => sum + count, 0);
 }
 
 // Tauscht `qty` gefangene Exemplare von `key` gegen Schatten-Essenz
@@ -474,9 +486,14 @@ function claimTrophy(trophyKey) {
 // (ueber alle Arten summiert, nicht verschiedene Arten) gegen die
 // Schwellenwerte der fang-bezogenen Trophaeen.
 function checkCatchTrophies() {
+  // CREATURES[key] kann fehlen, wenn ein Wesen aus alten Testdaten nicht
+  // (mehr) in der aktuellen CREATURES-Definition existiert -- ohne diesen
+  // Guard wirft der Zugriff auf .rarity einen TypeError und reisst den
+  // kompletten Nach-Fang-Ablauf (inkl. XP-Vergabe) mit sich (siehe
+  // QA-Bug-Liste).
   const caughtByRarity = (rarity) =>
     Object.entries(gameState.caughtCreatures)
-      .filter(([key]) => CREATURES[key].rarity === rarity)
+      .filter(([key]) => CREATURES[key] && CREATURES[key].rarity === rarity)
       .reduce((sum, [, count]) => sum + count, 0);
 
   let entries = [];

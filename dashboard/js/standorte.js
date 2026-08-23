@@ -32,6 +32,13 @@ let geocodeMarker = null;
 // den ersten beim Speichern kommentarlos ueberschreiben (Upsert per
 // "Prefer: resolution=merge-duplicates"), siehe QA-Bug-Liste.
 let loadedLocationRows = [];
+// Wird erst true, NACHDEM loadLocations() mindestens einmal erfolgreich
+// durchgelaufen ist -- der Duplikat-Check unten darf sich nie auf ein noch
+// leeres/nicht geladenes loadedLocationRows verlassen (weder waehrend des
+// allerersten Ladevorgangs beim Seitenaufbau noch nach einem dauerhaft
+// fehlgeschlagenen Request), sonst wird ein echtes Duplikat lautlos
+// uebersehen (siehe QA-Bug-Liste).
+let locationsLoadedOnce = false;
 
 function slugify(str) {
   return str
@@ -206,6 +213,21 @@ async function onSaveClick() {
   // resolution=merge-duplicates) wuerde den ZUERST angelegten Standort beim
   // Speichern des zweiten kommentarlos ueberschreiben -- ohne Fehler, ohne
   // Warnung (real reproduziert, siehe QA-Bug-Liste).
+  //
+  // Der Duplikat-Check selbst ist nur so gut wie loadedLocationRows -- ohne
+  // diesen zusaetzlichen Guard koennte ein Admin speichern, BEVOR der
+  // allererste loadLocations()-Request zurueckkommt (btn-save wird bereits
+  // nach erfolgreichem Geocoding aktiv, unabhaengig vom Ladezustand der
+  // Liste), oder wenn dieser Request dauerhaft fehlschlaegt -- in beiden
+  // Faellen bliebe loadedLocationRows leer und ein echtes Duplikat wuerde
+  // lautlos uebersehen (siehe QA-Bug-Liste).
+  if (editingId === null && !locationsLoadedOnce) {
+    setFormStatus(
+      "Bestehende Standorte werden noch geladen — bitte kurz warten und erneut speichern, damit Duplikate zuverlässig erkannt werden.",
+      "error"
+    );
+    return;
+  }
   if (editingId === null && loadedLocationRows.some((r) => r.id === row.id)) {
     setFormStatus(
       `Ein Standort mit der ID „${row.id}“ existiert bereits. Bitte einen anderen Namen wählen oder die Interne ID manuell ändern, sonst wird der bestehende Standort überschrieben.`,
@@ -434,6 +456,7 @@ async function loadLocations() {
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     const rows = await res.json();
     loadedLocationRows = rows;
+    locationsLoadedOnce = true;
 
     document.getElementById("locations-count").textContent =
       `${rows.length} Standort${rows.length === 1 ? "" : "e"} in der Tabelle.`;

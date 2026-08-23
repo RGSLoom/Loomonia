@@ -65,7 +65,7 @@
   <main class="content">
 
     <!-- Zeigt sich NUR, wenn Datenabrufe dauerhaft fehlschlagen -- siehe
-         showDataErrorBanner()/hideDataErrorBanner() in dashboard-render.js. -->
+         reportDataLoadFailure()/reportDataLoadSuccess() in dashboard-render.js. -->
     <div id="data-error-banner" class="data-error-banner hidden">
       ⚠️ Zahlen konnten nicht aktualisiert werden — die letzte erfolgreich geladene Ansicht wird angezeigt. Wird automatisch erneut versucht.
     </div>
@@ -283,7 +283,7 @@
 
 <script src="../js/supabase-config.js?v=1"></script>
 <script src="js/stores-config.js?v=3"></script>
-<script src="js/dashboard-render.js?v=6"></script>
+<script src="js/dashboard-render.js?v=7"></script>
 <script src="js/store-view.js?v=5"></script>
 </body>
 </html>

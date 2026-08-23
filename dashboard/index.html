@@ -97,7 +97,7 @@
 
     <!-- Zeigt sich NUR, wenn Datenabrufe (Events-Function) dauerhaft
          fehlschlagen (fehlendes Secret, kaputtes Deployment, Netzwerk) --
-         siehe showDataErrorBanner()/hideDataErrorBanner() in
+         siehe reportDataLoadFailure()/reportDataLoadSuccess() in
          dashboard-render.js. Ohne diesen Hinweis war "0 Spieler heute" nicht
          von "Datenabruf kaputt" zu unterscheiden (siehe QA-Bug-Liste). -->
     <div id="data-error-banner" class="data-error-banner hidden">
@@ -368,7 +368,7 @@
 <script src="../js/supabase-config.js?v=14"></script>
 <script src="js/stores-config.js?v=16"></script>
 <script src="js/admin-auth-shared.js?v=15"></script>
-<script src="js/dashboard-render.js?v=19"></script>
+<script src="js/dashboard-render.js?v=20"></script>
 <script src="js/dashboard-auth.js?v=15"></script>
 <script src="js/dashboard.js?v=18"></script>
 </body>

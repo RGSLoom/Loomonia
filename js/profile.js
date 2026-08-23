@@ -47,7 +47,15 @@ const AVATAR_SILHOUETTE_SVG = `<svg class="avatar-silhouette" viewBox="0 0 100 2
 // (siehe equipItem() in state.js).
 function renderAvatarStage() {
   const equipped = gameState.avatarEquipped;
-  if (equipped.outfit) {
+  // ITEMS[key] kann fehlen, wenn ein angezogenes Item nachtraeglich aus der
+  // Item-Definition entfernt/umbenannt wurde (veralteter State) -- ohne
+  // diese Guards stuerzte das Rendern der Avatar-Buehne (Outfit-Tab UND
+  // jede Slot-Detailansicht) mit einem TypeError ab (siehe QA-Bug-Liste).
+  // Ein fehlendes Outfit-Item faellt auf die Einzelteil-Ansicht zurueck,
+  // ein fehlendes Einzelteil-Item wird wie ein leerer Slot behandelt --
+  // derselbe defensive Umgang wie renderOutfitGrid() bereits an anderer
+  // Stelle.
+  if (equipped.outfit && ITEMS[equipped.outfit]) {
     const item = ITEMS[equipped.outfit];
     return `<div class="avatar-stage-figure">
       ${AVATAR_SILHOUETTE_SVG}
@@ -57,8 +65,8 @@ function renderAvatarStage() {
   const layers = AVATAR_SINGLE_SLOTS
     .map((slot) => {
       const key = equipped[slot];
-      if (!key) return "";
-      const item = ITEMS[key];
+      const item = key ? ITEMS[key] : null;
+      if (!item) return "";
       return `<div class="avatar-layer avatar-layer--${slot}"><img src="${item.icon}" alt="${item.name}" /></div>`;
     })
     .join("");
@@ -84,7 +92,11 @@ function renderProfileHub() {
   const levelCeil = isMaxLevel ? MAX_LEVEL_XP : xpForLevel(level + 1);
   const xpIntoLevel = gameState.xp - levelFloor;
   const xpPct = isMaxLevel ? 100 : Math.round((xpIntoLevel / (levelCeil - levelFloor)) * 100);
-  const itemsOwnedTypes = Object.keys(gameState.inventory).length;
+  // Object.keys(gameState.inventory) statt Object.values(ITEMS) gefiltert
+  // nach Bestand>0 (aequivalent), damit ein veralteter itemKey im State
+  // (nicht mehr in ITEMS vorhanden) die Kachel nicht auf "X/Y Sorten" mit
+  // X > Y hochzaehlt (siehe QA-Bug-Liste).
+  const itemsOwnedTypes = Object.keys(gameState.inventory).filter((key) => ITEMS[key]).length;
   const totalItemTypes = Object.keys(ITEMS).length;
   const loomasCaught = totalCaughtCount();
   const trophiesUnlocked = Object.keys(gameState.trophies || {}).length;

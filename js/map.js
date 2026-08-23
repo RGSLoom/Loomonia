@@ -1,6 +1,7 @@
 // Karte, echte GPS-Anbindung, Store-Platzierung, Wesen-Spawn-Logik
 
 let mapboxMap = null;
+let geoWatchId = null; // ID von navigator.geolocation.watchPosition() -- siehe startGeolocation()
 let playerMarker = null;
 let playerAccuracySourceReady = false; // GeoJSON-Source/Layer fuer den Genauigkeits-Kreis erst nach Style-Load anlegbar
 let playerPos = null; // { lat, lon }
@@ -68,6 +69,19 @@ function initMapWithRetry() {
 async function initMap() {
   const token = await getMapboxToken();
   mapboxgl.accessToken = token;
+
+  // Aufraeumen, falls ein vorheriger Aufruf (siehe initMapWithRetry() in
+  // js/map.js) schon bis zur Kartenerzeugung kam und dann DANACH fehlschlug
+  // (z.B. WebGL-Kontextproblem in setupOneFingerLook()) -- ohne dieses
+  // Cleanup wuerde jeder Retry eine weitere, komplett neue Mapbox-Instanz im
+  // selben Container erzeugen, uebereinandergestapelt (siehe QA-Bug-Liste).
+  // Der ueberwiegende Fehlerfall ist der Token-Abruf oben, VOR jeder
+  // Karten-Erzeugung -- dort ist mapboxMap immer noch null, dieser Zweig
+  // greift also nur im selteneren Teilfehlschlag-Fall.
+  if (mapboxMap) {
+    mapboxMap.remove();
+    mapboxMap = null;
+  }
 
   // pitch/bearing als Standard gesetzt (nicht erst per Geste) -- Mapbox GL
   // JS erlaubt Kippen/Drehen anders als Leaflet ohnehin per Default per
@@ -211,7 +225,14 @@ function startGeolocation() {
     return;
   }
 
-  navigator.geolocation.watchPosition(
+  // Vorherigen Watch beenden, falls initMap() nach einem Teilfehlschlag
+  // (siehe initMapWithRetry()) erneut durchlaeuft -- sonst laeuft nach
+  // mehreren Retries mehr als ein watchPosition()-Callback parallel,
+  // jeder mit eigenem GPS-Verbrauch und eigenen (redundanten) Positions-
+  // Updates (siehe QA-Bug-Liste).
+  if (geoWatchId !== null) navigator.geolocation.clearWatch(geoWatchId);
+
+  geoWatchId = navigator.geolocation.watchPosition(
     onPositionUpdate,
     onPositionError,
     { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 }

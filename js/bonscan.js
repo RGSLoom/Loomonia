@@ -330,27 +330,42 @@ function findReceiptTotalCents(text) {
 // eine Wortgrenze vor "str." wuerde genau diesen haeufigsten Fall verpassen
 // (real beobachtet: "Hauptstr. 1" wurde nicht erkannt und erbte stattdessen
 // den Preis der naechsten echten Artikelzeile).
-// \b\d{5}\s+[a-zA-ZÀ-ÿ]... $: verlangt zusaetzlich, dass NACH der PLZ+Ort-
-// artigen Stelle bis zum Zeilenende nur noch Buchstaben/Leerzeichen/
-// Bindestriche folgen (kein weiterer Preis mehr) -- eine echte "PLZ Ort"-
-// Zeile wie "79312 Emmendingen" endet dort, waehrend eine ganz normale
+// \b\d{5}\s+[a-zA-ZÀ-ÿ][^\d]*$: verlangt zusaetzlich, dass NACH der PLZ+Ort-
+// artigen Stelle bis zum Zeilenende KEINE weitere Ziffer mehr vorkommt --
+// eine echte "PLZ Ort"-Zeile wie "79312 Emmendingen" oder auch
+// "79312 Emmendingen, Deutschland"/"79312 Emmendingen (Hauptfiliale)" hat
+// danach nur noch Buchstaben/Satzzeichen, waehrend eine ganz normale
 // Artikelzeile mit vorangestelltem 5-stelligen Artikelcode wie "12345 Butter
 // 250g 2,49" DANACH noch weitere Ziffern (Menge, Preis) traegt und deshalb
 // bewusst NICHT mehr matcht -- ohne diesen Anker wuerde eine solche
 // Artikelzeile faelschlich als Adresszeile verworfen (real im Dashboard
 // beobachtet: Kopfzeilen-Reste landeten in der Artikel-Liste, weil echte
-// Artikelzeilen stattdessen als Adresse aussortiert wurden).
-const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|str\.|\b\d{5}\s+[a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ\s\-.]*$/i;
+// Artikelzeilen stattdessen als Adresse aussortiert wurden). Bewusst
+// [^\d]* statt einer festen Zeichenklasse (z.B. nur Buchstaben/Leerzeichen)
+// -- eine erste Fassung verwarf dadurch faelschlich echte Adresszeilen mit
+// Komma oder Klammer-Zusatz ("79312 Emmendingen, Deutschland"), [^\d]
+// erlaubt jedes Nicht-Ziffer-Zeichen und bleibt trotzdem strikt genug, um
+// echte Preis-/Mengenangaben in einer Artikelzeile zu erkennen.
+const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|str\.|\b\d{5}\s+[a-zA-ZÀ-ÿ][^\d]*$/i;
 
-// Generischer Rechtsform-/Firmierungs-Hinweis (GmbH, AG, OHG, KG, e.K., ...)
-// in den ersten Zeilen des Bons -- ergaenzt RECEIPT_STORE_PATTERNS fuer
-// Retailer, die dort NICHT hinterlegt sind, oder deren Name durch einen
-// OCR-Fehler entstellt wurde (real beobachtet: "REWE" wurde von der OCR zu
-// "RE WE" mit Leerzeichen erkannt, das Store-Pattern /rewe/i griff deshalb
-// nicht mehr -- "RE WE Regiemarkt GmbH" landete dadurch als "Artikel" im
-// Dashboard). "regiemarkt" ergaenzt, weil es auf REWE-Bons haeufig direkt
-// neben dem GmbH-Zusatz steht und denselben Fehlerfall abdeckt.
-const RECEIPT_COMPANY_SUFFIX = /\bgmbh\b|\bag\b|\bohg\b|\bkg\b|\be\.?\s?k\.?\b|\bregiemarkt\b/i;
+// Generischer Rechtsform-/Firmierungs-Hinweis (GmbH, OHG, e.K., ...) in den
+// ersten Zeilen des Bons -- ergaenzt RECEIPT_STORE_PATTERNS fuer Retailer,
+// die dort NICHT hinterlegt sind, oder deren Name durch einen OCR-Fehler
+// entstellt wurde (real beobachtet: "REWE" wurde von der OCR zu "RE WE" mit
+// Leerzeichen erkannt, das Store-Pattern /rewe/i griff deshalb nicht mehr --
+// "RE WE Regiemarkt GmbH" landete dadurch als "Artikel" im Dashboard).
+// "regiemarkt" ergaenzt, weil es auf REWE-Bons haeufig direkt neben dem
+// GmbH-Zusatz steht und denselben Fehlerfall abdeckt.
+// Bewusst OHNE "kg"/"ag": beide kollidieren mit sehr haeufigen, echten
+// Artikelangaben -- "kg" als Gewichtseinheit auf Wiegeartikeln ("1 KG
+// Kartoffeln 2,99"), "ag" potenziell als Abkuerzung/Tippfehler. Da die i<3-
+// Pruefzone bei einem nur zweizeiligen Bon-Kopf (Store-Name + Adresse)
+// bereits die erste echte Artikelzeile einschliesst, wuerde ein Wiegeartikel
+// dort faelschlich als Firmierungszeile verworfen und ginge komplett
+// verloren -- ein Mainstream-Fall, kein Rand-Fall. "gmbh"/"ohg"/"e.k." sind
+// dagegen keine gebraeuchlichen Artikel-/Einheiten-Abkuerzungen und bleiben
+// deshalb risikolos in der Liste.
+const RECEIPT_COMPANY_SUFFIX = /\bgmbh\b|\bohg\b|\be\.?\s?k\.?\b|\bregiemarkt\b/i;
 // \bpreis\b: Spaltenkopf wie "Preis EUR" (steht meist ganz ohne eigenen
 // Preis ueber der ersten Artikelzeile) — ohne diese Ausnahme wuerde die
 // Nachbarzeilen-Preis-Heuristik unten den Preis der naechsten echten
@@ -392,15 +407,18 @@ const RECEIPT_NEGATIVE_AMOUNT = /-\s*\d{1,4}[.,]\d{2}/;
 // per Nachbarzeilen-Lookaround (siehe findAllProductLines) faelschlich den
 // Preis der naechsten echten Artikelzeile, wodurch die echte Artikelzeile
 // danach faelschlich als bereits "verbraucht" bzw. als Summenzeile gilt.
-// tel/te1/fax: Telefon-/Faxzeile im Bon-Kopf -- "te1" deckt den haeufigen
-// OCR-Lesefehler l->1 ab (real beobachtet: "Tel:07641/9325458" wurde zu
-// "Te1:07641/9325458" erkannt und landete dadurch unerkannt als "Artikel"
-// im Dashboard, da weder ein Store- noch ein Adress-Pattern griff).
+// tel/te1/fax/telefon: Telefon-/Faxzeile im Bon-Kopf -- "te1" deckt den
+// haeufigen OCR-Lesefehler l->1 ab (real beobachtet: "Tel:07641/9325458"
+// wurde zu "Te1:07641/9325458" erkannt und landete dadurch unerkannt als
+// "Artikel" im Dashboard, da weder ein Store- noch ein Adress-Pattern
+// griff). "telefon" bewusst MIT Wortgrenzen (anders als z.B. "str." weiter
+// oben) -- ohne \b wuerde es echte Artikelnamen wie "Telefonkarte" (an
+// Kiosk-/Supermarktkassen real verkauft) faelschlich mittreffen.
 // ust-idnr/steuernr/de\d{9}: USt-IdNr.-Zeile (deutsches Format "DE" + 9
 // Ziffern) -- "steuer" oben deckt nur das Wort "Steuer" (MwSt-Aufschluesse-
 // lung), nicht die eigentliche USt-IdNr.-Zeile selbst (real beobachtet:
 // "DE213413774" landete unerkannt als eigener "Artikel" im Dashboard).
-const RECEIPT_NON_PRODUCT_LINE = /mwst|must\b|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|ta-?nr|\bbnr\b|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|\bsepa\b|trace|terminal|posten|artikel:?\s*\d|\bpreis\b|pfand|\buid\b|signatur|coupon|ersparnis|gespart|rabatt|\btel\b|\bte1\b|\bfax\b|telefon|ust-?idnr|steuernr|\bde\d{9}\b/i;
+const RECEIPT_NON_PRODUCT_LINE = /mwst|must\b|ust\b|steuer|tax\b|\bbar\b|rückgeld|geg\.|zahlung|kassenbon|bon-?nr|ta-?nr|\bbnr\b|beleg|datum|uhrzeit|\bkasse\b|kartenzahlung|girocard|ec-?karte|\bsepa\b|trace|terminal|posten|artikel:?\s*\d|\bpreis\b|pfand|\buid\b|signatur|coupon|ersparnis|gespart|rabatt|\btel\b|\bte1\b|\bfax\b|\btelefon\b|ust-?idnr|steuernr|\bde\d{9}\b/i;
 
 // Muss echte Wortbestandteile enthalten (nicht nur Ziffern/Symbole) --
 // verhindert, dass reine Artikelnummer-/Codezeilen (z.B. "1 1034320 1 |39
