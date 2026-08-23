@@ -233,11 +233,25 @@ function updatePlayerHeading(gpsHeading) {
 
 async function onFirstFix() {
   mapboxMap.jumpTo({ center: [playerPos.lon, playerPos.lat], zoom: 17 });
-  spawnBoostUntil = Date.now() + SPAWN_BOOST_DURATION_MS;
+
+  // Boost + garantierte Nahspawns nur, wenn der letzte Ausloeser lang genug
+  // her ist (siehe SPAWN_BOOST_RETRIGGER_COOLDOWN_MS in js/data.js) --
+  // verhindert, dass Neuladen/Neustarten der App ihn beliebig oft neu
+  // ausloest (siehe User-Feedback 2026-08-22).
+  const lastTriggered = gameState.lastSpawnBoostTriggeredAt;
+  const cooldownOver = !lastTriggered || Date.now() - lastTriggered >= SPAWN_BOOST_RETRIGGER_COOLDOWN_MS;
+  if (cooldownOver) {
+    spawnBoostUntil = Date.now() + SPAWN_BOOST_DURATION_MS;
+    gameState.lastSpawnBoostTriggeredAt = Date.now();
+    saveState();
+  }
+
   await storeLocationsReady;
   ensureStorePositions();
   renderStoreMarkers();
-  spawnGuaranteedStarterCreatures();
+  if (cooldownOver) {
+    spawnGuaranteedStarterCreatures();
+  }
   fillCreatureSpawns();
 }
 

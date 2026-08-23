@@ -5,8 +5,13 @@ const STORE_OFFSET_RADIUS_M = 190;
 const CREATURE_STORE_SPAWN_RADIUS_M = 65;
 const CREATURE_FREE_SPAWN_RADIUS_M = 180;
 const CREATURE_STORE_SPAWN_WEIGHT = 0.68;
-const CREATURE_RESPAWN_MIN_MS = 3500;
-const CREATURE_RESPAWN_MAX_MS = 6000;
+// Regulaerer Nachspawn nach einem Fang/einer Flucht -- bewusst mehrere
+// Minuten statt weniger Sekunden (war vorher 3,5-6 Sekunden, siehe
+// User-Feedback 2026-08-22: machte den Fangversuch fast beliebig
+// wiederholbar und damit Fangchance-Boost-Items wertlos, da man einfach
+// sofort erneut antreten konnte).
+const CREATURE_RESPAWN_MIN_MS = 2 * 60 * 1000;
+const CREATURE_RESPAWN_MAX_MS = 3 * 60 * 1000;
 const MAX_ACTIVE_CREATURES = 4;
 
 // ============ Einstiegs-Spawn-Boost ============
@@ -36,6 +41,14 @@ const SPAWN_BOOST_RESPAWN_MAX_MS = 2500;
 const SPAWN_BOOST_GUARANTEED_NEARBY_COUNT = 5;
 const SPAWN_BOOST_GUARANTEED_NEARBY_MIN_RADIUS_M = 8;
 const SPAWN_BOOST_GUARANTEED_NEARBY_MAX_RADIUS_M = 35;
+
+// Der Einstiegs-Spawn-Boost lief bisher bei JEDEM App-Start neu an (siehe
+// Kommentar oben) -- kombiniert mit den garantierten Nahspawns liess sich
+// das dadurch ausnutzen: alle Wesen fangen, App/Browser neu laden, sofort
+// wieder volle Ladung. gameState.lastSpawnBoostTriggeredAt (persistiert,
+// siehe js/state.js) sperrt ein Neu-Ausloesen fuer diese Cooldown-Dauer,
+// unabhaengig davon wie oft man die Seite neu laedt.
+const SPAWN_BOOST_RETRIGGER_COOLDOWN_MS = 5 * 60 * 1000;
 
 const BAR_CONFIG = {
   durationMs: 1050,

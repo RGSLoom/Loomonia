@@ -29,6 +29,12 @@ function defaultState() {
     // pro effectType statt pro Item: zwei Items mit gleichem Effekttyp
     // sollen sich ersetzen/auffrischen statt sich zu stapeln.
     activeEffects: {},
+    // Zeitstempel des letzten Einstiegs-Spawn-Boost-Ausloesens (siehe
+    // SPAWN_BOOST_RETRIGGER_COOLDOWN_MS in js/data.js, onFirstFix() in
+    // js/map.js) -- persistiert (anders als das rein session-gebundene
+    // spawnBoostUntil in map.js), damit ein Neuladen der Seite den
+    // Cooldown nicht umgeht.
+    lastSpawnBoostTriggeredAt: null,
     // Neue Waehrung "Muenzen" (siehe addCoins() unten) — bewusst KEIN
     // Inventar-Item, sondern ein eigener Zaehler mit HUD-Anzeige am Avatar
     // (siehe hud-coins-badge in index.html), da Muenzen spaeter als
