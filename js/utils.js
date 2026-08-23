@@ -88,6 +88,7 @@ const ACTIVE_EFFECT_LABELS = {
   xp_boost: "⭐ XP-Boost",
   fangchance_boost: "🎯 Fangchance-Boost",
   loomas_anlocken: "🐾 Lockt Loomas an",
+  guaranteed_nearby_spawn: "🍃 Looma-Nachschub",
 };
 
 // Restzeit-Anzeige fuer aktive Boosts: unter 1 Std als lebendiger MM:SS-

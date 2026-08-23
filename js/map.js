@@ -495,9 +495,13 @@ function spawnCreature(nearbyOverride) {
   const el = container.firstElementChild;
   const marker = new mapboxgl.Marker({ element: el }).setLngLat([lon, lat]).addTo(mapboxMap);
 
-  const entry = { id, key, lat, lon, marker };
+  // isFrischedeoSpawn markiert Wesen aus tickFrischedeoSpawn() -- die
+  // normale Nachspawn-Kette in removeCreature() ueberspringt sie, solange
+  // der Frischedeo-Effekt noch laeuft (der hat seinen eigenen 45s-Timer).
+  const entry = { id, key, lat, lon, marker, isFrischedeoSpawn: !!(nearbyOverride && nearbyOverride.isFrischedeoSpawn) };
   el.addEventListener("click", () => onCreatureMarkerClick(entry));
   activeCreatures.push(entry);
+  return entry;
 }
 
 // Tauscht nur das Bild im bestehenden Marker-Element statt es komplett neu
@@ -522,6 +526,17 @@ function onCreatureMarkerClick(entry) {
 function removeCreature(entry) {
   entry.marker.remove();
   activeCreatures = activeCreatures.filter((c) => c.id !== entry.id);
+
+  if (entry.isFrischedeoSpawn) {
+    if (frischedeoActiveEntry && frischedeoActiveEntry.id === entry.id) frischedeoActiveEntry = null;
+    // Solange der Effekt noch aktiv ist, kuemmert sich tickFrischedeoSpawn()
+    // um den Nachspawn (eigener 45s-Rhythmus, nicht die normale Kette).
+    // Nach Ablauf des Effekts faellt ein noch offen stehendes Wesen zurueck
+    // auf den normalen Nachspawn unten, statt dauerhaft eine Spawn-Stelle
+    // zu "verlieren".
+    if (isEffectActive("guaranteed_nearby_spawn")) return;
+  }
+
   const delay = isLoomaBoostActive()
     ? randomBetween(SPAWN_BOOST_RESPAWN_MIN_MS, SPAWN_BOOST_RESPAWN_MAX_MS)
     : randomBetween(CREATURE_RESPAWN_MIN_MS, CREATURE_RESPAWN_MAX_MS);
@@ -530,6 +545,38 @@ function removeCreature(entry) {
       spawnCreature();
     }
   }, delay);
+}
+
+// ---------- Frischedeo: garantierter periodischer Nahspawn ----------
+// Siehe ITEMS.frischedeo (effectType "guaranteed_nearby_spawn") in
+// js/data.js -- alle spawnIntervalMs (45s) EIN Wesen direkt in
+// Fangreichweite, aber nie ein zweites gleichzeitig: solange
+// frischedeoActiveEntry noch nicht gefangen/geflohen ist, wird nicht
+// nachgespawnt. Per Sekunden-Timer aus js/main.js aufgerufen (dieselbe
+// Taktung wie updateActiveBoostsHud()).
+let frischedeoActiveEntry = null;
+let frischedeoNextSpawnAt = 0;
+
+function tickFrischedeoSpawn() {
+  const entry = gameState.activeEffects.guaranteed_nearby_spawn;
+  const active = entry && Date.now() < entry.expiresAt;
+  if (!active) {
+    frischedeoNextSpawnAt = 0;
+    return;
+  }
+  if (frischedeoActiveEntry || !playerPos) return;
+  if (frischedeoNextSpawnAt === 0) {
+    // Erste Aktivierung: sofort spawnen statt erst 45s zu warten.
+    frischedeoNextSpawnAt = Date.now();
+  }
+  if (Date.now() < frischedeoNextSpawnAt) return;
+
+  frischedeoActiveEntry = spawnCreature({
+    minRadiusM: SPAWN_BOOST_GUARANTEED_NEARBY_MIN_RADIUS_M,
+    maxRadiusM: SPAWN_BOOST_GUARANTEED_NEARBY_MAX_RADIUS_M,
+    isFrischedeoSpawn: true,
+  });
+  frischedeoNextSpawnAt = Date.now() + ITEMS.frischedeo.spawnIntervalMs;
 }
 
 // ---------- HUD / Distanz ----------

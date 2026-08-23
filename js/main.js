@@ -131,8 +131,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Aktive Boost-Effekte (siehe gameState.activeEffects in js/state.js)
   // brauchen einen deutlich engeren Takt als die Energie-Anzeige, sonst
   // wirkt der Live-Countdown im Map-HUD eingefroren (siehe
-  // updateActiveBoostsHud() in js/map.js).
+  // updateActiveBoostsHud() in js/map.js). tickFrischedeoSpawn() (siehe
+  // js/map.js) nutzt denselben Takt fuer ihren 45s-Nahspawn-Rhythmus.
   setInterval(updateActiveBoostsHud, 1000);
+  setInterval(tickFrischedeoSpawn, 1000);
 
   // Map-HUD
   document.getElementById("btn-avatar").addEventListener("click", openProfile);

@@ -626,12 +626,19 @@ const ITEMS = {
     xp: 15,
     icon: "assets/items/deo_icon.png",
     type: "Verbrauchbar",
-    effect: "Lockt 5 Minuten lang leicht mehr Loomas an",
+    // Eigener Mechanismus statt der generischen "loomas_anlocken"-Logik
+    // (Kaffeebecher/Lockduft-Flakon) -- konkret vom User spezifiziert
+    // (2026-08-22): alle spawnIntervalMs EIN garantiertes Wesen direkt in
+    // der Fangreichweite, aber immer nur eins gleichzeitig (kein Nachspawn,
+    // solange das aktuelle noch nicht gefangen/geflohen ist). Siehe
+    // tickFrischedeoSpawn() in js/map.js.
+    effect: "Lässt 5 Minuten lang alle 45 Sekunden einen Loomas in deiner Fangreichweite erscheinen",
     unlockType: "standort",
     unlockText: "Kostenloser Drop an Standorten",
     usage_context: "jederzeit",
-    effectType: "loomas_anlocken",
+    effectType: "guaranteed_nearby_spawn",
     effectDurationMs: 5 * 60 * 1000,
+    spawnIntervalMs: 45 * 1000,
   },
   futterportion: {
     key: "futterportion",
