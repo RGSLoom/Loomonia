@@ -395,19 +395,19 @@ const ITEMS = {
     xp: 15,
     icon: "assets/items/fruchtkorb_icon.png",
     type: "Verbrauchbar",
-    // War urspruenglich 25% (siehe store-walk-spielspezifikation.md) -- auf
-    // 10% reduziert (User-Feedback 2026-08-22, erst auf 8% dann auf 10%
-    // nachjustiert): 25% war fuer ein Gewoehnlich-Item hoeher als der
+    // War urspruenglich 25%/30 Min (siehe store-walk-spielspezifikation.md)
+    // -- Wert auf 10% reduziert (User-Feedback 2026-08-22, erst auf 8% dann
+    // auf 10% nachjustiert): 25% war fuer ein Gewoehnlich-Item hoeher als der
     // XP-Boost mancher Ungewoehnlich-/Selten-Items (energieriegel_plus 15%,
-    // suessigkeit 20%), was die Seltenheits-Rangfolge unterlaufen hat. 30
-    // Minuten Laufzeit bleiben als Gewoehnlich-Vorteil erhalten (laenger als
-    // die 10-Minuten-Items derselben Stufe).
-    effect: "+10 % XP-Boost für 30 Minuten",
+    // suessigkeit 20%), was die Seltenheits-Rangfolge unterlaufen hat. Dauer
+    // ebenfalls auf 10 Min gekuerzt (User-Feedback) -- kein laengerer
+    // Vorteil mehr ggue. den anderen 10-Minuten-Items derselben Stufe.
+    effect: "+10 % XP-Boost für 10 Minuten",
     unlockText: "Kostenloser Drop an Standorten",
     usage_context: "jederzeit",
     effectType: "xp_boost",
     effectValue: 0.1,
-    effectDurationMs: 30 * 60 * 1000,
+    effectDurationMs: 10 * 60 * 1000,
   },
   sprachbuch: {
     key: "sprachbuch",
