@@ -1485,14 +1485,18 @@ html, body {
 .habitat-tile--active { border-color: var(--cosmic-accent-2); box-shadow: 0 0 16px -6px var(--cosmic-accent-2); }
 .habitat-tile-icon { font-size: 26px; }
 .habitat-tile-name { font-size: 12px; opacity: 0.85; }
-.habitat-companion-icon {
+.habitat-tile-element-badge {
   position: absolute;
   top: 6px;
-  right: 6px;
-  width: 32px;
-  height: 32px;
+  right: 8px;
+  font-size: 15px;
+  line-height: 1;
+}
+.habitat-tile-companion-img {
+  width: 56%;
+  height: 56%;
   object-fit: contain;
-  filter: drop-shadow(0 0 6px rgba(74,222,128,0.7));
+  filter: drop-shadow(0 0 8px rgba(74,222,128,0.6));
 }
 
 /* Anzeige aktiver, zeitlich befristeter Boost-Effekte (siehe

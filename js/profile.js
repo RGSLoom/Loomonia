@@ -487,10 +487,20 @@ function renderHabitatContent() {
       </div>`
     : "";
 
+  // Belegtes Habitat: das Looma ist der Hauptblickfang (groß, zentriert),
+  // das Element rutscht als kleines Badge oben rechts daneben -- umgekehrt
+  // zu den unbelegten Habitaten, wo das Element-Icon selbst gross im
+  // Zentrum steht (siehe User-Feedback: "genau anders herum").
   const habitatTilesHtml = HABITATS.map((h) => {
     const isActiveHabitat = companion && habitatElementForCreature(companion) === h.element;
-    return `<div class="habitat-tile glass${isActiveHabitat ? " habitat-tile--active" : ""}">
-      ${isActiveHabitat ? `<img class="habitat-companion-icon" src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />` : ""}
+    if (isActiveHabitat) {
+      return `<div class="habitat-tile glass habitat-tile--active">
+        <span class="habitat-tile-element-badge">${h.icon}</span>
+        <img class="habitat-tile-companion-img" src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />
+        <div class="habitat-tile-name">${h.element}</div>
+      </div>`;
+    }
+    return `<div class="habitat-tile glass">
       <div class="habitat-tile-icon">${h.icon}</div>
       <div class="habitat-tile-name">${h.element}</div>
     </div>`;
