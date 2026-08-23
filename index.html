@@ -105,16 +105,17 @@
 
     <!-- Dev-Testknöpfe (siehe Spezifikation Abschnitt 8 — vor Kunden-Demo
          entfernen/verstecken). Gestrichelter Rand markiert sie bewusst als
-         Test-Tools statt echter Spielfunktion. Bewusst mit "hidden" im
-         Markup (nicht per CSS-Display-Regel): waren bisher fuer JEDEN
-         Besucher der Live-Seite sichtbar/klickbar (siehe QA-Bug-Liste) --
-         main.js blendet sie nur noch ein, wenn der Dev-Modus per
-         "?dev=1"-URL-Parameter aktiviert wurde (dann dauerhaft per
-         localStorage auf diesem Geraet gemerkt, siehe initDevTools()). -->
-    <button id="btn-test-catch" class="dev-btn dev-btn-left hidden" title="Dev: Testfang auslösen">
+         Test-Tools statt echter Spielfunktion. Testfang/Testitem sind
+         gerade ABSICHTLICH ohne "hidden" (User testet aktuell aktiv den
+         Kategorie-Umbau, siehe QA-Bug-Liste #22 fuer die urspruengliche
+         Verstecken-Begruendung) -- nach Abschluss der Tests wieder
+         "hidden" ergaenzen. Bon-Scan-Test bleibt hinter dem "?dev=1"-Flag
+         (siehe initDevTools() in js/main.js), da der bereits verifiziert
+         funktioniert. -->
+    <button id="btn-test-catch" class="dev-btn dev-btn-left" title="Dev: Testfang auslösen">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="16.5" rx="5" ry="4"/><ellipse cx="4.5" cy="10" rx="2" ry="2.5"/><ellipse cx="9" cy="6" rx="2" ry="2.5"/><ellipse cx="15" cy="6" rx="2" ry="2.5"/><ellipse cx="19.5" cy="10" rx="2" ry="2.5"/></svg>
     </button>
-    <button id="btn-test-item" class="dev-btn dev-btn-right hidden" title="Dev: Testitem auslösen">
+    <button id="btn-test-item" class="dev-btn dev-btn-right" title="Dev: Testitem auslösen">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7Z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7Z"/></svg>
     </button>
     <button id="btn-test-bonscan" class="dev-btn dev-btn-center hidden" title="Dev: Bon-Scan simulieren (löst erste Quest/Trophäe aus)">
@@ -332,6 +333,6 @@
 <script src="js/drawgame.js?v=80"></script>
 <script src="js/bonscan.js?v=97"></script>
 <script src="js/profile.js?v=88"></script>
-<script src="js/main.js?v=87"></script>
+<script src="js/main.js?v=88"></script>
 </body>
 </html>

@@ -129,7 +129,13 @@ function initDevTools() {
   if (params.get("dev") === "1") localStorage.setItem(DEV_TOOLS_STORAGE_KEY, "1");
   if (params.get("dev") === "0") localStorage.removeItem(DEV_TOOLS_STORAGE_KEY);
   const enabled = localStorage.getItem(DEV_TOOLS_STORAGE_KEY) === "1";
-  document.querySelectorAll(".dev-btn").forEach((btn) => btn.classList.toggle("hidden", !enabled));
+  // Testfang/Testitem sind aktuell absichtlich IMMER sichtbar (User testet
+  // gerade aktiv, siehe index.html-Kommentar bei den Buttons) -- nur der
+  // Bon-Scan-Test bleibt hinter dem Dev-Flag. Sobald Testfang/Testitem
+  // wieder "hidden" im Markup bekommen, greift hier wieder dieselbe Logik
+  // fuer alle drei wie zuvor (einfach den Selector auf ".dev-btn" zurueck-
+  // stellen).
+  document.getElementById("btn-test-bonscan").classList.toggle("hidden", !enabled);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
