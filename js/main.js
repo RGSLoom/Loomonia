@@ -140,6 +140,20 @@ function initDevTools() {
 
 document.addEventListener("DOMContentLoaded", () => {
   initMapWithRetry(); // async (holt erst den Mapbox-Token) -- bewusst nicht awaited, blockiert den Rest der Initialisierung hier nicht; wiederholt bei Fehlschlag automatisch, siehe js/map.js
+  // Rechnet einen evtl. seit dem letzten Schliessen angesammelten Rested-XP-
+  // Bonus ab (siehe Habitat-Briefing + settleRestedXp() in js/state.js) --
+  // muss vor jeder XP-Vergabe in dieser Session gelaufen sein.
+  settleRestedXp();
+  // "Sitzungsende" heisst hier: die Seite wird verlassen/versteckt (Tab
+  // gewechselt, App in den Hintergrund, Browser/Tab geschlossen) -- pagehide
+  // ist der zuverlaessigste Zeitpunkt dafuer (anders als beforeunload nicht
+  // vom Back-Forward-Cache betroffen), visibilitychange faengt zusaetzlich
+  // das Zurueckwechseln in den Hintergrund auf mobilen Browsern ab, wo
+  // pagehide nicht immer zuverlaessig feuert.
+  window.addEventListener("pagehide", markSessionEnded);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") markSessionEnded();
+  });
   updateCaughtCounter();
   // Energie regeneriert passiv mit echter Zeit — Anzeige alle 30s
   // auffrischen, damit man das Auffuellen auch bei offener App mitbekommt.

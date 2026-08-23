@@ -132,6 +132,45 @@ function xpToLevel(xp) {
   return level;
 }
 
+// ============ Habitat / Rested-XP ============
+// Rested-XP-System (angelehnt an "Rested" aus World of Warcraft, siehe
+// Habitat-Briefing): waehrend die App geschlossen ist, ruht das aktive
+// Looma (gameState.activeCompanion, siehe js/state.js) in seinem
+// Element-Habitat und sammelt einen SPIELERWEITEN (nicht pro Looma) Bonus-
+// Pool an, der beim naechsten XP-Gewinn verdoppelt gutgeschrieben wird, bis
+// der Pool aufgebraucht ist (siehe addXp()/settleRestedXp() in js/state.js).
+// Unter 10 Minuten geschlossener Zeit entsteht bewusst kein Bonus (verhindert
+// Trittbrettfahren durch kurzes Neuladen).
+const RESTED_MIN_OFFLINE_MS = 10 * 60 * 1000;
+// Nach 12h durchgehend geschlossener Zeit ist der Pool voll ("ueber Nacht
+// ausgeruht"). Die Obergrenze selbst ist bewusst NICHT fix, sondern
+// levelabhaengig (100% der XP-Spanne bis zum naechsten Level, siehe
+// restedXpCap() in js/state.js) -- waechst so automatisch mit dem
+// Spielfortschritt statt spaeter manuell nachjustiert werden zu muessen.
+const RESTED_FULL_MS = 12 * 60 * 60 * 1000;
+
+// Die sechs Habitate + ihr Element (siehe Habitat-Briefing). Ein Looma ruht
+// nur im Habitat seines EIGENEN Elements.
+const HABITATS = [
+  { element: "Erde", icon: "🌍" },
+  { element: "Feuer", icon: "🔥" },
+  { element: "Wasser", icon: "💧" },
+  { element: "Luft", icon: "💨" },
+  { element: "Licht", icon: "✨" },
+  { element: "Schatten", icon: "🌑" },
+];
+
+// CREATURES verwendet fuer Fauli das Element "Natur" statt eines der sechs
+// Habitat-Elemente (historisch gewachsen, siehe CREATURES unten) -- bildet
+// hier auf das inhaltlich naechstliegende Habitat ab, statt CREATURES
+// rueckwirkend umzubenennen und dadurch evtl. anderswo (Filter/Icons) etwas
+// zu brechen, das sich auf den Wert "Natur" verlaesst.
+const CREATURE_ELEMENT_TO_HABITAT = { Natur: "Erde" };
+
+function habitatElementForCreature(creature) {
+  return CREATURE_ELEMENT_TO_HABITAT[creature.element] || creature.element;
+}
+
 const RARITY_COLORS = {
   // War vorher ein Tuerkis-Ton (#5eead4), der neben Ungewoehnlich-Gruen kaum
   // zu unterscheiden war -- jetzt echtes Weiss/Grau wie in der Spielspezifikation.

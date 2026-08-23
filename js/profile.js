@@ -101,13 +101,19 @@ function renderProfileHub() {
   const loomasCaught = totalCaughtCount();
   const trophiesUnlocked = Object.keys(gameState.trophies || {}).length;
   const totalTrophies = Object.keys(TROPHIES).length;
+  const habitatCompanion = getActiveCompanion();
+  const habitatSub = !habitatCompanion
+    ? "Begleiter wählen"
+    : gameState.restedXpRemaining > 0
+      ? "😴 Ausgeruht"
+      : habitatCompanion.name;
 
   const tiles = [
     { key: "outfit", label: "Outfit", sub: "Anpassen" },
     { key: "items", label: "Items", sub: `${itemsOwnedTypes}/${totalItemTypes} Sorten` },
     { key: "trophies", label: "Trophäen", sub: `${trophiesUnlocked}/${totalTrophies} freigeschaltet` },
     { key: "loomas", label: "Loomas", sub: `${loomasCaught} gefangen` },
-    { key: "habitat", label: "Habitat", sub: "Bald verfügbar" },
+    { key: "habitat", label: "Habitat", sub: habitatSub },
     { key: "settings", label: "Einstellungen", sub: "" },
   ]
     .map(
@@ -192,6 +198,7 @@ function openSubScreen(tileKey, returnTo = "screen-profile") {
       showScreen("screen-trophies");
       break;
     case "habitat":
+      document.getElementById("habitat-content").innerHTML = renderHabitatContent();
       showScreen("screen-habitat");
       break;
   }
@@ -363,9 +370,11 @@ function renderLoomasGrid() {
       const count = gameState.caughtCreatures[c.key] || 0;
       const owned = count > 0;
       if (!owned) return `<div class="looma-cell locked"></div>`;
-      return `<div class="looma-cell" data-creature="${c.key}" style="--rarity-color:${RARITY_COLORS[c.rarity]}">
+      const isCompanion = gameState.activeCompanion === c.key;
+      return `<div class="looma-cell${isCompanion ? " looma-cell--companion" : ""}" data-creature="${c.key}" style="--rarity-color:${RARITY_COLORS[c.rarity]}">
         <img src="${creatureIconCache[c.key] || c.icon}" alt="${c.name}" /><span class="cell-count">${count}</span>
         <span class="cell-label">${c.name}</span>
+        ${isCompanion ? `<span class="cell-companion-tag">Begleiter</span>` : ""}
       </div>`;
     })
     .join("");
@@ -388,6 +397,7 @@ function showLoomaExchangeDetail(key) {
   const content = document.getElementById("loomas-content");
   const owned = gameState.caughtCreatures[key] || 0;
   if (owned < 1) return;
+  const isCompanion = gameState.activeCompanion === key;
 
   content.innerHTML = `
     <button class="back-btn" id="btn-looma-detail-back" style="margin-bottom:12px;">← Übersicht</button>
@@ -396,6 +406,9 @@ function showLoomaExchangeDetail(key) {
       <div class="detail-card-rarity" style="color:${RARITY_COLORS[creature.rarity]}">${creature.rarity}</div>
       <img src="${creatureIconCache[key] || creature.icon}" alt="${creature.name}" class="detail-card-icon" />
       <div class="looma-exchange-owned">Gefangen: ${owned}</div>
+      ${isCompanion
+        ? `<div class="looma-companion-active-note">✓ Aktiver Begleiter</div>`
+        : `<button id="btn-looma-set-companion" class="secondary-btn" style="margin-bottom:16px;">Als Begleiter wählen</button>`}
       <div class="looma-exchange-rate">1 Wesen = ${SHADOW_ESSENCE_PER_CREATURE} Schatten-Essenz</div>
       <div class="looma-exchange-slider-row">
         <input type="range" id="looma-exchange-slider" min="1" max="${owned}" value="1" step="1" ${owned === 1 ? "disabled" : ""} />
@@ -422,10 +435,68 @@ function showLoomaExchangeDetail(key) {
     attachLoomasGridHandlers();
   });
 
+  const setCompanionBtn = document.getElementById("btn-looma-set-companion");
+  if (setCompanionBtn) {
+    setCompanionBtn.addEventListener("click", () => {
+      setActiveCompanion(key);
+      showLoomaExchangeDetail(key);
+    });
+  }
+
   document.getElementById("btn-looma-detail-back").addEventListener("click", () => {
     content.innerHTML = renderLoomasGrid();
     attachLoomasGridHandlers();
   });
+}
+
+// Habitat-Screen (siehe Habitat-Briefing): zeigt den aktuell aktiven
+// Begleiter, den spielerweiten Rested-XP-Status (siehe
+// gameState.restedXpRemaining/restedXpCap() in js/state.js) und die sechs
+// Element-Habitate, von denen genau eines (das des aktiven Begleiters,
+// siehe habitatElementForCreature() in js/data.js) hervorgehoben wird. Die
+// Begleiter-AUSWAHL selbst passiert im Loomas-Screen (siehe
+// showLoomaExchangeDetail() oben) -- hier nur Anzeige.
+function renderHabitatContent() {
+  const companion = getActiveCompanion();
+  const cap = restedXpCap();
+  const remaining = Math.round(gameState.restedXpRemaining || 0);
+  const isResting = remaining > 0;
+  const pct = cap > 0 ? Math.min(100, Math.round((remaining / cap) * 100)) : 0;
+
+  const companionBannerHtml = companion
+    ? `<div class="habitat-companion-banner glass">
+        <img src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />
+        <div>
+          <div class="habitat-companion-name">${companion.name}</div>
+          <div class="habitat-companion-sub">Aktiver Begleiter</div>
+        </div>
+      </div>`
+    : `<div class="habitat-companion-banner glass">
+        <div class="habitat-companion-sub">Kein aktiver Begleiter gewählt — wähle im Loomas-Screen eins aus.</div>
+      </div>`;
+
+  const restedCardHtml = companion
+    ? `<div class="habitat-rested-card glass">
+        <div class="habitat-rested-title">${isResting ? "😴 Ausgeruht" : "Wach"}</div>
+        <div class="habitat-rested-bar"><div class="habitat-rested-fill" style="width:${pct}%"></div></div>
+        <div class="habitat-rested-text">${
+          isResting
+            ? `Doppelte XP, bis ${formatNumber(remaining)} Bonus-XP verbraucht sind.`
+            : "Schließe die App eine Weile, damit dein Begleiter sich in seinem Habitat ausruht und du beim nächsten Spielstart doppelte XP erhältst."
+        }</div>
+      </div>`
+    : "";
+
+  const habitatTilesHtml = HABITATS.map((h) => {
+    const isActiveHabitat = companion && habitatElementForCreature(companion) === h.element;
+    return `<div class="habitat-tile glass${isActiveHabitat ? " habitat-tile--active" : ""}">
+      ${isActiveHabitat ? `<img class="habitat-companion-icon" src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />` : ""}
+      <div class="habitat-tile-icon">${h.icon}</div>
+      <div class="habitat-tile-name">${h.element}</div>
+    </div>`;
+  }).join("");
+
+  return `${companionBannerHtml}${restedCardHtml}<div class="habitat-grid">${habitatTilesHtml}</div>`;
 }
 
 function renderTrophiesGrid() {

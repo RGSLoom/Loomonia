@@ -60,6 +60,14 @@ function defaultState() {
     playerId: null, // anonyme ID fuers Haendler-Dashboard (siehe tracking.js)
     trophies: {}, // trophyKey -> Freischalt-Zeitstempel (siehe TROPHIES in data.js)
     receiptScanCount: 0, // Anzahl bestaetigter Bon-Scans insgesamt (fuer "treuer_shopper")
+    // Habitat-System (siehe Habitat-Briefing + Funktionen weiter unten):
+    // activeCompanion ist der CREATURES-Key des aktuell aktiven Loomas (oder
+    // null), restedXpRemaining der SPIELERWEITE (nicht pro Looma) Rested-XP-
+    // Bonus-Pool, sessionEndedAt der Zeitstempel des letzten App-Schliessens
+    // (siehe markSessionEnded()/settleRestedXp()).
+    activeCompanion: null,
+    restedXpRemaining: 0,
+    sessionEndedAt: null,
   };
 }
 
@@ -114,7 +122,19 @@ function getEquippedBonusTotal(effectType) {
 // ITEMS/CREATURES/TROPHIES.
 function addXp(amount) {
   const boost = getActiveEffectValue("xp_boost") + getEquippedBonusTotal("xp_boost");
-  const awardedXp = boost > 0 ? Math.round(amount * (1 + boost)) : amount;
+  const boostedXp = boost > 0 ? Math.round(amount * (1 + boost)) : amount;
+  // Rested-XP-Bonus (siehe Habitat-Briefing + settleRestedXp() unten):
+  // verdoppelt den (schon ausruestungs-/itemgeboosteten) Betrag, solange der
+  // Pool reicht, und verbraucht dabei genau den Bonusanteil aus
+  // gameState.restedXpRemaining -- greift nicht mehr, wenn das aktive Looma
+  // bereits Max-Level ist (Punkt 7 des Briefings, siehe
+  // isActiveCompanionMaxLevel()).
+  let restedBonus = 0;
+  if (gameState.restedXpRemaining > 0 && !isActiveCompanionMaxLevel()) {
+    restedBonus = Math.min(boostedXp, gameState.restedXpRemaining);
+    gameState.restedXpRemaining -= restedBonus;
+  }
+  const awardedXp = boostedXp + restedBonus;
   gameState.xp += awardedXp;
   saveState();
   return { awardedXp, entries: claimLevelRewards() };
@@ -520,4 +540,82 @@ function getPlayerId() {
     saveState();
   }
   return gameState.playerId;
+}
+
+// ============ Habitat / aktiver Begleiter ============
+// Setzt das aktive Looma (muss mindestens 1x gefangen und noch im Bestand
+// sein) -- siehe Habitat-Briefing. Gibt false zurueck (kein State-Change),
+// wenn der Key unbekannt ist oder nichts davon gefangen wurde.
+function setActiveCompanion(key) {
+  if (!CREATURES[key] || (gameState.caughtCreatures[key] || 0) < 1) return false;
+  gameState.activeCompanion = key;
+  saveState();
+  return true;
+}
+
+// Liefert das aktuell aktive Looma (CREATURES-Eintrag) oder null. Raeumt
+// dabei automatisch auf, falls der Spieler das aktive Looma zwischenzeitlich
+// komplett gegen Schatten-Essenz eingetauscht hat (siehe
+// exchangeCreatureForEssence() oben) -- ein Begleiter ohne verbleibendes
+// Exemplar darf nicht "aktiv" bleiben, sonst haette niemand ein Habitat, in
+// dem er ruhen koennte.
+function getActiveCompanion() {
+  const key = gameState.activeCompanion;
+  if (!key || !CREATURES[key]) return null;
+  if ((gameState.caughtCreatures[key] || 0) < 1) {
+    gameState.activeCompanion = null;
+    saveState();
+    return null;
+  }
+  return CREATURES[key];
+}
+
+// Obergrenze des spielerweiten Rested-XP-Pools: 100% der XP-Spanne vom
+// aktuellen zum naechsten Level (relativ zur Levelgroesse statt eines fixen
+// Werts, siehe RESTED_FULL_MS-Kommentar in data.js) -- waechst so
+// automatisch mit dem Spielfortschritt. Am Levelcap (kein "naechstes Level"
+// mehr) faellt sie auf die Spanne des letzten Levels zurueck.
+function restedXpCap() {
+  const level = xpToLevel(gameState.xp);
+  if (level >= LEVEL_CAP) return xpForLevel(LEVEL_CAP) - xpForLevel(LEVEL_CAP - 1);
+  return xpForLevel(level + 1) - xpForLevel(level);
+}
+
+// Platzhalter fuer das noch zu entwickelnde Looma-Level-System (siehe
+// Habitat-Briefing Punkt 7: kein Rested-Bonus mehr, wenn das aktive Looma
+// bereits sein Max-Level erreicht hat) -- liefert bislang immer false, da es
+// noch kein Level pro Looma gibt. Sobald das Level-System steht, hier durch
+// eine echte Pruefung ersetzen.
+function isActiveCompanionMaxLevel() {
+  return false;
+}
+
+// Rechnet die seit Sitzungsende vergangene REALE Zeit in Rested-XP um (siehe
+// RESTED_MIN_OFFLINE_MS/RESTED_FULL_MS in data.js) -- analog zu
+// settleEnergy() oben, aber spielerweit statt pro Looma und nur, wenn beim
+// Schliessen ein aktiver Begleiter gesetzt war (ohne Begleiter gibt es
+// niemanden, der in einem Habitat haette ruhen koennen). Vom App-Start
+// aufzurufen (siehe main.js).
+function settleRestedXp() {
+  const endedAt = gameState.sessionEndedAt;
+  gameState.sessionEndedAt = null;
+  if (!endedAt || !getActiveCompanion()) {
+    saveState();
+    return;
+  }
+  const elapsedMs = Date.now() - endedAt;
+  if (elapsedMs >= RESTED_MIN_OFFLINE_MS) {
+    const cap = restedXpCap();
+    const gained = (elapsedMs / RESTED_FULL_MS) * cap;
+    gameState.restedXpRemaining = Math.min(cap, (gameState.restedXpRemaining || 0) + gained);
+  }
+  saveState();
+}
+
+// Vom App-Lifecycle beim Verlassen/Verstecken der Seite aufzurufen (siehe
+// main.js) -- haelt den Zeitpunkt fest, ab dem settleRestedXp() beim
+// naechsten Start die vergangene Realzeit berechnet.
+function markSessionEnded() {
+  gameState.sessionEndedAt = Date.now();
+  saveState();
 }
