@@ -259,9 +259,23 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("scan-file-input").addEventListener("change", handleScanFileInput);
   document.getElementById("btn-scan-copy-text").addEventListener("click", copyBonOcrText);
   // Profil-Unterseiten (Outfit/Items/Trophäen/Loomas/Habitat/Einstellungen)
-  // — eigene Vollbild-Screens, Zurück fuehrt immer zum Profil-Hub.
+  // — eigene Vollbild-Screens. Zurueck zum Profil-HUB rendert es bewusst
+  // ueber openProfile() neu statt nur showScreen() aufzurufen -- sonst
+  // blieben die Kachel-Subtexte (z.B. Habitat-Kachel "😴 Ausgeruht"/Name des
+  // aktiven Begleiters) auf dem Stand von vor dem Betreten der Unterseite
+  // stehen, wenn sich dort etwas geaendert hat (z.B. Begleiter im
+  // Loomas-Screen gewechselt, siehe User-Feedback: "steht noch das Looma
+  // meines ersten Begleiters in der Übersicht"). Der Rueckweg von der Karte
+  // aus (openItemsFromHud(), subScreenReturnTo = "screen-map") braucht das
+  // nicht, dort bleibt es beim einfachen showScreen().
   document.querySelectorAll(".sub-back-btn").forEach((btn) => {
-    btn.addEventListener("click", () => showScreen(subScreenReturnTo));
+    btn.addEventListener("click", () => {
+      if (subScreenReturnTo === "screen-profile") {
+        openProfile();
+      } else {
+        showScreen(subScreenReturnTo);
+      }
+    });
   });
 
   // Dev-Testknöpfe (siehe Spezifikation Abschnitt 8 — vor Kunden-Demo
