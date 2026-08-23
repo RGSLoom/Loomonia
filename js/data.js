@@ -1047,10 +1047,24 @@ const STORE_CATEGORIES = {
     scene: "assets/generated/bg_store_drogerie.svg",
     itemPool: ["gesundheitspaket", "fruchtkorb", "sprachbuch"],
   },
-  schnellrestaurant: {
-    key: "schnellrestaurant",
-    name: "Schnellrestaurant",
+  // War bisher "schnellrestaurant" (Fastfood UND Sitzrestaurant gemeinsam) --
+  // auf Nutzerwunsch aufgeteilt in "fastfood" (Quick-Service, z.B.
+  // McDonald's/Burger King) und "restaurant" (Sitzrestaurant, z.B.
+  // Wienerwald/Hans im Glueck), damit die Branchenzuordnung realistischer
+  // ist. Schluessel bewusst umbenannt statt "schnellrestaurant" weiter zu
+  // verwenden -- ein bestehender Standort mit dem alten Schluessel zeigt bis
+  // zur naechsten Bearbeitung einfach den rohen (kosmetischen) Fallback,
+  // siehe categoryLabel-Fallback in dashboard/js/standorte.js.
+  fastfood: {
+    key: "fastfood",
+    name: "Fastfood",
     scene: "assets/generated/bg_store_schnellrestaurant.svg",
+    itemPool: ["energiesnack", "fruchtkorb"],
+  },
+  restaurant: {
+    key: "restaurant",
+    name: "Restaurant",
+    scene: "assets/generated/bg_store_restaurant.svg",
     itemPool: ["energiesnack", "fruchtkorb"],
   },
   bar: {
@@ -1101,10 +1115,14 @@ const RECEIPT_STORE_PATTERNS = [
   { pattern: /\bc&a\b/i, categoryKey: "fashion" },
   { pattern: /takko/i, categoryKey: "fashion" },
   { pattern: /mammut/i, categoryKey: "fashion" },
-  { pattern: /mcdonald/i, categoryKey: "schnellrestaurant" },
-  { pattern: /burger king/i, categoryKey: "schnellrestaurant" },
-  { pattern: /wienerwald/i, categoryKey: "schnellrestaurant" },
-  { pattern: /hans im gl.ck/i, categoryKey: "schnellrestaurant" },
+  // Quick-Service (Fastfood) vs. Sitzrestaurant (Restaurant) getrennt --
+  // Wienerwald/Hans im Glueck sind Restaurants mit Bedienung am Tisch, keine
+  // Fastfood-Ketten, gehoerten hier vorher faelschlich in denselben Topf wie
+  // McDonald's/Burger King.
+  { pattern: /mcdonald/i, categoryKey: "fastfood" },
+  { pattern: /burger king/i, categoryKey: "fastfood" },
+  { pattern: /wienerwald/i, categoryKey: "restaurant" },
+  { pattern: /hans im gl.ck/i, categoryKey: "restaurant" },
   { pattern: /tchibo/i, categoryKey: "cafe" },
   { pattern: /fritz.?kola/i, categoryKey: "cafe" },
   { pattern: /true ?fruits/i, categoryKey: "cafe" },
@@ -1148,7 +1166,7 @@ const STORE_LOCATIONS_FALLBACK = [
   { id: "sparkasse", type: "store", categoryKey: "bank", coords: { lat: 48.119719552613226, lon: 7.8501486459263585 } },
   { id: "mueller", type: "store", categoryKey: "drogerie", coords: { lat: 48.11931058495179, lon: 7.849707348109254 } },
   { id: "dm", type: "store", categoryKey: "drogerie", coords: { lat: 48.120860450673504, lon: 7.850241027354685 } },
-  { id: "mcdonalds", type: "store", categoryKey: "schnellrestaurant", coords: { lat: 48.113096001026086, lon: 7.852438811998206 } },
+  { id: "mcdonalds", type: "store", categoryKey: "fastfood", coords: { lat: 48.113096001026086, lon: 7.852438811998206 } },
   { id: "cheers", type: "store", categoryKey: "bar", coords: { lat: 48.10948560102508, lon: 7.854155425715709 } },
   { id: "feinkost_custom", type: "store", categoryKey: "feinkost", coords: { lat: 52.2581271, lon: 5.4698785 } },
   // Keine echte Koordinate hinterlegt -> zufaellig um den Spieler-Start

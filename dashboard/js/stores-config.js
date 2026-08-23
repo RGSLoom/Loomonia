@@ -10,7 +10,8 @@ const DASHBOARD_STORES = {
   fashion: { name: "Mode & Accessoires" },
   bank: { name: "Bank" },
   drogerie: { name: "Drogerie" },
-  schnellrestaurant: { name: "Schnellrestaurant" },
+  fastfood: { name: "Fastfood" },
+  restaurant: { name: "Restaurant" },
   bar: { name: "Bar" },
 };
 

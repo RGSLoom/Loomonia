@@ -437,7 +437,8 @@ const STORE_EMOJI = {
   fashion: "👜",
   bank: "🏦",
   drogerie: "💊",
-  schnellrestaurant: "🍔",
+  fastfood: "🍔",
+  restaurant: "🍽️",
   bar: "🍹",
 };
 

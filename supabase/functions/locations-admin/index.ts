@@ -28,7 +28,8 @@ const VALID_CATEGORY_KEYS = [
   "fashion",
   "bank",
   "drogerie",
-  "schnellrestaurant",
+  "fastfood",
+  "restaurant",
   "bar",
 ];
 const VALID_TYPES = ["store", "landmark"];
