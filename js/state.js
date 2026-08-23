@@ -179,10 +179,27 @@ function applyBoostItem(key) {
       resultText = `${item.name} ist jetzt aktiv`;
       break;
     }
-    case "loomas_anlocken":
+    case "loomas_anlocken": {
+      // loomas_anlocken hat keinen Prozentwert zum Vergleichen (anders als
+      // xp_boost/fangchance_boost) -- die Rangfolge ist hier die
+      // verbleibende Laufzeit: ein kuerzeres Item darf ein noch laenger
+      // laufendes NICHT verkuerzen (Bug, siehe User-Feedback 2026-08-22:
+      // der 7-Tage-Lockduft-Flakon verschwand nach kurzer Zeit, weil ein
+      // spaeter genutztes 5/10-Minuten-Item ihn ueberschrieben hat).
+      const currentEntry = gameState.activeEffects.loomas_anlocken;
+      const currentlyActive = currentEntry && Date.now() < currentEntry.expiresAt;
+      const newExpiresAt = Date.now() + item.effectDurationMs;
+      if (currentlyActive && currentEntry.expiresAt > newExpiresAt) {
+        return {
+          itemKey: key,
+          blocked: true,
+          text: `Läuft bereits länger (noch ${formatRemainingTime(currentEntry.expiresAt - Date.now())}) — ${item.name} nicht verwendet`,
+        };
+      }
       setActiveEffect(item.effectType, item.effectValue, item.effectDurationMs, key);
       resultText = `${item.name} ist jetzt aktiv`;
       break;
+    }
     default:
       return null;
   }

@@ -25,6 +25,18 @@ const SPAWN_BOOST_FREE_SPAWN_RADIUS_M = 260;
 const SPAWN_BOOST_RESPAWN_MIN_MS = 1200;
 const SPAWN_BOOST_RESPAWN_MAX_MS = 2500;
 
+// Der normale Spawn-Radius (auch der obige, groessere Boost-Radius) liegt
+// deutlich ueber CATCH_RADIUS_M (45m) -- Wesen sollen ja Anlass zum Laufen
+// geben. Direkt beim allerersten GPS-Fix fuehlte sich das aber so an, als
+// waere im besten Fall nur 1 Wesen tatsaechlich sofort fangbar (siehe
+// User-Feedback 2026-08-22). Zusaetzlich zum normalen Boost-Pool werden
+// deshalb ein paar Wesen GARANTIERT innerhalb der Fang-Reichweite gespawnt
+// (spawnGuaranteedStarterCreatures() in js/map.js), mit Sicherheitsabstand
+// zu CATCH_RADIUS_M fuer GPS-Ungenauigkeit.
+const SPAWN_BOOST_GUARANTEED_NEARBY_COUNT = 5;
+const SPAWN_BOOST_GUARANTEED_NEARBY_MIN_RADIUS_M = 8;
+const SPAWN_BOOST_GUARANTEED_NEARBY_MAX_RADIUS_M = 35;
+
 const BAR_CONFIG = {
   durationMs: 1050,
   greenHalfWidth: 10,
@@ -383,11 +395,17 @@ const ITEMS = {
     xp: 15,
     icon: "assets/items/fruchtkorb_icon.png",
     type: "Verbrauchbar",
-    effect: "+25 % XP-Boost für 30 Minuten",
+    // War urspruenglich 25% (siehe store-walk-spielspezifikation.md) -- auf
+    // 8% reduziert (User-Feedback 2026-08-22): 25% war fuer ein Gewoehnlich-
+    // Item hoeher als der XP-Boost mancher Ungewoehnlich-/Selten-Items
+    // (energieriegel_plus 15%, suessigkeit 20%), was die Seltenheits-
+    // Rangfolge unterlaufen hat. 30 Minuten Laufzeit bleiben als Gewoehnlich-
+    // Vorteil erhalten (laenger als die 10-Minuten-Items derselben Stufe).
+    effect: "+8 % XP-Boost für 30 Minuten",
     unlockText: "Kostenloser Drop an Standorten",
     usage_context: "jederzeit",
     effectType: "xp_boost",
-    effectValue: 0.25,
+    effectValue: 0.08,
     effectDurationMs: 30 * 60 * 1000,
   },
   sprachbuch: {
@@ -399,14 +417,10 @@ const ITEMS = {
     type: "Verbrauchbar",
     effect: "+5 % Punkte in menschlicher Sprache",
     unlockText: "Kostenloser Drop an Standorten",
-    usage_context: "jederzeit",
-    // "Punkte" hier als XP gelesen (Original-Kartentext, siehe
-    // store-walk-spielspezifikation.md) -- es gibt keine separate
-    // "Sprach-Punkte"-Ressource im Spiel, daher technisch ein kleiner
-    // XP-Boost wie die anderen Gewoehnlich-Boosts.
-    effectType: "xp_boost",
-    effectValue: 0.05,
-    effectDurationMs: 10 * 60 * 1000,
+    // Bewusst OHNE usage_context/effectType: laut User fuer eine kuenftige
+    // Story-Mechanik gedacht (Loomas verstehen koennen), noch nicht
+    // umgesetzt -- daher aktuell kein Verwenden-Button und kein
+    // "nur im Fangsystem"-Hinweis, einfach ein passives Sammel-/Lore-Item.
   },
   energiesnack: {
     key: "energiesnack",

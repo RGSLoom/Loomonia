@@ -237,6 +237,7 @@ async function onFirstFix() {
   await storeLocationsReady;
   ensureStorePositions();
   renderStoreMarkers();
+  spawnGuaranteedStarterCreatures();
   fillCreatureSpawns();
 }
 
@@ -425,25 +426,49 @@ function fillCreatureSpawns() {
   }
 }
 
-function spawnCreature() {
+// Direkt beim allerersten GPS-Fix aufgerufen (siehe onFirstFix()) --
+// garantiert SPAWN_BOOST_GUARANTEED_NEARBY_COUNT Wesen innerhalb der
+// Fang-Reichweite (CATCH_RADIUS_M), statt sich auf die normale, viel weiter
+// streuende Spawn-Verteilung zu verlassen. fillCreatureSpawns() danach
+// fuellt nur noch den Rest bis zum Boost-Maximum ganz normal auf.
+function spawnGuaranteedStarterCreatures() {
+  for (let i = 0; i < SPAWN_BOOST_GUARANTEED_NEARBY_COUNT; i++) {
+    spawnCreature({
+      minRadiusM: SPAWN_BOOST_GUARANTEED_NEARBY_MIN_RADIUS_M,
+      maxRadiusM: SPAWN_BOOST_GUARANTEED_NEARBY_MAX_RADIUS_M,
+    });
+  }
+}
+
+// nearbyOverride: { minRadiusM, maxRadiusM } -- erzwingt einen Spawn direkt
+// um den Spieler in genau diesem Radius (statt der normalen Store-/Frei-
+// Verteilung), siehe spawnGuaranteedStarterCreatures() unten.
+function spawnCreature(nearbyOverride) {
   if (!playerPos) return;
   const key = randomChoice(SPAWNABLE_CREATURE_KEYS);
-  const boost = isLoomaBoostActive();
-  const storeSpawnRadius = boost ? SPAWN_BOOST_STORE_SPAWN_RADIUS_M : CREATURE_STORE_SPAWN_RADIUS_M;
-  const freeSpawnRadius = boost ? SPAWN_BOOST_FREE_SPAWN_RADIUS_M : CREATURE_FREE_SPAWN_RADIUS_M;
   let lat, lon;
 
-  const nearStore = Math.random() < CREATURE_STORE_SPAWN_WEIGHT && Object.keys(storeMarkers).length > 0;
-  if (nearStore) {
-    const storeKeys = Object.keys(storeMarkers);
-    const chosenStore = storeMarkers[randomChoice(storeKeys)];
-    const p = randomPointAround(chosenStore.lat, chosenStore.lon, storeSpawnRadius);
+  if (nearbyOverride) {
+    const p = randomPointAround(playerPos.lat, playerPos.lon, nearbyOverride.maxRadiusM, nearbyOverride.minRadiusM);
     lat = p.lat;
     lon = p.lon;
   } else {
-    const p = randomPointAround(playerPos.lat, playerPos.lon, freeSpawnRadius);
-    lat = p.lat;
-    lon = p.lon;
+    const boost = isLoomaBoostActive();
+    const storeSpawnRadius = boost ? SPAWN_BOOST_STORE_SPAWN_RADIUS_M : CREATURE_STORE_SPAWN_RADIUS_M;
+    const freeSpawnRadius = boost ? SPAWN_BOOST_FREE_SPAWN_RADIUS_M : CREATURE_FREE_SPAWN_RADIUS_M;
+
+    const nearStore = Math.random() < CREATURE_STORE_SPAWN_WEIGHT && Object.keys(storeMarkers).length > 0;
+    if (nearStore) {
+      const storeKeys = Object.keys(storeMarkers);
+      const chosenStore = storeMarkers[randomChoice(storeKeys)];
+      const p = randomPointAround(chosenStore.lat, chosenStore.lon, storeSpawnRadius);
+      lat = p.lat;
+      lon = p.lon;
+    } else {
+      const p = randomPointAround(playerPos.lat, playerPos.lon, freeSpawnRadius);
+      lat = p.lat;
+      lon = p.lon;
+    }
   }
 
   const creature = CREATURES[key];
