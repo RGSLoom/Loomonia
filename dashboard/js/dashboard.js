@@ -51,6 +51,13 @@ function selectStore(key) {
 }
 
 function showDashboard(storeKey) {
+  // Ohne diese Zeile blieb #screen-dashboard beim urspruenglichen
+  // "display:none" aus dem HTML stehen -- nach dem Entfernen des
+  // Zwischen-Screens "screen-select" (der das vorher uebernommen hatte)
+  // ging das Sichtbarmachen hier verloren, das Dashboard blieb nach dem
+  // Entsperren komplett weiss (siehe Nutzer-Meldung).
+  document.getElementById("screen-dashboard").style.display = "flex";
+
   const dateLabel = "Heute, " + new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
   document.getElementById("today-date").textContent = dateLabel;
   document.getElementById("today-date-umsatz").textContent = dateLabel;
