@@ -679,6 +679,16 @@ html, body {
      startDodgePulseLoop() in js/catchgame.js) vom Handy-Browser als Scroll/
      Pull-to-refresh interpretiert wird. */
   touch-action: none;
+  /* Laenger Gedrueckthalten (siehe Angriffs-Widget) loeste auf dem Handy
+     sonst das native "Bild speichern/kopieren"-Kontextmenue des Browsers
+     aus (User-Feedback) -- -webkit-touch-callout unterdrueckt das auf iOS
+     Safari, user-select verhindert zusaetzlich eine Text-Auswahl-Blase.
+     Android-Chrome braucht zusaetzlich das JS-seitige contextmenu-
+     preventDefault() in js/main.js, diese beiden CSS-Properties allein
+     reichen dort nicht immer aus. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .catch-creature-img {
   position: absolute;
@@ -691,6 +701,7 @@ html, body {
   z-index: 1;
   filter: drop-shadow(0 10px 24px rgba(0,0,0,0.6));
   pointer-events: none;
+  -webkit-touch-callout: none;
   display: none;
   transition: filter 0.15s ease;
 }

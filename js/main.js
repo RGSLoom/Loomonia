@@ -236,6 +236,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (catchInteractionBlocked(e)) return;
     onCatchPointerUp(e);
   });
+  // Laenger Gedrueckthalten beim Angriff (siehe onCatchPointerDown()) loeste
+  // auf Android Chrome sonst das native "Bild speichern"-Kontextmenue aus,
+  // obwohl die CSS-Touch-Callout-Regeln (siehe .catch-stage in
+  // css/style.css) das auf iOS Safari bereits verhindern -- Android
+  // braucht zusaetzlich dieses preventDefault() auf dem contextmenu-Event.
+  document.getElementById("screen-catch").addEventListener("contextmenu", (e) => e.preventDefault());
   document.querySelector('#screen-catch [data-close]').addEventListener("click", closeCatchScene);
   document.getElementById("btn-ar-toggle").addEventListener("click", toggleArCamera);
   document.getElementById("btn-use-fokuszeit").addEventListener("click", useFokuszeit);
