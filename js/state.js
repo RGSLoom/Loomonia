@@ -807,8 +807,25 @@ function wildLoomaBattleLevel() {
 // Kampfwerte des wilden Loomas fuer die aktuelle Begegnung -- nicht
 // persistiert (wilde Loomas haben kein eigenes gespeichertes Level, nur
 // gefangene Instanzen haben eins, siehe caughtCreatures oben).
+//
+// Nutzt bewusst die RARITAET DES BEGLEITERS statt der eigenen Raritaet des
+// wilden Loomas fuer die Statwerte-Groessenordnung (User-Feedback nach
+// echtem Gameplay-Test: ein Episch-Begleiter/Shiny war gegen ein
+// gleich-levelndes Selten-Wildlooma massiv ueberlegen, obwohl das Level
+// schon korrekt angepasst war -- Raritaet macht bei gleichem Level naemlich
+// selbst nochmal fast den doppelten Statwert aus, siehe
+// LOOMA_RARITY_BASE_STATS). Sonst waere jede Begegnung nur noch davon
+// abhaengig, welche Art von Wildlooma zufaellig in der Naehe spawnt, statt
+// vom eigenen Fortschritt. Die EIGENE Raritaet des wilden Loomas bleibt
+// trotzdem bedeutsam -- sie bestimmt weiterhin die Zielfenster-Groesse/
+// -Geschwindigkeit (siehe BATTLE_HIT_WINDOW_BY_RARITY/
+// BATTLE_TIMING_DURATION_MS_BY_RARITY in js/data.js): seltenere Loomas
+// bleiben also schwerer zu TREFFEN, ohne zusaetzlich auch noch rohe
+// Kampfkraft aufzustapeln.
 function wildLoomaBattleStats(creature) {
-  return loomaStatsAtLevel(creature.rarity, wildLoomaBattleLevel());
+  const companion = CREATURES[gameState.activeCompanion];
+  const rarity = companion ? companion.rarity : creature.rarity;
+  return loomaStatsAtLevel(rarity, wildLoomaBattleLevel());
 }
 
 // Summe eines Ausruestungs-Kampfwerts (angriff/verteidigung) ueber ALLE
