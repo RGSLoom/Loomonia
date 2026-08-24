@@ -839,18 +839,22 @@ html, body {
   text-align: center;
   white-space: nowrap;
 }
-/* Reihe fuer alle Fangszenen-Item-Buttons (Fokuszeit, Heilen, ...) --
+/* Spalte fuer alle Fangszenen-Item-Buttons (Fokuszeit, Heilen, ...) --
    einzelne .catch-item-btn sind darin normale Flex-Kinder statt selbst
-   absolut positioniert zu sein. Bewusst fest am unteren Rand statt relativ
-   zum Ring positioniert (der Ring aendert im Gegensatz zum alten Balken
-   seine Groesse nicht mit der Raritaet, aber so bleibt die Reihe robust). */
+   absolut positioniert zu sein. Bewusst am rechten Rand statt unten mittig
+   (User-Feedback: dort ueberlappten sie den Angriffs-Ring/Fang-Balken, die
+   beide ebenfalls horizontal zentriert sind) -- vertikal auf halber Buehnen-
+   hoehe zentriert, damit die Spalte unabhaengig von der Raritaet des Wesens
+   (Ring aendert seine Groesse nicht, der Balken schon) nie mit einem der
+   Widgets kollidiert. */
 .catch-item-btn-row {
   position: absolute;
-  bottom: 96px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 6;
   display: flex;
+  flex-direction: column;
   gap: 14px;
 }
 .catch-item-btn {
