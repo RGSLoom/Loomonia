@@ -367,14 +367,15 @@ function showDeleteItemConfirm(key, mode) {
 function renderLoomasGrid() {
   const cells = Object.values(CREATURES)
     .map((c) => {
-      const count = gameState.caughtCreatures[c.key] || 0;
+      const count = caughtInstances(c.key).length;
       const owned = count > 0;
       if (!owned) return `<div class="looma-cell locked"></div>`;
       const isCompanion = gameState.activeCompanion === c.key;
+      const companionInstance = isCompanion ? getActiveCompanionInstance() : null;
       return `<div class="looma-cell${isCompanion ? " looma-cell--companion" : ""}" data-creature="${c.key}" style="--rarity-color:${RARITY_COLORS[c.rarity]}">
         <img src="${creatureIconCache[c.key] || c.icon}" alt="${c.name}" /><span class="cell-count">${count}</span>
         <span class="cell-label">${c.name}</span>
-        ${isCompanion ? `<span class="cell-companion-tag">Begleiter</span>` : ""}
+        ${isCompanion ? `<span class="cell-companion-tag">Begleiter · Lvl ${companionInstance.level}</span>` : ""}
       </div>`;
     })
     .join("");
@@ -395,9 +396,10 @@ function attachLoomasGridHandlers() {
 function showLoomaExchangeDetail(key) {
   const creature = CREATURES[key];
   const content = document.getElementById("loomas-content");
-  const owned = gameState.caughtCreatures[key] || 0;
+  const owned = caughtInstances(key).length;
   if (owned < 1) return;
   const isCompanion = gameState.activeCompanion === key;
+  const essencePerCreature = SHADOW_ESSENCE_PER_CREATURE_BY_RARITY[creature.rarity];
   // Der aktive Begleiter ruht im Habitat und darf nicht mit eingetauscht
   // werden (siehe exchangeableCreatureCount() in js/state.js + User-Feedback:
   // "bei 10 Stück dürfen max nur 9 getauscht werden, da ich einen im Habitat
@@ -407,15 +409,41 @@ function showLoomaExchangeDetail(key) {
   const exchangeable = exchangeableCreatureCount(key);
 
   const exchangeSectionHtml = exchangeable > 0
-    ? `<div class="looma-exchange-rate">1 Wesen = ${SHADOW_ESSENCE_PER_CREATURE} Schatten-Essenz</div>
+    ? `<div class="looma-exchange-rate">1 Wesen = ${essencePerCreature} Schatten-Essenz</div>
       <div class="looma-exchange-slider-row">
         <input type="range" id="looma-exchange-slider" min="1" max="${exchangeable}" value="1" step="1" ${exchangeable === 1 ? "disabled" : ""} />
       </div>
       <div class="looma-exchange-preview">
-        <span id="looma-exchange-qty">1</span> Wesen → <span id="looma-exchange-result">${SHADOW_ESSENCE_PER_CREATURE}</span> Schatten-Essenz
+        <span id="looma-exchange-qty">1</span> Wesen → <span id="looma-exchange-result">${essencePerCreature}</span> Schatten-Essenz
       </div>
       <button id="btn-looma-exchange-confirm" class="primary-btn">Eintauschen</button>`
     : `<div class="looma-exchange-rate">Dein aktiver Begleiter ist im Habitat reserviert und kann nicht eingetauscht werden.</div>`;
+
+  // Level-Anzeige + Levelaufstieg nur fuer den aktiven Begleiter -- das ist
+  // aktuell das einzige Looma, das im Spiel ueberhaupt eine Rolle spielt
+  // (Habitat/Rested-XP), andere Exemplare derselben Art sind reine
+  // Eintausch-Ware ohne eigene Verwendung.
+  let levelSectionHtml = "";
+  if (isCompanion) {
+    const instance = getActiveCompanionInstance();
+    const stats = loomaStatsAtLevel(creature.rarity, instance.level);
+    const atMaxLevel = instance.level >= LOOMA_MAX_LEVEL;
+    const cost = atMaxLevel ? null : loomaLevelUpCost(instance.level + 1);
+    const canAfford = cost !== null && gameState.shadowEssence >= cost;
+    levelSectionHtml = `
+      <div class="looma-level-card">
+        <div class="looma-level-title">Level ${instance.level}${atMaxLevel ? " (Max)" : ""}</div>
+        <div class="looma-level-stats">
+          <span>⚔️ ${stats.angriff}</span>
+          <span>🛡️ ${stats.verteidigung}</span>
+          <span>❤️ ${stats.gesundheit}</span>
+        </div>
+        ${atMaxLevel
+          ? ""
+          : `<div class="looma-level-cost">Aufstieg auf Level ${instance.level + 1}: ${formatNumber(cost)} Schatten-Essenz</div>
+             <button id="btn-looma-level-up" class="primary-btn" ${canAfford ? "" : "disabled"}>Level aufsteigen</button>`}
+      </div>`;
+  }
 
   content.innerHTML = `
     <button class="back-btn" id="btn-looma-detail-back" style="margin-bottom:12px;">← Übersicht</button>
@@ -427,6 +455,7 @@ function showLoomaExchangeDetail(key) {
       ${isCompanion
         ? `<div class="looma-companion-active-note">✓ Aktiver Begleiter</div>`
         : `<button id="btn-looma-set-companion" class="secondary-btn" style="margin-bottom:16px;">Als Begleiter wählen</button>`}
+      ${levelSectionHtml}
       ${exchangeSectionHtml}
     </div>`;
 
@@ -437,7 +466,7 @@ function showLoomaExchangeDetail(key) {
     slider.addEventListener("input", () => {
       const qty = Number(slider.value);
       qtyLabel.textContent = qty;
-      resultLabel.textContent = qty * SHADOW_ESSENCE_PER_CREATURE;
+      resultLabel.textContent = qty * essencePerCreature;
     });
   }
 
@@ -448,6 +477,14 @@ function showLoomaExchangeDetail(key) {
       if (!exchangeCreatureForEssence(key, qty)) return;
       content.innerHTML = renderLoomasGrid();
       attachLoomasGridHandlers();
+    });
+  }
+
+  const levelUpBtn = document.getElementById("btn-looma-level-up");
+  if (levelUpBtn) {
+    levelUpBtn.addEventListener("click", () => {
+      if (!levelUpActiveCompanion()) return;
+      showLoomaExchangeDetail(key);
     });
   }
 
@@ -474,6 +511,7 @@ function showLoomaExchangeDetail(key) {
 // showLoomaExchangeDetail() oben) -- hier nur Anzeige.
 function renderHabitatContent() {
   const companion = getActiveCompanion();
+  const companionInstance = companion ? getActiveCompanionInstance() : null;
   const cap = restedXpCap();
   const remaining = Math.round(gameState.restedXpRemaining || 0);
   const isResting = remaining > 0;
@@ -484,7 +522,7 @@ function renderHabitatContent() {
         <img src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />
         <div>
           <div class="habitat-companion-name">${companion.name}</div>
-          <div class="habitat-companion-sub">Aktiver Begleiter</div>
+          <div class="habitat-companion-sub">Aktiver Begleiter · Level ${companionInstance.level}</div>
         </div>
       </div>`
     : `<div class="habitat-companion-banner glass">

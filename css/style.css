@@ -1432,6 +1432,26 @@ html, body {
 .looma-exchange-owned { font-size: 13px; opacity: 0.85; margin-bottom: 4px; }
 .looma-exchange-rate { font-size: 12px; opacity: 0.7; margin-bottom: 18px; }
 
+/* Level-Karte des aktiven Begleiters (Level-System-Briefing) */
+.looma-level-card {
+  padding: 14px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  text-align: center;
+}
+.looma-level-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.looma-level-stats {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.looma-level-cost { font-size: 12px; opacity: 0.75; margin-bottom: 10px; }
+
 /* Aktiver Begleiter (Habitat-Briefing) -- gruen statt lila (.item-cell.equipped),
    um sich klar vom "Angezogen"-Ausruestungsstatus zu unterscheiden. */
 .looma-cell--companion { box-shadow: 0 0 0 2px var(--cosmic-accent-2), 0 0 16px -4px var(--cosmic-accent-2); }

@@ -78,9 +78,6 @@ const DRAW_CONFIG = {
   shapes: ["kreis", "welle", "zickzack", "dreieck", "quadrat"],
 };
 
-// Eintausch-Kurs: gefangene Wesen -> Schatten-Essenz (Loomas-Screen).
-const SHADOW_ESSENCE_PER_CREATURE = 1000;
-
 // ============ Energie ============
 // Kostet einmal pro Fang-Begegnung Energie (beim Oeffnen der Fangszene,
 // siehe openCatchSceneForCreature() in js/catchgame.js) — bewusst NICHT pro
@@ -179,6 +176,74 @@ const RARITY_COLORS = {
   "Selten": "#60a5fa",
   "Episch": "#c084fc",
   "Legendär": "#fbbf24",
+};
+
+// ============ Looma-Level-System ============
+// Siehe Level-System-Briefing. Baut auf dem Habitat-Briefing auf (Rested-XP
+// wirkt NICHT auf den Levelaufstieg selbst, siehe isActiveCompanionMaxLevel()
+// in js/state.js). Jedes einzeln gefangene Looma-Exemplar bekommt ein eigenes
+// Level (siehe gameState.caughtCreatures-Instanzformat in js/state.js), nicht
+// nur der Spieler als Ganzes -- unabhaengig vom bereits bestehenden
+// Spieler-Levelsystem oben (LEVEL_CAP/xpForLevel()).
+const LOOMA_MAX_LEVEL = 50;
+
+// Basiswerte (Level 1) der drei Kernattribute je Raritaetsstufe, aus dem
+// Briefing uebernommen -- skalieren proportional mit denselben Multiplikatoren
+// wie die Gesundheit (Weiss x1, Gruen x2, Blau x5, Lila x10, Gold x20), hier
+// aber direkt als Endwerte hinterlegt statt ueber einen Multiplikator
+// berechnet, da Angriffskraft/Verteidigung nicht exakt denselben
+// Weiss-Basiswert wie Gesundheit haben.
+const LOOMA_RARITY_BASE_STATS = {
+  "Gewöhnlich": { angriff: 14, verteidigung: 12, gesundheit: 100 },
+  "Ungewöhnlich": { angriff: 28, verteidigung: 24, gesundheit: 200 },
+  "Selten": { angriff: 70, verteidigung: 60, gesundheit: 500 },
+  "Episch": { angriff: 140, verteidigung: 120, gesundheit: 1000 },
+  "Legendär": { angriff: 280, verteidigung: 240, gesundheit: 2000 },
+};
+
+// Gesamtwachstum ueber die volle Levelspanne (Level 1 bis LOOMA_MAX_LEVEL):
+// 200% Zuwachs = Verdreifachung bis Max-Level, wie im Briefing als Endwert-
+// Beispiel vorgerechnet (z.B. Weiss-Angriffskraft 14 -> 42). Als Bruchteil
+// von (LOOMA_MAX_LEVEL - 1) Levelschritten statt fix "4% pro Level"
+// hinterlegt, damit Level 1 exakt dem Basiswert entspricht UND Level
+// LOOMA_MAX_LEVEL exakt der dreifache Basiswert ist (eine feste 4%-pro-Level-
+// Rate ueber 49 Schritte traefe die vorgerechnete Verdreifachung nur naeherungsweise).
+const LOOMA_STAT_GROWTH_TOTAL = 2;
+
+// Kampfwert eines einzelnen Attributs bei gegebener Raritaet und Level.
+function loomaStatAtLevel(rarity, level, statKey) {
+  const base = LOOMA_RARITY_BASE_STATS[rarity][statKey];
+  const growthFraction = (Math.min(level, LOOMA_MAX_LEVEL) - 1) / (LOOMA_MAX_LEVEL - 1);
+  return Math.round(base * (1 + LOOMA_STAT_GROWTH_TOTAL * growthFraction));
+}
+
+// Alle drei Kernattribute auf einmal fuer eine Raritaet+Level-Kombination.
+function loomaStatsAtLevel(rarity, level) {
+  return {
+    angriff: loomaStatAtLevel(rarity, level, "angriff"),
+    verteidigung: loomaStatAtLevel(rarity, level, "verteidigung"),
+    gesundheit: loomaStatAtLevel(rarity, level, "gesundheit"),
+  };
+}
+
+// Schatten-Essenz-Kosten fuer den Aufstieg AUF `targetLevel` (von
+// targetLevel-1), quadratische Kurve aus dem Briefing -- gilt unabhaengig von
+// der Raritaet, jedes Looma zahlt fuer denselben Levelschritt denselben
+// Essenz-Betrag.
+function loomaLevelUpCost(targetLevel) {
+  return 1000 * targetLevel * targetLevel;
+}
+
+// Eintausch-Ertrag beim Eintauschen EINES Duplikat-Looma gegen Schatten-
+// Essenz, raritaetsabhaengig gestaffelt (ersetzt den bisherigen pauschalen
+// 1000er-Kurs, siehe Level-System-Briefing "Schatten-Essenz-Ertrag beim
+// Tauschen von Duplikaten").
+const SHADOW_ESSENCE_PER_CREATURE_BY_RARITY = {
+  "Gewöhnlich": 500,
+  "Ungewöhnlich": 1000,
+  "Selten": 1500,
+  "Episch": 2000,
+  "Legendär": 2500,
 };
 
 // ============ Trophaeen ============

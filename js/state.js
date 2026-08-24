@@ -19,7 +19,11 @@ function defaultState() {
     xp: 0,
     energy: ENERGY_MAX,
     lastEnergyTimestamp: Date.now(),
-    caughtCreatures: {}, // key -> count
+    // key -> [{ id, level }] -- ein Eintrag pro einzeln gefangenem Exemplar
+    // (siehe Level-System-Briefing: jedes Looma hat sein eigenes Level, nicht
+    // nur ein Zaehler pro Art). Bestandsspielstaende mit dem alten Format
+    // (key -> Anzahl) werden weiter unten einmalig migriert.
+    caughtCreatures: {},
     inventory: {}, // itemKey -> count
     shadowEssence: 0,
     // Aktive, zeitlich befristete Boost-Effekte aus frei nutzbaren
@@ -66,12 +70,43 @@ function defaultState() {
     // Bonus-Pool, sessionEndedAt der Zeitstempel des letzten App-Schliessens
     // (siehe markSessionEnded()/settleRestedXp()).
     activeCompanion: null,
+    // Konkrete Instanz-ID (siehe caughtCreatures oben) des aktiven Begleiters
+    // innerhalb seiner Art -- activeCompanion allein (nur der Art-Key) reicht
+    // seit dem Level-System-Briefing nicht mehr, da mehrere Exemplare derselben
+    // Art unterschiedliche Level haben koennen.
+    activeCompanionInstanceId: null,
     restedXpRemaining: 0,
     sessionEndedAt: null,
   };
 }
 
 const gameState = Object.assign(defaultState(), loadState() || {});
+
+// Migration auf das Instanz-Format von caughtCreatures (siehe Level-System-
+// Briefing): Bestandsspielstaende speichern hier bislang eine reine Anzahl
+// (key -> Zahl) statt eines Arrays einzelner Exemplare. Wandelt das einmalig
+// um -- jedes bisher gezaehlte Exemplar wird zu einer eigenen Instanz auf
+// Level 1 (kein rueckwirkendes Level, da es vorher keins gab). Der bisherige
+// aktive Begleiter (nur als Art-Key gespeichert) bekommt dabei eine seiner
+// neuen Instanzen zugewiesen, damit er nicht verloren geht.
+Object.keys(gameState.caughtCreatures).forEach((key) => {
+  const value = gameState.caughtCreatures[key];
+  if (Array.isArray(value)) return;
+  const count = value || 0;
+  const instances = [];
+  for (let i = 0; i < count; i++) {
+    instances.push({ id: `${key}_migrated_${i}_${Date.now()}`, level: 1 });
+  }
+  gameState.caughtCreatures[key] = instances;
+});
+if (gameState.activeCompanion && !gameState.activeCompanionInstanceId) {
+  const instances = gameState.caughtCreatures[gameState.activeCompanion] || [];
+  if (instances.length > 0) {
+    gameState.activeCompanionInstanceId = instances[0].id;
+  } else {
+    gameState.activeCompanion = null;
+  }
+}
 
 // Migration fuers Level-Reward-System (siehe claimLevelRewards() unten):
 // Bestandsspielstaende, die vor Einfuehrung dieses Systems schon ein hohes
@@ -307,8 +342,15 @@ function spendEnergy(amount) {
   return gameState.energy;
 }
 
+// Liefert alle Instanzen von `key` (leeres Array, falls noch keine gefangen).
+function caughtInstances(key) {
+  return gameState.caughtCreatures[key] || [];
+}
+
 function addCaughtCreature(key) {
-  gameState.caughtCreatures[key] = (gameState.caughtCreatures[key] || 0) + 1;
+  const instances = gameState.caughtCreatures[key] || (gameState.caughtCreatures[key] = []);
+  const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `${key}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  instances.push({ id, level: 1 });
   saveState();
 }
 
@@ -319,30 +361,38 @@ function totalCaughtCount() {
   // Kreatur-Key enthaelt (siehe QA-Bug-Liste).
   return Object.entries(gameState.caughtCreatures)
     .filter(([key]) => CREATURES[key])
-    .reduce((sum, [, count]) => sum + count, 0);
+    .reduce((sum, [, instances]) => sum + instances.length, 0);
 }
 
-// Anzahl von `key`, die eintauschbar ist -- der Bestand MINUS 1, falls `key`
-// gerade der aktive Begleiter ist (der ruht im Habitat und darf nicht mit
-// eingetauscht werden, siehe Habitat-Briefing/User-Feedback: "bei 10 Stück
-// duerfen max nur 9 getauscht werden, da ich einen im Habitat habe"). Ohne
-// aktiven Begleiter dieser Art entspricht das einfach dem vollen Bestand.
+// Anzahl von `key`, die eintauschbar ist -- der Bestand MINUS 1, falls die
+// aktuell aktive Begleiter-Instanz zu `key` gehoert (der ruht im Habitat und
+// darf nicht mit eingetauscht werden, siehe Habitat-Briefing/User-Feedback:
+// "bei 10 Stück duerfen max nur 9 getauscht werden, da ich einen im Habitat
+// habe"). Ohne aktiven Begleiter dieser Art entspricht das einfach dem
+// vollen Bestand.
 function exchangeableCreatureCount(key) {
-  const owned = gameState.caughtCreatures[key] || 0;
+  const owned = caughtInstances(key).length;
   const reserved = gameState.activeCompanion === key ? 1 : 0;
   return Math.max(0, owned - reserved);
 }
 
 // Tauscht `qty` gefangene Exemplare von `key` gegen Schatten-Essenz
-// (SHADOW_ESSENCE_PER_CREATURE pro Stück, siehe data.js). Gibt false zurück
-// und aendert nichts, falls qty ungueltig ist oder mehr verlangt wird als
-// eintauschbar (siehe exchangeableCreatureCount() oben) — so bleibt der
-// Aufrufer (Loomas-UI) einfach.
+// (raritaetsabhaengig gestaffelt, siehe SHADOW_ESSENCE_PER_CREATURE_BY_RARITY
+// in data.js). Gibt false zurück und aendert nichts, falls qty ungueltig ist
+// oder mehr verlangt wird als eintauschbar (siehe exchangeableCreatureCount()
+// oben) — so bleibt der Aufrufer (Loomas-UI) einfach. Tauscht bevorzugt die
+// NIEDRIGST-levelnden Exemplare ein (schont die am meisten investierten
+// Duplikate) und laesst die aktive Begleiter-Instanz dabei unangetastet.
 function exchangeCreatureForEssence(key, qty) {
-  const owned = gameState.caughtCreatures[key] || 0;
   if (!Number.isInteger(qty) || qty < 1 || qty > exchangeableCreatureCount(key)) return false;
-  gameState.caughtCreatures[key] = owned - qty;
-  gameState.shadowEssence += qty * SHADOW_ESSENCE_PER_CREATURE;
+  const instances = caughtInstances(key);
+  const removable = instances
+    .filter((inst) => inst.id !== gameState.activeCompanionInstanceId)
+    .sort((a, b) => a.level - b.level)
+    .slice(0, qty);
+  const removeIds = new Set(removable.map((inst) => inst.id));
+  gameState.caughtCreatures[key] = instances.filter((inst) => !removeIds.has(inst.id));
+  gameState.shadowEssence += qty * (SHADOW_ESSENCE_PER_CREATURE_BY_RARITY[CREATURES[key].rarity] || 0);
   saveState();
   return true;
 }
@@ -558,9 +608,16 @@ function getPlayerId() {
 // Setzt das aktive Looma (muss mindestens 1x gefangen und noch im Bestand
 // sein) -- siehe Habitat-Briefing. Gibt false zurueck (kein State-Change),
 // wenn der Key unbekannt ist oder nichts davon gefangen wurde.
+// Waehlt die HOECHST-levelnde Instanz von `key` als aktiven Begleiter (bei
+// Gleichstand die zuerst gefangene) -- es gibt aktuell keine eigene UI, um
+// zwischen mehreren gleich-artigen Exemplaren zu waehlen, daher automatisch
+// die staerkste.
 function setActiveCompanion(key) {
-  if (!CREATURES[key] || (gameState.caughtCreatures[key] || 0) < 1) return false;
+  const instances = caughtInstances(key);
+  if (!CREATURES[key] || instances.length < 1) return false;
+  const best = instances.reduce((a, b) => (b.level > a.level ? b : a));
   gameState.activeCompanion = key;
+  gameState.activeCompanionInstanceId = best.id;
   saveState();
   return true;
 }
@@ -573,13 +630,59 @@ function setActiveCompanion(key) {
 // dem er ruhen koennte.
 function getActiveCompanion() {
   const key = gameState.activeCompanion;
-  if (!key || !CREATURES[key]) return null;
-  if ((gameState.caughtCreatures[key] || 0) < 1) {
+  if (!key || !CREATURES[key] || !getActiveCompanionInstance()) return null;
+  return CREATURES[key];
+}
+
+// Liefert die konkrete Instanz (siehe caughtCreatures-Format oben) des
+// aktiven Begleiters, also inkl. dessen individuellem Level -- oder null,
+// wenn kein Begleiter aktiv ist oder dessen Instanz nicht mehr existiert
+// (z.B. weil sie zwischenzeitlich eingetauscht wurde). Raeumt einen
+// verwaisten Begleiter-State dabei automatisch auf.
+function getActiveCompanionInstance() {
+  const key = gameState.activeCompanion;
+  if (!key) return null;
+  const instance = caughtInstances(key).find((inst) => inst.id === gameState.activeCompanionInstanceId);
+  if (!instance) {
     gameState.activeCompanion = null;
+    gameState.activeCompanionInstanceId = null;
     saveState();
     return null;
   }
-  return CREATURES[key];
+  return instance;
+}
+
+// Kampfwerte (Angriffskraft/Verteidigung/Gesundheit) des aktiven Begleiters
+// auf seinem aktuellen Level, oder null ohne aktiven Begleiter.
+function activeCompanionStats() {
+  const key = gameState.activeCompanion;
+  const instance = getActiveCompanionInstance();
+  if (!key || !instance) return null;
+  return loomaStatsAtLevel(CREATURES[key].rarity, instance.level);
+}
+
+// Schatten-Essenz-Kosten, um den aktiven Begleiter um genau 1 Level
+// aufsteigen zu lassen -- null ohne aktiven Begleiter oder auf Max-Level.
+function activeCompanionLevelUpCost() {
+  const instance = getActiveCompanionInstance();
+  if (!instance || instance.level >= LOOMA_MAX_LEVEL) return null;
+  return loomaLevelUpCost(instance.level + 1);
+}
+
+// Laesst den aktiven Begleiter um 1 Level aufsteigen, sofern genug Schatten-
+// Essenz vorhanden UND er noch nicht auf Max-Level ist. Gibt bei Erfolg das
+// neue Level zurueck, sonst false (kein State-Change) -- die Essenz-Kosten
+// haengen NICHT vom Rested-XP-Bonus ab (siehe Level-System-Briefing: das ist
+// eine eigene, vom allgemeinen XP-System getrennte Ressource).
+function levelUpActiveCompanion() {
+  const instance = getActiveCompanionInstance();
+  if (!instance || instance.level >= LOOMA_MAX_LEVEL) return false;
+  const cost = loomaLevelUpCost(instance.level + 1);
+  if (gameState.shadowEssence < cost) return false;
+  gameState.shadowEssence -= cost;
+  instance.level += 1;
+  saveState();
+  return instance.level;
 }
 
 // Obergrenze des spielerweiten Rested-XP-Pools: 100% der XP-Spanne vom
@@ -593,13 +696,14 @@ function restedXpCap() {
   return xpForLevel(level + 1) - xpForLevel(level);
 }
 
-// Platzhalter fuer das noch zu entwickelnde Looma-Level-System (siehe
-// Habitat-Briefing Punkt 7: kein Rested-Bonus mehr, wenn das aktive Looma
-// bereits sein Max-Level erreicht hat) -- liefert bislang immer false, da es
-// noch kein Level pro Looma gibt. Sobald das Level-System steht, hier durch
-// eine echte Pruefung ersetzen.
+// Siehe Habitat-Briefing Punkt 7: kein Rested-Bonus mehr, wenn das aktive
+// Looma bereits sein Max-Level erreicht hat (LOOMA_MAX_LEVEL, siehe
+// Level-System-Briefing). Ohne aktiven Begleiter greift der Rested-Bonus
+// ohnehin nicht (settleRestedXp() sammelt dann gar nichts an), daher hier
+// false statt true bei fehlendem Begleiter.
 function isActiveCompanionMaxLevel() {
-  return false;
+  const instance = getActiveCompanionInstance();
+  return !!instance && instance.level >= LOOMA_MAX_LEVEL;
 }
 
 // Rechnet die seit Sitzungsende vergangene REALE Zeit in Rested-XP um (siehe
