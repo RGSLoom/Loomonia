@@ -671,10 +671,15 @@ function renderOutfitGrid() {
       // Bildes, damit auf den ersten Blick klar ist, dass hier nichts
       // angezogen ist.
       if (equippedItem) {
-        return `<button class="outfit-cell equipped" data-slot="${s.key}" style="--rarity-color:${RARITY_COLORS[equippedItem.rarity]}">
+        // Level + Glanz-Effekt (Ausruestungs-Level-System-Briefing): die
+        // Glow-Staerke der Kachel skaliert mit --equip-level (siehe
+        // .outfit-cell.equipped in style.css), damit hoehere Level auch
+        // rein visuell erkennbar sind.
+        const level = getEquipmentLevelState(equippedKey).level;
+        return `<button class="outfit-cell equipped" data-slot="${s.key}" style="--rarity-color:${RARITY_COLORS[equippedItem.rarity]}; --equip-level:${level}">
           <div class="outfit-cell-filled">
             <img src="${equippedItem.icon}" alt="${equippedItem.name}" />
-            <span class="outfit-cell-caption">${s.label}</span>
+            <span class="outfit-cell-caption">${s.label} · Lvl ${level}</span>
           </div>
         </button>`;
       }
@@ -710,6 +715,54 @@ function openOutfitSlotDetail(slotKey) {
   attachOutfitSlotDetailHandlers(slotKey);
 }
 
+// Level-Karte des aktuell ausgeruesteten Items in diesem Slot (Ausruestungs-
+// Level-System-Briefing) -- Statwerte, Feed-Fortschritt, Verfuettern-Liste
+// und Level-aufsteigen-Button. Leerer String ohne ausgeruestetes Item, denn
+// laut Briefing lassen sich nur AUSGERUESTETE Teile hochleveln.
+function renderEquipmentLevelCard(equippedKey) {
+  if (!equippedKey || !ITEMS[equippedKey]) return "";
+  const item = ITEMS[equippedKey];
+  const level = getEquipmentLevelState(equippedKey).level;
+  const atMaxLevel = isEquipmentMaxLevel(equippedKey);
+  const stats = equipmentStatsForItem(equippedKey);
+  const statsHtml = Object.entries(stats)
+    .map(([statKey, value]) => `<span>${EQUIPMENT_STAT_LABELS[statKey]} ${value}</span>`)
+    .join("");
+
+  let progressHtml = "";
+  let feedListHtml = "";
+  if (!atMaxLevel) {
+    const req = equipmentLevelUpRequirements(equippedKey);
+    const pct = Math.min(100, Math.round((req.feedProgress / req.feedCost) * 100));
+    progressHtml = `
+      <div class="equip-level-progress-row">Feed-Punkte: ${req.feedProgress}/${req.feedCost} · Münzen: ${req.coins}/${req.coinCost}</div>
+      <div class="equip-level-bar"><div class="equip-level-bar-fill" style="width:${pct}%"></div></div>
+      <button id="btn-equip-level-up" class="primary-btn" ${req.canLevelUp ? "" : "disabled"}>Level aufsteigen</button>`;
+
+    const feedCandidates = feedableItemsForEquipment(equippedKey);
+    feedListHtml = feedCandidates.length > 0
+      ? `<div class="equip-feed-list">
+          ${feedCandidates
+            .map(
+              (feedItem) => `<button class="equip-feed-row" data-feed-item="${feedItem.key}">
+                <span>${feedItem.name}</span>
+                <span class="equip-feed-points">🍽️ +${EQUIPMENT_FEED_POINTS_BY_RARITY[feedItem.rarity]} · Bestand ${gameState.inventory[feedItem.key]}</span>
+              </button>`
+            )
+            .join("")}
+        </div>`
+      : `<div class="placeholder-note" style="margin-top:10px;">Keine passenden Items im Inventar zum Verfüttern.</div>`;
+  }
+
+  return `
+    <div class="equip-level-card" style="--rarity-color:${RARITY_COLORS[item.rarity]}; --equip-level:${level}">
+      <div class="equip-level-title">Level ${level}${atMaxLevel ? " (Max)" : ""}</div>
+      <div class="equip-level-stats">${statsHtml}</div>
+      ${progressHtml}
+      ${feedListHtml}
+    </div>`;
+}
+
 function renderOutfitSlotDetail(slotKey) {
   const equippedKey = gameState.avatarEquipped[slotKey];
   // Das angezogene Item selbst bleibt hier auch bei Inventar-Bestand 0
@@ -735,6 +788,7 @@ function renderOutfitSlotDetail(slotKey) {
     <button class="back-btn" id="btn-outfit-slot-back" style="margin-bottom:12px;">← Übersicht</button>
     <div class="outfit-stage" style="margin-top:0; margin-bottom:14px;">${renderAvatarStage()}</div>
     <div class="outfit-slot-title">${OUTFIT_SLOT_LABELS[slotKey]}</div>
+    ${renderEquipmentLevelCard(equippedKey)}
     <div class="item-grid">${cells}</div>
     ${emptyNote}`;
 }
@@ -753,6 +807,20 @@ function attachOutfitSlotDetailHandlers(slotKey) {
       } else {
         equipItem(key);
       }
+      openOutfitSlotDetail(slotKey);
+    });
+  });
+
+  const levelUpBtn = document.getElementById("btn-equip-level-up");
+  if (levelUpBtn) {
+    levelUpBtn.addEventListener("click", () => {
+      levelUpEquipmentItem(gameState.avatarEquipped[slotKey]);
+      openOutfitSlotDetail(slotKey);
+    });
+  }
+  document.querySelectorAll(".equip-feed-row[data-feed-item]").forEach((row) => {
+    row.addEventListener("click", () => {
+      feedEquipmentItem(gameState.avatarEquipped[slotKey], row.dataset.feedItem);
       openOutfitSlotDetail(slotKey);
     });
   });

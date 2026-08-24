@@ -1452,6 +1452,50 @@ html, body {
 }
 .looma-level-cost { font-size: 12px; opacity: 0.75; margin-bottom: 10px; }
 
+/* Level-Karte eines ausgeruesteten Items (Ausruestungs-Level-System-Briefing,
+   siehe renderEquipmentLevelCard() in js/profile.js) -- analog zur
+   .looma-level-card, zusaetzlich mit raritaets-/levelabhaengigem Glanz-
+   Rahmen (--equip-level waechst 1-20, siehe .outfit-cell.equipped oben). */
+.equip-level-card {
+  padding: 14px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid color-mix(in srgb, var(--rarity-color, var(--rarity-common)) 55%, transparent);
+  box-shadow: 0 0 calc(3px + (var(--equip-level, 1) - 1) * 1.6px) var(--rarity-color, var(--rarity-common));
+  text-align: center;
+}
+.equip-level-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.equip-level-stats {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.equip-level-progress-row { font-size: 12px; opacity: 0.8; margin-bottom: 6px; }
+.equip-level-bar { height: 6px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; margin-bottom: 10px; }
+.equip-level-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--cosmic-accent), var(--accent-cyan)); transition: width 0.4s ease; }
+.equip-feed-list { margin-top: 10px; text-align: left; }
+.equip-feed-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.equip-feed-row:active { background: rgba(255,255,255,0.1); }
+.equip-feed-points { opacity: 0.75; font-size: 11.5px; white-space: nowrap; margin-left: 8px; }
+
 /* Aktiver Begleiter (Habitat-Briefing) -- gruen statt lila (.item-cell.equipped),
    um sich klar vom "Angezogen"-Ausruestungsstatus zu unterscheiden. */
 .looma-cell--companion { box-shadow: 0 0 0 2px var(--cosmic-accent-2), 0 0 16px -4px var(--cosmic-accent-2); }
@@ -1598,7 +1642,11 @@ html, body {
   --rarity-color: var(--rarity-common);
   background: var(--glass-fill);
   border: 1.5px solid color-mix(in srgb, var(--rarity-color) 55%, transparent);
-  box-shadow: 0 0 16px -6px var(--rarity-color);
+  /* Glanz-Effekt (Ausruestungs-Level-System-Briefing): zusaetzliche Glow-
+     Ebene, deren Groesse mit --equip-level (1-20, siehe renderOutfitGrid()
+     in js/profile.js) waechst, damit hoehere Level auch optisch erkennbar
+     sind. */
+  box-shadow: 0 0 16px -6px var(--rarity-color), 0 0 calc(3px + (var(--equip-level, 1) - 1) * 1.6px) var(--rarity-color);
 }
 .outfit-cell-filled {
   width: 100%;

@@ -60,6 +60,16 @@ function defaultState() {
     // fuenf Einzel-Slots schliessen sich gegenseitig aus — es kann nie
     // gleichzeitig ein Wert in "outfit" UND einem Einzel-Slot stehen.
     avatarEquipped: { kopfteil: null, oberteil: null, hose: null, sneaker: null, accessoire: null, outfit: null },
+    // Level je Ausruestungs-Item-KEY (nicht pro Slot und nicht pro
+    // physischer Instanz, siehe Ausruestungs-Level-System-Briefing):
+    // itemKey -> { level, feedProgress }. gameState.inventory kennt bislang
+    // keine Instanz-IDs fuer Ausruestung (nur key->Anzahl), ein Umbau auf
+    // Instanz-Tracking wie bei caughtCreatures haette groessere
+    // Seiteneffekte auf Drop-/Inventar-Code gehabt. Da alle Exemplare
+    // desselben Keys ohnehin identisch sind, verhaelt sich das im Spiel wie
+    // "das ausgeruestete Exemplar behaelt sein Level ueber Aus-/Wiederanlegen
+    // hinweg" -- eigene Interpretationsentscheidung.
+    equipmentLevels: {},
     storePositions: null, // { [storeKey]: { lat, lon } } — einmalig gesetzt
     playerId: null, // anonyme ID fuers Haendler-Dashboard (siehe tracking.js)
     trophies: {}, // trophyKey -> Freischalt-Zeitstempel (siehe TROPHIES in data.js)
@@ -474,6 +484,107 @@ function unequipSlot(slotType) {
   returnEquippedItemToInventory(slotType);
   saveState();
   return true;
+}
+
+// ============ Ausruestungs-Level-System ============
+// Siehe Ausruestungs-Level-System-Briefing + gameState.equipmentLevels-
+// Kommentar oben. Ein Level-Aufstieg braucht IMMER beide Ressourcen
+// gleichzeitig: genug angesammelte Feed-Punkte (durch Verfuettern
+// gleicher-Slot-Items, siehe feedEquipmentItem()) UND genug Muenzen.
+
+function getEquipmentLevelState(itemKey) {
+  return gameState.equipmentLevels[itemKey] || { level: 1, feedProgress: 0 };
+}
+
+function isEquipmentMaxLevel(itemKey) {
+  return getEquipmentLevelState(itemKey).level >= EQUIPMENT_MAX_LEVEL;
+}
+
+// Aktuelle Statwerte eines Ausruestungsteils auf seinem jetzigen Level, oder
+// null, wenn es kein bekanntes Anlegbar-Item mit slotType ist.
+function equipmentStatsForItem(itemKey) {
+  const item = ITEMS[itemKey];
+  if (!item || !item.slotType) return null;
+  const level = getEquipmentLevelState(itemKey).level;
+  return equipmentStatsAtLevel(item.slotType, item.rarity, level);
+}
+
+// Wie viele Feed-Punkte/Muenzen fuer den naechsten Levelaufstieg noch
+// fehlen, oder null auf Max-Level. `canLevelUp` ist true, sobald BEIDE
+// Bedingungen gleichzeitig erfuellt sind (siehe Briefing).
+function equipmentLevelUpRequirements(itemKey) {
+  const item = ITEMS[itemKey];
+  if (!item) return null;
+  const state = getEquipmentLevelState(itemKey);
+  if (state.level >= EQUIPMENT_MAX_LEVEL) return null;
+  const feedCost = equipmentFeedCostForLevel(state.level);
+  const coinCost = equipmentCoinCostForLevel(state.level, item.rarity);
+  const coins = gameState.coins || 0;
+  return {
+    level: state.level,
+    feedProgress: state.feedProgress,
+    feedCost,
+    feedRemaining: Math.max(0, feedCost - state.feedProgress),
+    coinCost,
+    coins,
+    coinsRemaining: Math.max(0, coinCost - coins),
+    canLevelUp: state.feedProgress >= feedCost && coins >= coinCost,
+  };
+}
+
+// Alle Items desselben Slots im Inventar (Bestand > 0), die sich zum
+// Hochleveln von `targetItemKey` verfuettern lassen -- beliebige Raritaet,
+// auch Duplikate des Ziel-Items selbst (siehe Briefing: "jeder Schuh kann
+// verwendet werden, um einen anderen ausgeruesteten Schuh hochzuleveln").
+function feedableItemsForEquipment(targetItemKey) {
+  const targetItem = ITEMS[targetItemKey];
+  if (!targetItem || !targetItem.slotType) return [];
+  return Object.values(ITEMS).filter(
+    (item) => item.slotType === targetItem.slotType && (gameState.inventory[item.key] || 0) > 0
+  );
+}
+
+// Verfuettert EIN Exemplar von `feedItemKey` an das ausgeruestete
+// `targetItemKey`, um dessen Feed-Fortschritt zu erhoehen -- das verfuetterte
+// Item wird dabei aus dem Inventar entfernt (siehe Briefing). Erhoeht nur
+// den Fortschritt, der eigentliche Levelaufstieg passiert separat ueber
+// levelUpEquipmentItem() (braucht zusaetzlich genug Muenzen). Gibt false
+// zurueck (kein State-Change), wenn Ziel/Feed-Item ungueltig sind, nicht
+// zum selben Slot gehoeren, das Feed-Item nicht im Inventar liegt oder das
+// Ziel bereits Max-Level ist.
+function feedEquipmentItem(targetItemKey, feedItemKey) {
+  const targetItem = ITEMS[targetItemKey];
+  const feedItem = ITEMS[feedItemKey];
+  if (!targetItem || !feedItem || !targetItem.slotType) return false;
+  if (feedItem.slotType !== targetItem.slotType) return false;
+  if ((gameState.inventory[feedItemKey] || 0) < 1) return false;
+  if (isEquipmentMaxLevel(targetItemKey)) return false;
+
+  const points = EQUIPMENT_FEED_POINTS_BY_RARITY[feedItem.rarity] || 1;
+  removeItem(feedItemKey);
+  const state = getEquipmentLevelState(targetItemKey);
+  state.feedProgress += points;
+  gameState.equipmentLevels[targetItemKey] = state;
+  saveState();
+  return true;
+}
+
+// Laesst `itemKey` um 1 Level aufsteigen, sofern beide Voraussetzungen
+// gleichzeitig erfuellt sind (siehe equipmentLevelUpRequirements() oben).
+// Zieht dabei die verbrauchten Feed-Punkte UND Muenzen ab -- ueberschuessige
+// Feed-Punkte ueber die Kosten hinaus bleiben fuer den naechsten Aufstieg
+// erhalten (kein Reset auf 0). Gibt bei Erfolg das neue Level zurueck, sonst
+// false.
+function levelUpEquipmentItem(itemKey) {
+  const req = equipmentLevelUpRequirements(itemKey);
+  if (!req || !req.canLevelUp) return false;
+  const state = getEquipmentLevelState(itemKey);
+  state.feedProgress -= req.feedCost;
+  state.level += 1;
+  gameState.equipmentLevels[itemKey] = state;
+  addCoins(-req.coinCost);
+  saveState();
+  return state.level;
 }
 
 function setSkipMinigame(value) {

@@ -246,6 +246,107 @@ const SHADOW_ESSENCE_PER_CREATURE_BY_RARITY = {
   "Legendär": 2500,
 };
 
+// ============ Ausruestungs-Level-System ============
+// Siehe Ausruestungs-Level-System-Briefing (baut auf dem Avatar-Outfit-
+// Briefing + dem Looma-Level-System oben auf). Jedes Ausruestungsteil
+// (kopfteil/oberteil/hose/sneaker/accessoire/outfit) hat ein EIGENES Level,
+// unabhaengig vom Looma-Level -- Max-Level einheitlich fuer alle Slots.
+const EQUIPMENT_MAX_LEVEL = 20;
+
+// Welcher Kampfwert pro Slot mit dem Level steigt. "sneaker"->fangchance ist
+// laut Briefing selbst ein Platzhalter, bis das separate Fangsystem-Briefing
+// (Energie) steht -- siehe dortige offene Frage, ob Fangchance darin
+// ueberhaupt als Mechanik existiert oder Sneaker stattdessen z.B.
+// Geschwindigkeit bekommen sollte. "outfit" deckt beide Werte gleichzeitig
+// ab (kombinierter Bonus, da es alle fuenf Einzel-Slots ersetzt).
+const EQUIPMENT_SLOT_STATS = {
+  kopfteil: ["verteidigung"],
+  oberteil: ["verteidigung"],
+  hose: ["verteidigung"],
+  sneaker: ["fangchance"],
+  accessoire: ["angriff"],
+  outfit: ["verteidigung", "angriff"],
+};
+
+const EQUIPMENT_STAT_LABELS = {
+  verteidigung: "🛡️ Verteidigung",
+  angriff: "⚔️ Angriffskraft",
+  fangchance: "🎯 Fangchance",
+};
+
+// Basiswerte (Level 1) je Slot+Raritaet, aus dem Briefing uebernommen --
+// skalieren mit denselben Raritaets-Multiplikatoren wie ueberall sonst
+// (Weiss x1, Gruen x2, Blau x5, Lila x10, Gold x20).
+const EQUIPMENT_RARITY_BASE_STATS = {
+  kopfteil: { "Gewöhnlich": 2, "Ungewöhnlich": 4, "Selten": 10, "Episch": 20, "Legendär": 40 },
+  oberteil: { "Gewöhnlich": 3, "Ungewöhnlich": 6, "Selten": 15, "Episch": 30, "Legendär": 60 },
+  hose: { "Gewöhnlich": 2, "Ungewöhnlich": 4, "Selten": 10, "Episch": 20, "Legendär": 40 },
+  sneaker: { "Gewöhnlich": 1, "Ungewöhnlich": 2, "Selten": 5, "Episch": 10, "Legendär": 20 },
+  accessoire: { "Gewöhnlich": 3, "Ungewöhnlich": 6, "Selten": 15, "Episch": 30, "Legendär": 60 },
+  outfit: { "Gewöhnlich": 8, "Ungewöhnlich": 16, "Selten": 40, "Episch": 80, "Legendär": 160 },
+};
+
+// Gesamtwachstum ueber die volle Levelspanne (Level 1 bis Max-Level 20):
+// 100% Zuwachs = Verdopplung bis Max-Level, wie im Briefing vorgerechnet
+// (z.B. Kopfteil Blau 10 -> 20). Als Bruchteil von (MAX_LEVEL - 1)
+// Levelschritten hinterlegt statt fix "5% pro Level" -- analog zu
+// LOOMA_STAT_GROWTH_TOTAL oben, trifft dadurch die vorgerechnete
+// Verdopplung an Level 1 UND Max-Level exakt.
+const EQUIPMENT_STAT_GROWTH_TOTAL = 1;
+
+// Kampfwert EINES Statwerts eines Ausruestungsteils bei gegebenem Slot,
+// Raritaet und Level.
+function equipmentStatAtLevel(slotType, rarity, level) {
+  const base = EQUIPMENT_RARITY_BASE_STATS[slotType][rarity];
+  const growthFraction = (Math.min(level, EQUIPMENT_MAX_LEVEL) - 1) / (EQUIPMENT_MAX_LEVEL - 1);
+  return Math.round(base * (1 + EQUIPMENT_STAT_GROWTH_TOTAL * growthFraction) * 10) / 10;
+}
+
+// Alle Statwerte eines Slots (bei "outfit" zwei gleichzeitig) als { statKey:
+// value }-Objekt.
+function equipmentStatsAtLevel(slotType, rarity, level) {
+  const result = {};
+  EQUIPMENT_SLOT_STATS[slotType].forEach((statKey) => {
+    result[statKey] = equipmentStatAtLevel(slotType, rarity, level);
+  });
+  return result;
+}
+
+// Feed-Punkte, die ein verfuettertes Item abhaengig von SEINER EIGENEN
+// Raritaet bringt (nicht die des Ziel-Items) -- siehe Briefing.
+const EQUIPMENT_FEED_POINTS_BY_RARITY = {
+  "Gewöhnlich": 1,
+  "Ungewöhnlich": 2,
+  "Selten": 3,
+  "Episch": 4,
+  "Legendär": 5,
+};
+
+// Feed-Punkte-Kosten fuer den Aufstieg VON Level `level` AUF `level + 1`
+// (nur fuer level < EQUIPMENT_MAX_LEVEL gueltig), aus dem Briefing.
+function equipmentFeedCostForLevel(level) {
+  return level * 5;
+}
+
+// Muenzkosten-Raritaetsfaktor -- bewusst sanft gestaffelt (nicht wie die
+// x1/x2/x5/x10/x20-Basiswert-Multiplikatoren), da Muenzen laut Briefing nur
+// spaerlich hereinkommen. Bezieht sich auf die Raritaet des Ziel-Items
+// selbst (das Item, das gelevelt wird), nicht auf das verfuetterte Item --
+// eigene Interpretation, im Briefing nicht explizit disambiguiert (siehe
+// Level-System-Briefing Ausruestung).
+const EQUIPMENT_COIN_RARITY_FACTOR = {
+  "Gewöhnlich": 1,
+  "Ungewöhnlich": 1.3,
+  "Selten": 1.6,
+  "Episch": 2,
+  "Legendär": 3,
+};
+
+// Muenzkosten fuer den Aufstieg VON Level `level` AUF `level + 1`.
+function equipmentCoinCostForLevel(level, rarity) {
+  return Math.round(level * (EQUIPMENT_COIN_RARITY_FACTOR[rarity] || 1));
+}
+
 // ============ Trophaeen ============
 // Referenzliste siehe store-walk-spielspezifikation.md Abschnitt 7. Fuer den
 // Prototyp ist bislang nur "Erster Schritt" spielbar umgesetzt — sie wird
