@@ -9,34 +9,40 @@ const STORE_KEY = "loomonia_dashboard_store"; // sessionStorage
 const REFRESH_MS = 30000;
 
 let refreshTimer = null;
+// Einmal beim Start geladen (siehe loadStoreList() in init()) -- Liste
+// aller echten Store-Standorte (type=store) aus der Standortverwaltung,
+// Grundlage sowohl fuer den Store-Selector im Dropdown als auch fuer die
+// "Beobachteter Store"-Anzeige (kein zweiter Fetch pro Auswahl noetig).
+let knownStores = [];
 
-function storeDisplayName(key) {
-  // "Alle Stores" ist die Beschriftung fuer die Phase-2-Auswahlkachel
-  // (Grosskonzern vergleicht mehrere Filialen); im aktuellen Ein-Store-
-  // Pitch-Modus (siehe init()) steht derselbe interne "all"-Schluessel
-  // fuer "das eine Dashboard dieses Shops" -> passendere Beschriftung an
-  // der einzigen Stelle, wo er dafuer benutzt wird (showDashboard()).
-  if (key === "all") return "Alle Stores";
-  return (DASHBOARD_STORES[key] && DASHBOARD_STORES[key].name) || key;
-}
+// Baut den Store-Selector in der Sidebar: "Alle Stores" (GodAdmin-
+// Gesamtansicht) plus jeder einzelne echte Store, alphabetisch. Ersetzt
+// die fruehere kategorie-basierte Kachel-Auswahl (renderStoreGrid/
+// DASHBOARD_STORES) -- die zeigte Branchen statt echter, einzelner
+// Standorte und war deshalb fuer "welchen Store will ich sehen" nicht
+// nutzbar, sobald mehrere Standorte dieselbe Kategorie teilen (siehe
+// QA-Bug-Liste: Kategorie-Filter zeigte faelschlich die Zahlen ALLER
+// Stores derselben Kategorie gemeinsam an).
+function renderStoreSelector(selectedKey) {
+  const select = document.getElementById("store-selector");
+  select.innerHTML = "";
 
-function renderStoreGrid() {
-  const grid = document.getElementById("store-grid");
-  grid.innerHTML = "";
+  const allOpt = document.createElement("option");
+  allOpt.value = "all";
+  allOpt.textContent = "Alle Stores";
+  select.appendChild(allOpt);
 
-  const allTile = document.createElement("button");
-  allTile.className = "store-tile store-tile-all";
-  allTile.textContent = "Alle Stores";
-  allTile.onclick = () => selectStore("all");
-  grid.appendChild(allTile);
+  knownStores
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, "de"))
+    .forEach((store) => {
+      const opt = document.createElement("option");
+      opt.value = store.id;
+      opt.textContent = store.name;
+      select.appendChild(opt);
+    });
 
-  Object.keys(DASHBOARD_STORES).forEach((key) => {
-    const tile = document.createElement("button");
-    tile.className = "store-tile";
-    tile.textContent = DASHBOARD_STORES[key].name;
-    tile.onclick = () => selectStore(key);
-    grid.appendChild(tile);
-  });
+  select.value = knownStores.some((s) => s.id === selectedKey) || selectedKey === "all" ? selectedKey : "all";
 }
 
 function selectStore(key) {
@@ -44,64 +50,35 @@ function selectStore(key) {
   showDashboard(key);
 }
 
-function switchStore() {
-  sessionStorage.removeItem(STORE_KEY);
-  if (refreshTimer) clearInterval(refreshTimer);
-  document.getElementById("screen-dashboard").style.display = "none";
-  document.getElementById("screen-select").style.display = "flex";
-}
-
 function showDashboard(storeKey) {
-  document.getElementById("screen-select").style.display = "none";
-  document.getElementById("screen-dashboard").style.display = "flex";
-
   const dateLabel = "Heute, " + new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
   document.getElementById("today-date").textContent = dateLabel;
   document.getElementById("today-date-umsatz").textContent = dateLabel;
 
+  renderStoreSelector(storeKey);
   loadStats(storeKey);
-  loadStoreIdentity();
+  loadStoreIdentity(storeKey);
   if (refreshTimer) clearInterval(refreshTimer);
   refreshTimer = setInterval(() => loadStats(storeKey), REFRESH_MS);
 }
 
-// Zeigt in Sidebar und "Beobachteter Store"-Karte den zuletzt ueber die
-// Standortverwaltung (dashboard/standorte.html) angelegten Store mit
-// seinem echten Namen, optionaler Store-Nummer und Adresse. Ersetzt die
-// vorherige generische "Mein Store"/"Store-ID: DEMO"-Platzhalterzeile, die
-// zusaetzlich zum echten Namen darunter stand -> jetzt genau EINE
-// Store-Identitaet. Rein informativ -> darf das Dashboard nie blockieren,
-// wenn Supabase kurz nicht erreichbar ist oder noch kein Store hinterlegt
-// wurde.
-function loadStoreIdentity() {
-  const nameEl = document.getElementById("sidebar-store-name");
-  const idEl = document.getElementById("sidebar-store-id");
-  const addressEl = document.getElementById("sidebar-store-address");
+// Zeigt in der "Beobachteter Store"-Karte den aktuell im Store-Selector
+// gewaehlten Store (Name + Adresse) -- rein aus der bereits geladenen
+// knownStores-Liste, kein weiterer Fetch. "Alle Stores" zeigt bewusst
+// keine einzelne Adresse. GodAdmin selbst hat KEINEN eigenen Standorteintrag
+// (mehr) -- die Sidebar-Identitaet ("GodAdmin") ist fest im HTML hinterlegt,
+// unabhaengig davon, welcher Store hier gerade betrachtet wird.
+function loadStoreIdentity(storeKey) {
   const infoNameEl = document.getElementById("info-store");
   const infoAddressEl = document.getElementById("info-store-address");
 
-  fetch(
-    `${SUPABASE_URL}/rest/v1/locations?select=name,address,store_number&type=eq.store&order=created_at.desc&limit=1`,
-    { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-  )
-    .then((r) => (r.ok ? r.json() : []))
-    .then((rows) => {
-      const row = rows[0];
-      const name = row ? row.name : "Noch kein Store hinterlegt";
-      nameEl.textContent = name;
-      infoNameEl.textContent = name;
+  const store = storeKey !== "all" ? knownStores.find((s) => s.id === storeKey) : null;
+  const name = storeKey === "all" ? "Alle Stores" : (store && store.name) || "Unbekannter Store";
+  infoNameEl.textContent = name;
 
-      const hasId = !!(row && row.store_number);
-      idEl.textContent = hasId ? `Store-ID: ${row.store_number}` : "";
-      idEl.classList.toggle("hidden", !hasId);
-
-      const address = row ? row.address : null;
-      addressEl.textContent = address || "";
-      addressEl.classList.toggle("hidden", !address);
-      infoAddressEl.textContent = address || "";
-      infoAddressEl.classList.toggle("hidden", !address);
-    })
-    .catch(() => {});
+  const address = store && store.address;
+  infoAddressEl.textContent = address || "";
+  infoAddressEl.classList.toggle("hidden", !address);
 }
 
 // Liest ueber die Edge Function events-admin statt direkt gegen die Tabelle
@@ -115,8 +92,15 @@ function fetchEvents(storeKey) {
   let url =
     `${EVENTS_ADMIN_URL}?select=type,player_id,ts,item_key,amount_cents,product_text` +
     `&ts=gte.${encodeURIComponent(cutoff.toISOString())}&order=ts.asc&limit=10000`;
+  // store_id statt category filtern: mehrere Stores koennen sich dieselbe
+  // Kategorie teilen (z.B. EDEKA/REWE/Kaufland alle "supermarkt"), ein
+  // Kategorie-Filter zeigte deshalb faelschlich die Zahlen ALLER Stores
+  // derselben Kategorie gemeinsam an, sobald mehr als ein echter Store
+  // waehlbar ist (siehe QA-Bug-Liste). store_id wird beim Tracking bereits
+  // zuverlaessig gesetzt (siehe js/tracking.js), exakt wie im Store-View-
+  // Dashboard der Partner (supabase/functions/store-view/index.ts).
   if (storeKey !== "all") {
-    url += `&category=eq.${encodeURIComponent(storeKey)}`;
+    url += `&store_id=eq.${encodeURIComponent(storeKey)}`;
   }
 
   return fetchWithAdminAuth(url).then((r) => {
@@ -133,8 +117,15 @@ function fetchAllTimeTotals(storeKey) {
   let url =
     `${EVENTS_ADMIN_URL}?select=type,player_id,amount_cents,item_key` +
     `&type=in.(item_receipt_scanned,trophy_unlocked)&limit=50000`;
+  // store_id statt category filtern: mehrere Stores koennen sich dieselbe
+  // Kategorie teilen (z.B. EDEKA/REWE/Kaufland alle "supermarkt"), ein
+  // Kategorie-Filter zeigte deshalb faelschlich die Zahlen ALLER Stores
+  // derselben Kategorie gemeinsam an, sobald mehr als ein echter Store
+  // waehlbar ist (siehe QA-Bug-Liste). store_id wird beim Tracking bereits
+  // zuverlaessig gesetzt (siehe js/tracking.js), exakt wie im Store-View-
+  // Dashboard der Partner (supabase/functions/store-view/index.ts).
   if (storeKey !== "all") {
-    url += `&category=eq.${encodeURIComponent(storeKey)}`;
+    url += `&store_id=eq.${encodeURIComponent(storeKey)}`;
   }
 
   return fetchWithAdminAuth(url).then((r) => {
@@ -183,6 +174,15 @@ function openResetConfirm() {
   document.getElementById("reset-step-initial").classList.add("hidden");
   document.getElementById("reset-step-confirm").classList.remove("hidden");
   setResetStatus("", "");
+
+  // Bestaetigungstext spiegelt jetzt den tatsaechlichen Scope (store_id-
+  // gefiltert, siehe confirmResetTestData) statt pauschal "ALLE" zu sagen --
+  // bei ausgewaehltem Einzelstore waere das sonst irrefuehrend.
+  const storeKey = sessionStorage.getItem(STORE_KEY) || "all";
+  const store = storeKey !== "all" ? knownStores.find((s) => s.id === storeKey) : null;
+  const scopeText = storeKey === "all" ? "ALLE Stores" : `nur „${store ? store.name : storeKey}“`;
+  document.querySelector(".reset-confirm-text").textContent =
+    `Wirklich die Aktivitätsdaten (Spieler, Items, Bon-Scans, Umsatz) für ${scopeText} unwiderruflich löschen? Store-Standorte bleiben in jedem Fall erhalten.`;
 }
 
 function cancelResetConfirm() {
@@ -203,20 +203,17 @@ async function confirmResetTestData() {
   btn.textContent = "Lösche…";
 
   try {
-    // Auf den aktuell gewaehlten Store scopen (wie fetchEvents/
-    // fetchAllTimeTotals oben) -- ohne diesen Filter loescht "Testdaten
+    // Auf den aktuell im Store-Selector gewaehlten Store scopen (wie
+    // fetchEvents/fetchAllTimeTotals oben, per store_id statt category --
+    // siehe dortigen Kommentar) -- ohne diesen Filter loescht "Testdaten
     // zuruecksetzen" IMMER die komplette events-Tabelle, unabhaengig davon,
-    // welcher Store gerade ausgewaehlt ist. Aktuell (Pitch-Phase: ein Store,
-    // ein Admin-Zugang) folgenlos, wird aber scharf, sobald mehrere Stores
-    // sich denselben Admin-Zugang teilen (siehe renderStoreGrid/selectStore
-    // -- der Code dafuer ist bereits vorbereitet) -- der Button-Text/die
-    // Bestaetigungsbox suggerieren schon jetzt "nur dieser Store" (siehe
-    // QA-Bug-Liste). storeKey "all" (GodAdmin-Gesamtansicht) loescht bewusst
-    // weiterhin alles, dort gibt es keinen engeren Scope.
+    // welcher Store gerade ausgewaehlt ist. storeKey "all" (GodAdmin-
+    // Gesamtansicht) loescht bewusst weiterhin alles, dort gibt es keinen
+    // engeren Scope.
     const storeKey = sessionStorage.getItem(STORE_KEY) || "all";
     let url = `${EVENTS_ADMIN_URL}?ts=lt.2099-01-01T00:00:00Z`;
     if (storeKey !== "all") {
-      url += `&category=eq.${encodeURIComponent(storeKey)}`;
+      url += `&store_id=eq.${encodeURIComponent(storeKey)}`;
     }
     const res = await fetchWithAdminAuth(url, {
       method: "DELETE",
@@ -304,14 +301,33 @@ async function saveArticleEditor() {
   }
 }
 
-// Fuer den Pitch hat jeder teilnehmende Shop nur EIN Konto/EIN Dashboard —
-// die Store-Auswahl (renderStoreGrid/switchStore, fuers spaetere Phase-2-
-// Szenario "Grosskonzern vergleicht seine Filialen") wird deshalb aktuell
-// uebersprungen und direkt die zusammengefasste "Alle Stores"-Ansicht
-// gezeigt, die ohnehin alle Scans unabhaengig von der erkannten Kategorie
-// sammelt. Die Auswahl-Funktionen bleiben im Code fuer spaeter, werden nur
-// nicht mehr verdrahtet/angezeigt.
-function init() {
+// Laedt die echten Store-Standorte einmal beim Start (oeffentlich lesbar,
+// wie in der Standortverwaltung) -- GodAdmin selbst hat keinen eigenen
+// Eintrag hier (mehr), taucht also bewusst nicht in der Liste auf. Rein
+// informativ: schlaegt der Fetch fehl, bleibt der Selector einfach bei nur
+// "Alle Stores" stehen, statt das Dashboard zu blockieren.
+function loadStoreList() {
+  return fetch(
+    `${SUPABASE_URL}/rest/v1/locations?select=id,name,address,store_number&type=eq.store&order=name.asc`,
+    { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+  )
+    .then((r) => (r.ok ? r.json() : []))
+    .then((rows) => {
+      knownStores = Array.isArray(rows) ? rows : [];
+    })
+    .catch(() => {
+      knownStores = [];
+    });
+}
+
+// GodAdmin ist das interne Gesamt-Portal (kein eigener Store-Partner) --
+// zeigt per Default die zusammengefasste "Alle Stores"-Ansicht, kann aber
+// ueber den Store-Selector in der Sidebar jederzeit auf einen einzelnen
+// echten Store wechseln (per store_id gefiltert, siehe fetchEvents/
+// fetchAllTimeTotals oben). Die Auswahl bleibt fuer die Sitzung gemerkt
+// (sessionStorage), fällt aber auf "Alle Stores" zurueck, falls der zuletzt
+// gewaehlte Store inzwischen geloescht wurde.
+async function init() {
   document.getElementById("btn-reset-open").onclick = openResetConfirm;
   document.getElementById("btn-reset-confirm").onclick = confirmResetTestData;
   document.getElementById("btn-reset-cancel").onclick = cancelResetConfirm;
@@ -330,7 +346,14 @@ function init() {
     };
   });
 
-  showDashboard("all");
+  document.getElementById("store-selector").addEventListener("change", (e) => {
+    selectStore(e.target.value);
+  });
+
+  await loadStoreList();
+  const remembered = sessionStorage.getItem(STORE_KEY) || "all";
+  const initialKey = remembered === "all" || knownStores.some((s) => s.id === remembered) ? remembered : "all";
+  showDashboard(initialKey);
 }
 
 // Erst nach Entsperren der Passwortsperre starten (siehe dashboard-auth.js) --

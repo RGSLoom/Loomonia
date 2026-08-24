@@ -18,11 +18,12 @@ function setLockError(msg) {
 }
 
 // Von fetchWithAdminAuth() aufgerufen, wenn eine Edge Function den
-// gespeicherten Hash ablehnt (401) -- Sperre wieder anzeigen, Store-
-// Auswahl/Dashboard-Screens verstecken, bis erneut ein (hoffentlich
-// richtiges) Passwort eingegeben wurde.
+// gespeicherten Hash ablehnt (401) -- Sperre wieder anzeigen, Dashboard-
+// Screen verstecken, bis erneut ein (hoffentlich richtiges) Passwort
+// eingegeben wurde. Kein eigener "Store-Auswahl"-Screen mehr (siehe
+// init() in dashboard.js -- Store-Wechsel laeuft jetzt per Dropdown
+// innerhalb des Dashboards, nicht mehr als eigener Zwischen-Screen).
 window.reshowAdminLock = function (message) {
-  document.getElementById("screen-select").style.display = "none";
   document.getElementById("screen-dashboard").style.display = "none";
   document.getElementById("screen-lock").style.display = "flex";
   setLockError(message || "");

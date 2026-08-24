@@ -29,33 +29,28 @@
   </div>
 </section>
 
-<!-- Store-Auswahl (kein eigenes Passwort, siehe Projekt-Entscheidung -- via
-     screen-lock oben bereits geschuetzt) -->
-<section id="screen-select" class="screen screen-select" style="display:none">
-  <div class="select-card">
-    <div class="select-logo">Loomonia</div>
-    <h1>Store Manager</h1>
-    <p class="select-sub">Für welchen Store möchtest du die Zahlen sehen?</p>
-    <div id="store-grid" class="store-grid"></div>
-  </div>
-</section>
 
 <!-- Haupt-Dashboard -->
 <section id="screen-dashboard" class="screen screen-dashboard" style="display:none">
   <aside class="sidebar">
     <div class="sidebar-store">
       <div class="sidebar-store-top">
-        <!-- Platzhalter fuers Logo des Store-Partners (nicht Loomonia) —
-             soll spaeter durch das hochgeladene Kundenlogo ersetzt werden,
-             das dann auch als Marker-Icon auf der Spielkarte dient. -->
+        <!-- Feste Identitaet des internen Gesamt-Admin-Portals (GodAdmin) --
+             KEIN Store-Partner, deshalb nicht mehr aus der "locations"-
+             Tabelle abgeleitet (zeigte vorher zufaellig den zuletzt
+             angelegten echten Store, z.B. EDEKA, statt einer eigenen
+             GodAdmin-Identitaet). Welcher Store gerade BETRACHTET wird,
+             waehlt der Store-Selector direkt darunter. -->
         <div class="sidebar-store-logo" aria-hidden="true">Logo</div>
         <div>
-          <div class="sidebar-store-label">Store</div>
-          <div id="sidebar-store-name" class="sidebar-store-name">–</div>
-          <div id="sidebar-store-id" class="sidebar-store-id">–</div>
+          <div class="sidebar-store-label">Portal</div>
+          <div class="sidebar-store-name">GodAdmin</div>
         </div>
       </div>
-      <div id="sidebar-store-address" class="sidebar-store-address hidden">–</div>
+      <div class="field" style="margin-top:12px">
+        <label for="store-selector" class="sidebar-store-label">Store ansehen</label>
+        <select id="store-selector"></select>
+      </div>
     </div>
     <nav class="sidebar-nav">
       <button class="nav-item active" data-target="panel-dashboard">
@@ -369,7 +364,7 @@
 <script src="js/stores-config.js?v=20"></script>
 <script src="js/admin-auth-shared.js?v=15"></script>
 <script src="js/dashboard-render.js?v=20"></script>
-<script src="js/dashboard-auth.js?v=15"></script>
-<script src="js/dashboard.js?v=18"></script>
+<script src="js/dashboard-auth.js?v=16"></script>
+<script src="js/dashboard.js?v=19"></script>
 </body>
 </html>
