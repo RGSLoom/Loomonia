@@ -587,6 +587,23 @@ const CREATURES = {
     scene: "assets/hintergrund/Himmel.webp",
     sceneIsRealPhoto: false,
   },
+  fenny: {
+    key: "fenny",
+    name: "Fenny",
+    element: "Licht",
+    elementIcon: "✨",
+    color: "#fde047",
+    rarity: "Ungewöhnlich",
+    xp: 300,
+    icon: "assets/wesen/Fenny_icon.png",
+    // Bereits echt freigestellt (Alphakanal vorhanden), siehe
+    // moosilda-Kommentar oben.
+    iconAlreadyTransparent: true,
+    // Kein eigener Hintergrund geliefert -- nutzt denselben Lichtreich-
+    // Hintergrund wie Ashira (bislang einziges andere Licht-Wesen).
+    scene: "assets/hintergrund/Lichtreich.png",
+    sceneIsRealPhoto: false,
+  },
 };
 
 // Spawn-/Testpool: alle Wesen ausser geheimen Shiny-Varianten (die duerfen
