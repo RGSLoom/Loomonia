@@ -10,7 +10,7 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Store Walk</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.css" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=99" />
+<link rel="stylesheet" href="css/style.css?v=103" />
 </head>
 <body>
 <div id="app">
@@ -123,7 +123,16 @@
     </button>
   </section>
 
-  <!-- ============ FANGSZENE ============ -->
+  <!-- ============ FANGSZENE (rundenbasiertes Kampfsystem) ============ -->
+  <!-- Drei eigene Timing-Widgets je Aktion (siehe js/catchgame.js) -- User-
+       Korrektur nach dem ersten Entwurf, der ueberall denselben Ring nutzte
+       ("ich will nicht, dass alles nur ein Ring ist"): Angriff = Ring
+       gedrueckt halten + im Zentrum loslassen, Ausweichen = Wisch-Geste bei
+       pulsierendem Gefahren-Glow ums wilde Looma, Fangen = der urspruengliche
+       Pendel-Balken (rot-gruen-rot, einmal antippen). Alle drei nur
+       jeweils per updateWidgetVisibility() sichtbar. Zwei Energie-Leisten
+       (Spieler-Begleiter + wildes Looma) ersetzen die alte einzelne
+       Spieler-Gesundheitsleiste. -->
   <section id="screen-catch" class="screen fullscreen-scene">
     <img id="catch-bg" class="scene-bg" alt="" />
     <video id="catch-camera" class="scene-bg" autoplay playsinline muted style="display:none;"></video>
@@ -132,20 +141,37 @@
       <button class="btn-close" data-close="screen-map">✕</button>
       <div class="scene-top-right">
         <button id="btn-ar-toggle" class="ar-toggle-btn">📷 Kamera: Aus</button>
-        <div id="catch-attempt-label" class="attempt-label"></div>
+        <div id="catch-round-label" class="attempt-label"></div>
       </div>
     </div>
-    <div class="catch-health-bar">
-      <span class="catch-health-icon">❤️</span>
-      <div class="catch-health-track"><div id="catch-health-fill" class="catch-health-fill"></div></div>
-      <span id="catch-health-label" class="catch-health-label">100/100</span>
+    <div class="battle-energy-bars">
+      <div class="battle-energy-row">
+        <span class="battle-energy-icon">🧿</span>
+        <div class="battle-energy-track"><div id="catch-wild-energy-fill" class="battle-energy-fill wild"></div></div>
+        <span id="catch-wild-energy-label" class="battle-energy-label">100/100</span>
+      </div>
+      <div class="battle-energy-row">
+        <span class="battle-energy-icon">❤️</span>
+        <div class="battle-energy-track"><div id="catch-player-energy-fill" class="battle-energy-fill player"></div></div>
+        <span id="catch-player-energy-label" class="battle-energy-label">100/100</span>
+      </div>
     </div>
     <div class="catch-stage">
       <img id="catch-creature-img" class="catch-creature-img" alt="" />
-      <div class="catch-bar-track">
+      <div id="battle-phase-label" class="battle-phase-label"></div>
+      <!-- Angriff -->
+      <div id="battle-ring-wrap" class="battle-ring-wrap">
+        <div id="battle-ring-target" class="battle-ring-target"></div>
+        <div id="battle-ring" class="battle-ring"></div>
+      </div>
+      <!-- Ausweichen: kein eigenes Widget, nur ein Hinweistext -- der
+           pulsierende Gefahren-Glow sitzt direkt auf #catch-creature-img
+           (siehe startDodgePulseLoop() in js/catchgame.js). -->
+      <div id="dodge-hint" class="dodge-hint hidden">👉 Wische in eine beliebige Richtung!</div>
+      <!-- Fangen: der urspruengliche Pendel-Balken -->
+      <div id="catch-bar-track" class="catch-bar-track hidden">
         <div id="catch-bar-marker" class="catch-bar-marker"></div>
       </div>
-      <div class="catch-hint">Irgendwo tippen zum Fangen!</div>
       <div class="catch-item-btn-row">
         <button id="btn-use-fokuszeit" class="catch-item-btn hidden" title="Fokuszeit einsetzen">
           <img src="assets/items/focuszeit_icon.png" alt="Fokuszeit" class="catch-item-icon" />
@@ -161,6 +187,20 @@
         <div id="heal-picker-list" class="heal-picker-list"></div>
         <button id="btn-heal-picker-close" class="secondary-btn">Abbrechen</button>
       </div>
+    </div>
+  </section>
+
+  <!-- ============ START-BEGLEITER-AUSWAHL ============ -->
+  <!-- Nur beim allerersten App-Start sichtbar (siehe initStarterPickIfNeeded()
+       in js/main.js) -- ohne mindestens einen aktiven Begleiter kann das
+       rundenbasierte Fangsystem gar keinen Kampf ausrechnen (siehe
+       Rundenbasiertes-Fangsystem-Briefing). Bewusst ohne Schliessen-Button,
+       Auswahl ist Pflicht. -->
+  <section id="screen-starter-pick" class="screen fullscreen-scene starter-pick-scene">
+    <div class="starter-pick-content">
+      <div class="starter-pick-title">Wähle deinen ersten Begleiter</div>
+      <p class="starter-pick-hint">Mit diesem Looma bestreitest du deine ersten Kämpfe. Die Wahl kannst du später jederzeit ändern.</p>
+      <div id="starter-pick-list" class="starter-pick-list"></div>
     </div>
   </section>
 
@@ -321,18 +361,18 @@
 
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.js"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="js/data.js?v=106"></script>
+<script src="js/data.js?v=109"></script>
 <script src="js/utils.js?v=83"></script>
-<script src="js/state.js?v=90"></script>
+<script src="js/state.js?v=92"></script>
 <script src="js/supabase-config.js?v=78"></script>
 <script src="js/mapbox-config.js?v=79"></script>
 <script src="js/tracking.js?v=86"></script>
 <script src="js/locations.js?v=79"></script>
 <script src="js/map.js?v=91"></script>
-<script src="js/catchgame.js?v=87"></script>
+<script src="js/catchgame.js?v=91"></script>
 <script src="js/drawgame.js?v=80"></script>
 <script src="js/bonscan.js?v=97"></script>
 <script src="js/profile.js?v=93"></script>
-<script src="js/main.js?v=90"></script>
+<script src="js/main.js?v=92"></script>
 </body>
 </html>

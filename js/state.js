@@ -179,7 +179,12 @@ function addXp(amount) {
     restedBonus = Math.min(boostedXp, gameState.restedXpRemaining);
     gameState.restedXpRemaining -= restedBonus;
   }
-  const awardedXp = boostedXp + restedBonus;
+  // gameState.restedXpRemaining ist ein Float (settleRestedXp() rechnet
+  // Millisekunden anteilig um) -- restedBonus erbt diese Nachkommastellen,
+  // gerundet wird deshalb erst HIER, direkt vor der eigentlichen XP-Vergabe
+  // (die Pool-Subtraktion oben bleibt bewusst exakt, sonst wuerden sich
+  // Rundungsreste im Pool aufsummieren).
+  const awardedXp = Math.round(boostedXp + restedBonus);
   gameState.xp += awardedXp;
   saveState();
   return { awardedXp, entries: claimLevelRewards() };
@@ -362,6 +367,21 @@ function addCaughtCreature(key) {
   const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `${key}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   instances.push({ id, level: 1 });
   saveState();
+}
+
+// Einmaliger Start-Begleiter fuer brandneue Spieler (siehe
+// STARTER_CREATURE_KEYS in js/data.js + screen-starter-pick in index.html) --
+// ohne aktiven Begleiter koennte niemand den allerersten Kampf im
+// rundenbasierten Fangsystem bestreiten (siehe Rundenbasiertes-
+// Fangsystem-Briefing, User-Entscheidung: Auswahl statt automatischer
+// Zuweisung). Nur gueltig, solange wirklich noch gar kein Looma gefangen
+// wurde -- verhindert Missbrauch als "Gratis-Zweitfang" ueber die Konsole.
+function chooseStarterCreature(key) {
+  if (!STARTER_CREATURE_KEYS.includes(key)) return false;
+  if (totalCaughtCount() > 0) return false;
+  addCaughtCreature(key);
+  setActiveCompanion(key);
+  return true;
 }
 
 function totalCaughtCount() {
@@ -770,6 +790,56 @@ function activeCompanionStats() {
   const instance = getActiveCompanionInstance();
   if (!key || !instance) return null;
   return loomaStatsAtLevel(CREATURES[key].rarity, instance.level);
+}
+
+// ============ Rundenbasiertes Fangsystem: Kampfwerte ============
+// Siehe Rundenbasiertes-Fangsystem-Briefing. Offene Frage im Briefing
+// (User-Entscheidung): das Level des wilden Loomas orientiert sich am Level
+// des AKTIVEN BEGLEITERS, nicht am Spieler-Charakterlevel -- nur die
+// Begleiter-Werte sind im Kampf relevant, ein hohes Charakterlevel mit
+// niedrig-levelndem Begleiter waere sonst unfair benachteiligt.
+function wildLoomaBattleLevel() {
+  const instance = getActiveCompanionInstance();
+  const level = instance ? instance.level : 1;
+  return Math.max(1, Math.min(LOOMA_MAX_LEVEL, level));
+}
+
+// Kampfwerte des wilden Loomas fuer die aktuelle Begegnung -- nicht
+// persistiert (wilde Loomas haben kein eigenes gespeichertes Level, nur
+// gefangene Instanzen haben eins, siehe caughtCreatures oben).
+function wildLoomaBattleStats(creature) {
+  return loomaStatsAtLevel(creature.rarity, wildLoomaBattleLevel());
+}
+
+// Summe eines Ausruestungs-Kampfwerts (angriff/verteidigung) ueber ALLE
+// aktuell angezogenen Teile, geleveled (siehe equipmentStatsForItem() unten)
+// -- bisher nirgends verdrahtet (siehe Ausruestungs-Level-System-Briefing),
+// das rundenbasierte Fangsystem ist die erste Stelle, die diese Werte
+// tatsaechlich braucht. Bewusst GETRENNT von getEquippedBonusTotal() oben
+// (das deckt die aeltere, flache Prozent-Boni-Schicht wie z.B. hoodie/
+// armband ab, die nicht Teil des gelevelten Slot-Stat-Systems ist).
+function equippedCombatStatTotal(statKey) {
+  return Object.values(gameState.avatarEquipped)
+    .filter(Boolean)
+    .reduce((sum, key) => {
+      const stats = equipmentStatsForItem(key);
+      return sum + (stats ? (stats[statKey] || 0) : 0);
+    }, 0);
+}
+
+// Kampfwerte, mit denen der SPIELER tatsaechlich kaempft: die Basiswerte
+// seines aktiven Begleiters (siehe activeCompanionStats() oben) plus die
+// geleveled Ausruestungs-Boni. Gesundheit bekommt bewusst KEINEN
+// Ausruestungs-Zuschlag -- kein Slot liefert laut EQUIPMENT_SLOT_STATS
+// (js/data.js) einen Gesundheitswert. Null ohne aktiven Begleiter.
+function playerBattleStats() {
+  const base = activeCompanionStats();
+  if (!base) return null;
+  return {
+    angriff: base.angriff + equippedCombatStatTotal("angriff"),
+    verteidigung: base.verteidigung + equippedCombatStatTotal("verteidigung"),
+    gesundheit: base.gesundheit,
+  };
 }
 
 // Schatten-Essenz-Kosten, um den aktiven Begleiter um genau 1 Level

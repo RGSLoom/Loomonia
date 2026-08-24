@@ -50,26 +50,109 @@ const SPAWN_BOOST_GUARANTEED_NEARBY_MAX_RADIUS_M = 35;
 // unabhaengig davon wie oft man die Seite neu laedt.
 const SPAWN_BOOST_RETRIGGER_COOLDOWN_MS = 5 * 60 * 1000;
 
-const BAR_CONFIG = {
-  durationMs: 1050,
-  greenHalfWidth: 10,
-  yellowHalfWidth: 25,
+// ============ Rundenbasiertes Fangsystem (Timing-Mechanik) ============
+// Siehe Rundenbasiertes-Fangsystem-Briefing + User-Korrektur danach: DREI
+// unterschiedliche Widgets statt einer geteilten Ring-Mechanik fuer alle drei
+// Aktionen (siehe js/catchgame.js) --
+//   Angriff: Ring gedrueckt HALTEN, schrumpft waehrenddessen, Loslassen wertet
+//     die Naehe zum Zentrum (Halten-Loslassen statt Antippen).
+//   Ausweichen: der Ring wird durch einen pulsierenden Gefahren-Glow ums
+//     wilde Looma ersetzt, Wegwischen (beliebige Richtung, nur Timing zaehlt)
+//     statt Antippen.
+//   Fangen: der urspruengliche Pendel-Balken (rot-gruen-rot) kehrt zurueck,
+//     einmal antippen in der gruenen Zone.
+// Trotz unterschiedlicher Widgets nutzen alle drei dieselbe zugrundeliegende
+// Praezisions-Mathematik (battleTimingFactor() unten) mit denselben
+// Konstanten -- nur die visuelle Darstellung + der Eingabe-Geste
+// unterscheiden sich.
+
+// Zielfenster-Groesse (0..1) je Raritaet des WILDEN Loomas -- gilt einheitlich
+// fuer Angriff/Ausweichen/Fangen (siehe Briefing "Timing-Mechanik": staerker/
+// seltener = kleineres Zielfenster = schwerer). Fuers Fangen kommt in
+// currentBattleHitWindow() (js/catchgame.js) zusaetzlich der Matchup-Bonus
+// (Item-/Ausruestungs-Fangchance + Element-Vorteil) obendrauf.
+const BATTLE_HIT_WINDOW_BY_RARITY = {
+  "Gewöhnlich": 0.34,
+  "Ungewöhnlich": 0.28,
+  "Selten": 0.22,
+  "Episch": 0.17,
+  "Legendär": 0.13,
 };
 
-// Seltenere Wesen sind schwerer zu fangen: die Markierung laeuft schneller
-// ueber die Leiste (kuerzere durationMs = weniger Reaktionszeit pro
-// Durchlauf). Gewoehnlich bleibt beim bisherigen Tempo, Ungewoehnlich ist
-// etwas schneller, Selten deutlich schneller.
-const BAR_DURATION_MS_BY_RARITY = {
-  "Gewöhnlich": BAR_CONFIG.durationMs,
-  "Ungewöhnlich": 820,
-  "Selten": 620,
+// Dauer eines Timing-Durchlaufs in ms je Raritaet (Ring-Pulsschlag beim
+// Angriff, Gefahren-Puls beim Ausweichen, ein Balken-Durchlauf beim Fangen)
+// -- macht seltenere Loomas zusaetzlich zum kleineren Zielfenster auch noch
+// schneller/hektischer.
+const BATTLE_TIMING_DURATION_MS_BY_RARITY = {
+  "Gewöhnlich": 1400,
+  "Ungewöhnlich": 1200,
+  "Selten": 1000,
+  "Episch": 850,
+  "Legendär": 700,
 };
 
-// Fokuszeit (siehe ITEMS.fokuszeit): verlangsamt die Fangleiste fuer den
-// Rest der aktuellen Fangbegegnung um diesen Faktor (>1 = langsamer = mehr
+// Fokuszeit (siehe ITEMS.fokuszeit): verlangsamt das aktuelle Timing-Widget
+// fuer den Rest der Begegnung um diesen Faktor (>1 = langsamer = mehr
 // Reaktionszeit), siehe useFokuszeit() in js/catchgame.js.
 const FOKUSZEIT_SLOWDOWN_FACTOR = 1.6;
+
+// Praezisions-Faktor (1 = exakter Treffer im Zentrum, faellt linear auf 0 am
+// Rand des Zielfensters, 0 = verfehlt) -- die vom Briefing offen gelassene
+// "Staffelung/Kurve" (Umsetzungsdetail). `distance` ist der Abstand vom
+// Zielpunkt zum Auswertungszeitpunkt (0 = exakt getroffen, 1 = maximaler
+// Abstand), unabhaengig vom konkreten Widget (Ring/Puls/Balken).
+function battleTimingFactor(distance, hitWindow) {
+  if (distance >= hitWindow) return 0;
+  return 1 - distance / hitWindow;
+}
+
+// Schadensformel: Basis-Angriffskraft x Timing-Faktor x Element-Multiplikator
+// (siehe effectiveAttack() oben), zusaetzlich gemindert durch die
+// Verteidigung des Ziels (im Briefing selbst nicht erwaehnt, aber ohne das
+// waere der laengst vorhandene Verteidigungs-Stat + 4 der 6 Ausruestungs-
+// Slots komplett wirkungslos -- User-Entscheidung). BATTLE_DAMAGE_FACTOR
+// gleicht dabei aus, dass Angriffskraft/Gesundheit sich in ihrer Groessenordnung
+// nicht direkt entsprechen (Angriffskraft ist bei allen Raritaeten/Leveln
+// konstant ~14% der Gesundheit, siehe LOOMA_RARITY_BASE_STATS) -- Ziel ist ein
+// ausgeglichener Kampf mit ca. 4-6 Runden statt eines One-Hit-Kills oder eines
+// endlosen Schlagabtauschs (siehe zusaetzlich BATTLE_MAX_ROUNDS unten).
+const BATTLE_DAMAGE_FACTOR = 4;
+function battleDamage(attackerAngriff, defenderVerteidigung, timingFactor, elementMultiplier) {
+  if (timingFactor <= 0) return 0;
+  const mitigation = attackerAngriff / (attackerAngriff + defenderVerteidigung);
+  return Math.round(attackerAngriff * timingFactor * elementMultiplier * mitigation * BATTLE_DAMAGE_FACTOR);
+}
+
+// Sicherheitsnetz gegen One-Hit-Kills (User-Vorgabe: "auch nicht so ein one
+// hit move"): BATTLE_DAMAGE_FACTOR ist auf ausgeglichene Matchups kalibriert,
+// aber ein Begleiter mit stark gelevelter Ausruestung kann die Basiswerte
+// eines gleich-levelnden wilden Loomas trotzdem um ein Vielfaches uebertreffen
+// (Ausruestungs-Boni fliessen NICHT in die Gegner-Skalierung ein, siehe
+// wildLoomaBattleStats() in js/state.js). Ein einzelner Treffer darf deshalb
+// nie mehr als diesen Anteil der MAXIMALEN Energie des Ziels abziehen --
+// bewusst an der MAXIMAL-Energie festgemacht statt an der jeweils aktuellen
+// (ein Cap relativ zur aktuellen Energie wuerde sich bei jedem Treffer erneut
+// halbieren und so bei extremer Uebermacht paradoxerweise IMMER MEHR Treffer
+// brauchen statt weniger). So sind es bei normaler Balance ohnehin schon
+// weniger Treffer noetig, bei extremer Ausruestungs-Uebermacht aber IMMER
+// GENAU 2 (nie 1) -- greift bei normal ausgeglichenen Kaempfen gar nicht ein,
+// dort liegt ein Treffer ueblicherweise deutlich darunter.
+const BATTLE_MAX_DAMAGE_SHARE = 0.5;
+function clampBattleDamage(rawDamage, maxEnergy) {
+  return Math.min(rawDamage, Math.ceil(maxEnergy * BATTLE_MAX_DAMAGE_SHARE));
+}
+
+// Harte Rundenobergrenze (User-Wunsch: auch ein ausgeglichener Kampf darf
+// nicht endlos dauern). Wird sie erreicht, ohne dass eine Seite auf 0 Energie
+// ist, flieht das wilde Looma erschoepft -- siehe Rundenobergrenze-Check in
+// resolveDodge() in js/catchgame.js.
+const BATTLE_MAX_ROUNDS = 10;
+
+// Die drei gewoehnlichen Loomas, aus denen ein brandneuer Spieler beim ersten
+// App-Start seinen Start-Begleiter waehlt (siehe screen-starter-pick in
+// index.html + chooseStarterCreature() in js/state.js) -- ohne aktiven
+// Begleiter koennte niemand den allerersten Kampf bestreiten (User-Vorgabe).
+const STARTER_CREATURE_KEYS = ["fauli", "fifu", "enari"];
 
 const DRAW_CONFIG = {
   viewBox: 220,
@@ -90,16 +173,18 @@ const ENERGY_MAX = 100;
 const ENERGY_PER_CATCH = 3;
 const ENERGY_REGEN_MS_PER_POINT = 2 * 60 * 1000;
 
-// ============ Spieler-Gesundheit (Fangszene) ============
-// Eigenstaendige Ressource NUR fuer die Dauer einer einzelnen Fangbegegnung
-// (siehe catchState.health in js/catchgame.js) -- bewusst NICHT in gameState/
-// localStorage persistiert, da sie mit jeder neuen Begegnung wieder auf voll
-// zurueckgesetzt wird. Sinkt bei einem verfehlten Fangversuch ("Gegner wehrt
-// sich"), Heilungsitems (usage_context "fangsystem_only") stellen sie wieder
-// her. Faellt sie auf 0, flieht das Wesen sofort, auch vor dem 2. Versuch.
-const HEALTH_MAX = 100;
-const HEALTH_LOSS_MIN_PER_MISS = 25;
-const HEALTH_LOSS_MAX_PER_MISS = 45;
+// ============ Kampf-Energie (Fangszene) ============
+// Eigener Name bewusst NICHT "Energie" wie ENERGY_MAX oben -- das ist eine
+// komplett andere Ressource (regeneriert ueber echte Zeit, gated NUR, ob
+// ueberhaupt eine Begegnung gestartet werden darf). Kampf-Energie existiert
+// NUR fuer die Dauer einer einzelnen Begegnung (siehe catchState in
+// js/catchgame.js), fuer BEIDE Seiten -- Spieler kaempft mit den Werten
+// seines aktiven Begleiters (playerBattleStats() in js/state.js), das wilde
+// Looma mit seinen eigenen (wildLoomaBattleStats()). Kein eigener Max-Wert
+// hier: die Gesundheit-Basiswerte aus dem Looma-Level-System (siehe
+// LOOMA_RARITY_BASE_STATS oben) sind bereits die Kampf-Energie-Obergrenze
+// (Briefing: "Konkrete Zahlenwerte fuer Energie-Mengen werden aus dem
+// bestehenden Looma-Level-System uebernommen").
 
 // ============ Levelsystem ============
 // Level 50 ist der Pilot-Cap (spaeter erweiterbar), erreicht bei 10 Mio.
@@ -166,6 +251,47 @@ const CREATURE_ELEMENT_TO_HABITAT = { Natur: "Erde" };
 
 function habitatElementForCreature(creature) {
   return CREATURE_ELEMENT_TO_HABITAT[creature.element] || creature.element;
+}
+
+// ============ Element-Typen-System ============
+// Siehe Element-Typen-System-Briefing. Definiert, welches Element beim
+// Angriff einen Bonus gegen welches andere Element bekommt -- rein einseitig
+// ueber die Angriffskraft des ANGREIFENDEN Loomas, keine Verteidigungs-Seite
+// betroffen. Zwei getrennte Gruppen: der Vier-Elemente-Kreislauf
+// (Wasser/Feuer/Luft/Erde, einseitig gerichtet) und das duale
+// Licht/Schatten-Paar (wechselseitig, deshalb hier auf beiden Seiten
+// eingetragen). Eigene Konstante statt von HABITATS abgeleitet, da es hier
+// nur um Kampf-Beziehungen geht, nicht um Ruhe-Habitate.
+const ELEMENT_ADVANTAGE = {
+  Erde: ["Wasser"],
+  Feuer: ["Luft"],
+  Wasser: ["Feuer"],
+  Luft: ["Erde"],
+  Licht: ["Schatten"],
+  Schatten: ["Licht"],
+};
+
+const ELEMENT_ADVANTAGE_MULTIPLIER = 1.25;
+
+// Multiplikator, den `attackerElement` beim Angriff auf `defenderElement`
+// bekommt (1.25 bei Vorteil laut ELEMENT_ADVANTAGE oben, sonst neutral 1).
+// Erwartet bereits auf die sechs Kampf-Elemente abgebildete Werte als Eingabe
+// -- fuer Loomas mit Sonderfaellen wie Faulis "Natur"-Element vorher
+// habitatElementForCreature() aufrufen (siehe CREATURE_ELEMENT_TO_HABITAT
+// oben), da "Natur" selbst kein Eintrag in ELEMENT_ADVANTAGE ist.
+function elementAttackMultiplier(attackerElement, defenderElement) {
+  const advantages = ELEMENT_ADVANTAGE[attackerElement];
+  return advantages && advantages.includes(defenderElement) ? ELEMENT_ADVANTAGE_MULTIPLIER : 1;
+}
+
+// Effektive Angriffskraft eines angreifenden gegen ein verteidigendes Looma:
+// wendet den Element-Bonus (falls vorhanden) auf die uebergebene
+// Angriffskraft an. Es gibt laut Briefing keinen separaten
+// Ausruestungs-Elementbonus -- der Multiplikator wirkt einheitlich auf den
+// finalen Angriffswert, `attackerAngriff` darf also bereits
+// Ausruestungs-Boni (siehe EQUIPMENT_SLOT_STATS oben) eingerechnet haben.
+function effectiveAttack(attackerAngriff, attackerElement, defenderElement) {
+  return attackerAngriff * elementAttackMultiplier(attackerElement, defenderElement);
 }
 
 const RARITY_COLORS = {

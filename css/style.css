@@ -675,6 +675,10 @@ html, body {
   position: relative;
   z-index: 5;
   flex: 1;
+  /* Verhindert, dass eine Wisch-Geste beim Ausweichen (siehe
+     startDodgePulseLoop() in js/catchgame.js) vom Handy-Browser als Scroll/
+     Pull-to-refresh interpretiert wird. */
+  touch-action: none;
 }
 .catch-creature-img {
   position: absolute;
@@ -688,9 +692,86 @@ html, body {
   filter: drop-shadow(0 10px 24px rgba(0,0,0,0.6));
   pointer-events: none;
   display: none;
+  transition: filter 0.15s ease;
 }
-/* Fest auf Hoehe der Fuesse im Fauli-Echtfoto positioniert (nicht an das
-   Wesen-Icon gekoppelt, da Faulis Foto kein Icon-Overlay nutzt). */
+/* Ausweich-Phase: kein eigenes Widget, das wilde Looma selbst pulsiert als
+   Gefahren-Anzeige (siehe startDodgePulseLoop() in js/catchgame.js) --
+   User-Vorgabe "das war fuer mich eigentlich die Attacke des Gegners".
+   Skalierung wird live pro Frame gesetzt, die Glow-Farbe wechselt hier nur
+   zwischen Gefahr (rot) und Trefferfenster (gruen). */
+.catch-creature-img.dodge-danger {
+  filter: drop-shadow(0 0 22px rgba(244,63,94,0.85));
+}
+.catch-creature-img.dodge-danger.in-window {
+  filter: drop-shadow(0 0 26px rgba(34,197,94,0.9));
+}
+.dodge-hint {
+  position: absolute;
+  top: calc(74% - 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-light);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+  text-align: center;
+  white-space: nowrap;
+}
+.dodge-hint.hidden { display: none; }
+
+/* Angriffs-Widget: Ring gedrueckt HALTEN, im Zentrum loslassen (siehe
+   startAttackHoldLoop() in js/catchgame.js) -- User-Korrektur: kein
+   Antippen, der Ring bewegt sich erst waehrend des Haltens und wird beim
+   Loslassen ausgewertet. Nur waehrend der Angriffs-Phase sichtbar. */
+.battle-ring-wrap {
+  position: absolute;
+  top: 74%;
+  left: 50%;
+  width: 150px;
+  height: 150px;
+  transform: translate(-50%, -50%);
+}
+.battle-ring-wrap.hidden { display: none; }
+.battle-ring-target {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 10px 2px var(--accent-cyan);
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+.battle-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 4px solid var(--accent-cyan);
+  box-shadow: 0 0 14px rgba(69,212,255,0.6);
+  transform: translate(-50%, -50%) scale(1);
+  pointer-events: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+/* Rein kosmetisches Live-Feedback: gruen, solange der Ring gerade innerhalb
+   des geltenden Zielfensters ist (siehe currentBattleHitWindow() in
+   js/catchgame.js) -- die tatsaechliche Trefferauswertung passiert beim
+   Loslassen selbst, unabhaengig von dieser Klasse. */
+.battle-ring.in-window {
+  border-color: #22c55e;
+  box-shadow: 0 0 18px rgba(34,197,94,0.7);
+}
+
+/* Fang-Widget: der urspruengliche Pendel-Balken (User-Vorgabe: "wie es
+   bisher war"), siehe startBarLoop() in js/catchgame.js. --catch-green-
+   start/-end werden live pro Fangversuch gesetzt (siehe dort). */
 .catch-bar-track {
   position: absolute;
   top: 74%;
@@ -702,13 +783,6 @@ html, body {
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.3);
   box-shadow: 0 4px 16px rgba(0,0,0,0.45);
-  /* --catch-green-start/-end: von startBarLoop() (js/catchgame.js) live pro
-     Fangversuch gesetzt -- die gruene Trefferzone weitet sich rechnerisch
-     bei aktivem Fangchance-Boost (siehe effectiveGreenHalfWidth dort), ohne
-     diese Variablen blieb die HIER sichtbare Zone immer fest bei 40%/60%,
-     unabhaengig vom tatsaechlich geltenden, breiteren Bonus (siehe
-     QA-Bug-Liste). Default 40%/60% entspricht BAR_CONFIG.greenHalfWidth
-     ohne Boost, falls die Variablen ausnahmsweise nicht gesetzt sind. */
   background: linear-gradient(
     to right,
     #ef4444 0%, #ef4444 25%,
@@ -718,6 +792,7 @@ html, body {
     #ef4444 75%, #ef4444 100%
   );
 }
+.catch-bar-track.hidden { display: none; }
 .catch-bar-marker {
   position: absolute;
   top: -6px;
@@ -730,24 +805,37 @@ html, body {
   transform: translateX(-50%);
   pointer-events: none;
 }
-.catch-hint {
+.battle-phase-label {
+  /* Fest am oberen Rand der Buehne statt relativ zum Widget positioniert --
+     bei "74% - 84px" ueberlappte das Label das Kreatur-Bild (das bei top:55%
+     sitzt), siehe User-Feedback ("die Beschreibung wird vom Looma
+     ueberschrieben"). So bleibt es unabhaengig von Bildschirmgroesse immer
+     oberhalb des Wesens sichtbar. */
   position: absolute;
-  top: calc(74% + 26px);
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
+  z-index: 6;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: rgba(10,7,24,0.55);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 800;
   color: var(--text-light);
-  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
   text-align: center;
   white-space: nowrap;
 }
 /* Reihe fuer alle Fangszenen-Item-Buttons (Fokuszeit, Heilen, ...) --
    einzelne .catch-item-btn sind darin normale Flex-Kinder statt selbst
-   absolut positioniert zu sein. */
+   absolut positioniert zu sein. Bewusst fest am unteren Rand statt relativ
+   zum Ring positioniert (der Ring aendert im Gegensatz zum alten Balken
+   seine Groesse nicht mit der Raritaet, aber so bleibt die Reihe robust). */
 .catch-item-btn-row {
   position: absolute;
-  top: calc(74% + 46px);
+  bottom: 96px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 6;
@@ -784,17 +872,25 @@ html, body {
   font-size: 26px;
 }
 
-/* Gesundheitsleiste der Fangszene (siehe HEALTH_MAX in js/data.js) -- eigene
-   Zeile direkt unter dem Kamera-/Schliessen-Header, gleiche Glas-Pillen-
-   Optik wie .attempt-label, aber Rot/Pink statt neutral, damit sie klar von
-   der Energie-Leiste im Map-HUD unterscheidbar bleibt. */
-.catch-health-bar {
+/* Kampf-Energie-Leisten der Fangszene (Spieler-Begleiter + wildes Looma,
+   siehe Rundenbasiertes-Fangsystem-Briefing + "Kampf-Energie"-Kommentar in
+   js/data.js) -- zwei Zeilen direkt unter dem Kamera-/Schliessen-Header,
+   gleiche Glas-Pillen-Optik wie .attempt-label. Wild oben (Rot/Pink,
+   entspricht optisch der frueheren einzelnen Gesundheitsleiste), Spieler
+   darunter (Cyan wie der Rest der App), damit beide auf einen Blick
+   unterscheidbar sind. */
+.battle-energy-bars {
   position: relative;
   z-index: 10;
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 14px 10px;
+}
+.battle-energy-row {
+  display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 14px 10px;
   padding: 6px 14px;
   border-radius: 20px;
   background: rgba(10,7,24,0.55);
@@ -802,23 +898,24 @@ html, body {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
-.catch-health-icon { font-size: 14px; flex-shrink: 0; }
-.catch-health-track {
+.battle-energy-icon { font-size: 14px; flex-shrink: 0; }
+.battle-energy-track {
   flex: 1;
   height: 10px;
   border-radius: 5px;
   background: rgba(255,255,255,0.18);
   overflow: hidden;
 }
-.catch-health-fill {
+.battle-energy-fill {
   height: 100%;
   width: 100%;
   border-radius: 5px;
-  background: linear-gradient(90deg, #f43f5e, #fb7185);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
   transition: width 0.3s ease;
 }
-.catch-health-label {
+.battle-energy-fill.wild { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+.battle-energy-fill.player { background: linear-gradient(90deg, var(--accent-cyan), #7ce8ff); }
+.battle-energy-label {
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 800;
@@ -874,6 +971,64 @@ html, body {
 .heal-picker-name { font-size: 13px; font-weight: 700; }
 .heal-picker-effect { font-size: 11px; color: rgba(255,255,255,0.65); }
 .heal-picker-count { font-size: 12px; font-weight: 800; opacity: 0.8; flex-shrink: 0; }
+
+/* ============ Start-Begleiter-Auswahl ============ */
+/* Nur beim allerersten App-Start sichtbar (siehe initStarterPickIfNeeded()
+   in js/main.js) -- eigener dunkler Verlaufshintergrund statt Fangszenen-Foto,
+   da hier (noch) kein konkretes wildes Looma im Spiel ist. */
+.starter-pick-scene {
+  background: radial-gradient(circle at 50% 20%, #241a4a 0%, #0a0718 70%);
+  justify-content: center;
+}
+.starter-pick-content {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+}
+.starter-pick-title {
+  font-size: 20px;
+  font-weight: 800;
+  text-align: center;
+}
+.starter-pick-hint {
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+  text-align: center;
+  max-width: 320px;
+  margin: 0;
+}
+.starter-pick-list {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.starter-pick-card {
+  width: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 10px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid var(--glass-border-strong);
+  color: var(--text-light);
+  cursor: pointer;
+}
+.starter-pick-card:active { transform: scale(0.96); }
+.starter-pick-card img {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.5));
+}
+.starter-pick-card-name { font-size: 14px; font-weight: 800; }
+.starter-pick-card-element { font-size: 12px; opacity: 0.75; }
 
 /* ============ Draw / Nachmal-Minigame ============ */
 .draw-stage {

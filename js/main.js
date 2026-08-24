@@ -110,6 +110,31 @@ function showItemSuccessQueue(entries) {
   showScreen("screen-item-success");
 }
 
+// Start-Begleiter-Auswahl (siehe Rundenbasiertes-Fangsystem-Briefing,
+// User-Entscheidung: Auswahl aus 3 Gewoehnlich-Loomas statt automatischer
+// Zuweisung) -- nur relevant, solange wirklich noch NICHTS gefangen wurde
+// (totalCaughtCount() aus js/state.js), sonst bleibt screen-map wie gehabt
+// die Startansicht.
+function initStarterPickIfNeeded() {
+  if (totalCaughtCount() > 0) return;
+  const list = document.getElementById("starter-pick-list");
+  list.innerHTML = STARTER_CREATURE_KEYS.map((key) => {
+    const creature = CREATURES[key];
+    return `<button class="starter-pick-card" data-starter-key="${key}">
+      <img src="${creature.icon}" alt="${creature.name}" />
+      <span class="starter-pick-card-name">${creature.name}</span>
+      <span class="starter-pick-card-element">${creature.elementIcon} ${creature.element}</span>
+    </button>`;
+  }).join("");
+  list.querySelectorAll("[data-starter-key]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      chooseStarterCreature(btn.dataset.starterKey);
+      showScreen("screen-map");
+    });
+  });
+  showScreen("screen-starter-pick");
+}
+
 function showScreen(id) {
   const current = document.querySelector(".screen.active");
   // Kamera beim Verlassen der Fangszene immer stoppen (egal ueber
@@ -139,6 +164,7 @@ function initDevTools() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initStarterPickIfNeeded();
   initMapWithRetry(); // async (holt erst den Mapbox-Token) -- bewusst nicht awaited, blockiert den Rest der Initialisierung hier nicht; wiederholt bei Fehlschlag automatisch, siehe js/map.js
   // Rechnet einen evtl. seit dem letzten Schliessen angesammelten Rested-XP-
   // Bonus ab (siehe Habitat-Briefing + settleRestedXp() in js/state.js) --
@@ -190,20 +216,25 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("quest-modal").classList.add("hidden");
   });
 
-  // Fangszene — Tippen ist ueberall in der Szene erlaubt (nicht nur auf dem
-  // Button), das fuehlt sich beim echten Fangen natuerlicher an. Der
-  // Schliessen-Button (X) ist davon ausgenommen.
-  document.getElementById("screen-catch").addEventListener("click", (e) => {
-    if (
-      e.target.closest(".btn-close") ||
-      e.target.closest("#btn-ar-toggle") ||
-      e.target.closest("#btn-use-fokuszeit") ||
-      e.target.closest("#btn-open-heal-picker") ||
-      e.target.closest("#heal-picker")
-    ) {
-      return;
-    }
-    handleFangenClick();
+  // Fangszene — Druecken/Loslassen ist ueberall in der Szene erlaubt (nicht
+  // nur auf einem Button), das fuehlt sich beim Halten/Wischen natuerlicher
+  // an. Pointerdown/-up statt click, weil der Angriff ein echtes "gedrueckt
+  // halten" braucht (siehe onCatchPointerDown() in js/catchgame.js) -- ein
+  // simples click-Event feuert erst NACH dem Loslassen und koennte das nicht
+  // abbilden. Schliessen-Button/AR-Toggle/Item-Buttons sind ausgenommen.
+  const catchInteractionBlocked = (e) =>
+    e.target.closest(".btn-close") ||
+    e.target.closest("#btn-ar-toggle") ||
+    e.target.closest("#btn-use-fokuszeit") ||
+    e.target.closest("#btn-open-heal-picker") ||
+    e.target.closest("#heal-picker");
+  document.getElementById("screen-catch").addEventListener("pointerdown", (e) => {
+    if (catchInteractionBlocked(e)) return;
+    onCatchPointerDown(e);
+  });
+  document.getElementById("screen-catch").addEventListener("pointerup", (e) => {
+    if (catchInteractionBlocked(e)) return;
+    onCatchPointerUp(e);
   });
   document.querySelector('#screen-catch [data-close]').addEventListener("click", closeCatchScene);
   document.getElementById("btn-ar-toggle").addEventListener("click", toggleArCamera);

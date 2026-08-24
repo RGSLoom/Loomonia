@@ -1,56 +1,72 @@
-// Ring-Fangmechanik (Fangszene)
+// Rundenbasiertes Fangsystem (Ring-Timing-Kampfmechanik)
+// Siehe Rundenbasiertes-Fangsystem-Briefing. Ersetzt das fruehere
+// Pendel-Balken-Fangspiel: Spieler-Begleiter und wildes Looma tauschen
+// abwechselnd Angriff/Ausweichen aus (Timing-Ring), bis eine Seite auf 0
+// Kampf-Energie faellt -- siehe "Kampf-Energie"-Kommentar in js/data.js fuer
+// die bewusste Abgrenzung zur regenerierenden Meta-Energie (ENERGY_MAX).
 
-let catchState = null; // { creatureKey, entry, attempt, rafId, startTime, isTest }
+let catchState = null;
 let cameraStream = null; // MediaStream der Fangszenen-Kamera (AR-Hintergrund)
 
 function openCatchSceneForCreature(entry) {
   // Energie-Gate: das Fuss-HUD zeigt Energie als begrenzte Ressource an
   // (sinkt pro Fangversuch, regeneriert passiv ueber Zeit, siehe
-  // settleEnergy() in js/state.js) -- bisher konnte trotz 0/100 Energie
-  // beliebig weitergefangen werden, die Anzeige war rein kosmetisch (siehe
-  // QA-Bug-Liste). Testfaenge (Dev-Button, entry.isTest) bleiben bewusst
-  // ausgenommen, die sollen unabhaengig vom Spielzustand jederzeit
-  // funktionieren.
+  // settleEnergy() in js/state.js). Testfaenge (Dev-Button, entry.isTest)
+  // bleiben bewusst ausgenommen, die sollen unabhaengig vom Spielzustand
+  // jederzeit funktionieren.
   if (!entry.isTest && getEnergy() < ENERGY_PER_CATCH) {
     showToast("Nicht genug Energie zum Fangen — kurz warten oder ein Energie-Item verwenden.");
     return;
   }
+  // Ohne aktiven Begleiter kann niemand kaempfen (siehe playerBattleStats()
+  // in js/state.js) -- sollte durch die Start-Begleiter-Auswahl (siehe
+  // initStarterPickIfNeeded() in js/main.js) normalerweise nie eintreten,
+  // bleibt aber als Schutz gegen einen kaputten/manipulierten Spielstand.
+  const playerStats = playerBattleStats();
+  if (!playerStats) {
+    showToast("Du brauchst einen aktiven Begleiter, um zu kämpfen.");
+    return;
+  }
+
   const creatureKey = entry.key;
+  const creature = CREATURES[creatureKey];
+  const wildStats = wildLoomaBattleStats(creature);
+
   catchState = {
     creatureKey,
     entry,
-    attempt: 1,
+    isTest: !!entry.isTest,
+    companionKey: gameState.activeCompanion,
+    playerStats,
+    wildStats,
+    playerEnergy: playerStats.gesundheit,
+    wildEnergy: wildStats.gesundheit,
+    round: 1,
+    phase: "attack",
     rafId: null,
     startTime: null,
-    isTest: !!entry.isTest,
+    currentDistance: 1,
+    holding: false,
     slowFactor: 1,
     usedFokuszeit: false,
-    // Spieler-Gesundheit NUR fuer diese eine Begegnung (siehe HEALTH_MAX in
-    // js/data.js) -- sinkt bei einem verfehlten Versuch, Heilungsitems
-    // stellen sie wieder her (siehe useHealItem() unten).
-    health: HEALTH_MAX,
   };
-  const creature = CREATURES[creatureKey];
 
-  // Einmal pro Begegnung, unabhaengig davon ob spaeter 1 oder 2 Tipp-Versuche
-  // gebraucht werden — siehe ENERGY_PER_CATCH in js/data.js.
   spendEnergy(ENERGY_PER_CATCH);
   updateCaughtCounter();
 
-  document.getElementById("catch-attempt-label").textContent = "Versuch 1 von 2";
   setupCatchBackground(creature);
   updateFokuszeitButtonUI();
-  updateHealthBarUI();
+  updateBattleEnergyBarsUI();
   updateHealButtonUI();
   closeHealPicker();
 
   showScreen("screen-catch");
-  startBarLoop();
+  startBattleRound();
 }
 
 // Fokuszeit ist das einzige Item mit aktiver Auswahl direkt in der
 // Fangszene (siehe ITEMS.fokuszeit in js/data.js) — einmal pro Begegnung
-// nutzbar, verlangsamt die Leiste sofort fuer den laufenden Versuch.
+// nutzbar, verlangsamt den Ring sofort fuer den Rest der Begegnung.
 function updateFokuszeitButtonUI() {
   const btn = document.getElementById("btn-use-fokuszeit");
   const owned = (gameState.inventory.fokuszeit || 0) > 0;
@@ -67,15 +83,27 @@ function useFokuszeit() {
   catchState.slowFactor = FOKUSZEIT_SLOWDOWN_FACTOR;
   showToast("✅ Fokuszeit eingesetzt");
   updateFokuszeitButtonUI();
-  stopBarLoop();
-  startBarLoop();
+  stopTimingLoop();
+  // Ausweichen/Fangen laufen automatisch, werden also sofort mit dem neuen
+  // Tempo neugestartet -- der Angriffs-Ring bewegt sich nur waehrend er
+  // gehalten wird (siehe onCatchPointerDown()), ohne aktives Halten gibt es
+  // hier also keinen Loop zum Neustarten, der neue Faktor greift dann erst
+  // beim naechsten Druecken.
+  if (catchState.phase === "attack") {
+    if (catchState.holding) startAttackHoldLoop();
+  } else if (catchState.phase === "dodge") {
+    startDodgePulseLoop();
+  } else if (catchState.phase === "catch") {
+    startBarLoop();
+  }
 }
 
-// ---------- Spieler-Gesundheit + Heilungsitems (Verbrauchsgegenstaende-Briefing) ----------
+// ---------- Kampf-Energie + Heilungsitems (Verbrauchsgegenstaende-Briefing) ----------
 // Kontextgebundene Heilungsitems (usage_context "fangsystem_only",
 // effectType "gesundheit_restore") -- aktuell nur "gesundheitspaket", aber
 // generisch ueber ITEMS gefiltert, damit weitere Heilungsitems ohne
-// Code-Aenderung hier automatisch auftauchen.
+// Code-Aenderung hier automatisch auftauchen. Jederzeit nutzbar, ohne eine
+// eigene Runde zu kosten (siehe Briefing).
 function getOwnedHealingItemKeys() {
   return Object.values(ITEMS)
     .filter((item) => item.usage_context === "fangsystem_only" && item.effectType === "gesundheit_restore")
@@ -83,18 +111,25 @@ function getOwnedHealingItemKeys() {
     .map((item) => item.key);
 }
 
-function updateHealthBarUI() {
+function updateBattleEnergyBarsUI() {
   if (!catchState) return;
-  const pct = Math.max(0, Math.round((catchState.health / HEALTH_MAX) * 100));
-  document.getElementById("catch-health-fill").style.width = `${pct}%`;
-  document.getElementById("catch-health-label").textContent = `${Math.max(0, Math.round(catchState.health))}/${HEALTH_MAX}`;
+  const wildMax = catchState.wildStats.gesundheit;
+  const playerMax = catchState.playerStats.gesundheit;
+  const wildPct = Math.max(0, Math.round((catchState.wildEnergy / wildMax) * 100));
+  const playerPct = Math.max(0, Math.round((catchState.playerEnergy / playerMax) * 100));
+  document.getElementById("catch-wild-energy-fill").style.width = `${wildPct}%`;
+  document.getElementById("catch-wild-energy-label").textContent =
+    `${Math.max(0, Math.round(catchState.wildEnergy))}/${wildMax}`;
+  document.getElementById("catch-player-energy-fill").style.width = `${playerPct}%`;
+  document.getElementById("catch-player-energy-label").textContent =
+    `${Math.max(0, Math.round(catchState.playerEnergy))}/${playerMax}`;
 }
 
 function updateHealButtonUI() {
   const btn = document.getElementById("btn-open-heal-picker");
   const owned = getOwnedHealingItemKeys();
   const totalOwned = owned.reduce((sum, key) => sum + (gameState.inventory[key] || 0), 0);
-  const usable = !!catchState && catchState.health < HEALTH_MAX && owned.length > 0;
+  const usable = !!catchState && catchState.playerEnergy < catchState.playerStats.gesundheit && owned.length > 0;
   btn.classList.toggle("hidden", !usable);
   document.getElementById("heal-btn-badge").textContent = totalOwned;
 }
@@ -134,25 +169,14 @@ function useHealItem(key) {
   if ((gameState.inventory[key] || 0) < 1) return;
 
   removeItem(key);
-  const healthBefore = catchState.health;
-  catchState.health = Math.min(HEALTH_MAX, catchState.health + HEALTH_MAX * item.effectValue);
-  showToast(`✅ ${item.name} eingesetzt (+${Math.round(catchState.health - healthBefore)} Gesundheit)`);
-  updateHealthBarUI();
+  const max = catchState.playerStats.gesundheit;
+  const before = catchState.playerEnergy;
+  catchState.playerEnergy = Math.min(max, catchState.playerEnergy + max * item.effectValue);
+  showToast(`✅ ${item.name} eingesetzt (+${Math.round(catchState.playerEnergy - before)} Energie)`);
+  updateBattleEnergyBarsUI();
   updateHealButtonUI();
   updateCaughtCounter();
   closeHealPicker();
-}
-
-// Verfehlter Versuch: das Wesen "wehrt sich", Spieler-Gesundheit sinkt um
-// einen zufaelligen Betrag (siehe HEALTH_LOSS_MIN/MAX_PER_MISS in js/data.js).
-// Gibt true zurueck, wenn die Gesundheit dadurch auf 0 gefallen ist -- der
-// Aufrufer laesst das Wesen dann sofort fliehen, auch vor dem 2. Versuch.
-function applyMissDamage() {
-  const loss = Math.round(randomBetween(HEALTH_LOSS_MIN_PER_MISS, HEALTH_LOSS_MAX_PER_MISS));
-  catchState.health = Math.max(0, catchState.health - loss);
-  updateHealthBarUI();
-  updateHealButtonUI();
-  return catchState.health <= 0;
 }
 
 // ---------- AR-Kamera-Hintergrund ----------
@@ -266,79 +290,266 @@ function syncSettingsArToggle() {
   if (toggle) toggle.classList.toggle("on", gameState.settings.arCameraEnabled);
 }
 
-// Die Markierung wandert wie ein Pendel von links nach rechts und zurueck
-// ueber die Leiste. Die Zonen sind von aussen nach innen rot, gelb, gruen
-// (gruen = Mitte = beste Fangchance).
-function startBarLoop() {
-  catchState.startTime = performance.now();
-  const marker = document.getElementById("catch-bar-marker");
-  const creature = CREATURES[catchState.creatureKey];
-  const baseDurationMs = BAR_DURATION_MS_BY_RARITY[creature.rarity] || BAR_CONFIG.durationMs;
-  const durationMs = baseDurationMs * (catchState.slowFactor || 1);
-  const cycleMs = durationMs * 2;
+// ---------- Rundenablauf (Angriff -> Ausweichen -> ... -> Fangen) ----------
 
-  // Einmal pro Versuch berechnet und auf catchState gemerkt statt in
-  // handleFangenClick() ein zweites Mal -- dieselbe Zonenbreite steuert
-  // sowohl die tatsaechliche Trefferauswertung (siehe dort) als auch die
-  // sichtbare gruene Zone im Balken (CSS-Variablen unten), damit beide nie
-  // auseinanderlaufen koennen (siehe QA-Bug-Liste: bisher blieb die
-  // sichtbare Zone bei Boost fest, obwohl die Trefferzone dahinter breiter
-  // war).
-  const fangchanceBoost = getActiveEffectValue("fangchance_boost") + getEquippedBonusTotal("fangchance_boost");
-  const effectiveGreenHalfWidth = BAR_CONFIG.greenHalfWidth * (1 + fangchanceBoost);
-  catchState.effectiveGreenHalfWidth = effectiveGreenHalfWidth;
-  const track = document.querySelector(".catch-bar-track");
-  if (track) {
-    track.style.setProperty("--catch-green-start", `${50 - effectiveGreenHalfWidth}%`);
-    track.style.setProperty("--catch-green-end", `${50 + effectiveGreenHalfWidth}%`);
-  }
+const BATTLE_PHASE_LABELS = {
+  attack: "⚔️ Ring halten, im Zentrum loslassen!",
+  dodge: "🛡️ Jetzt wegwischen!",
+  catch: "🎯 In der grünen Zone antippen!",
+};
+const BATTLE_PHASES = Object.keys(BATTLE_PHASE_LABELS);
 
-  function frame(now) {
-    const elapsed = (now - catchState.startTime) % cycleMs;
-    const position =
-      elapsed < durationMs
-        ? (elapsed / durationMs) * 100
-        : 100 - ((elapsed - durationMs) / durationMs) * 100;
-    marker.style.left = position.toFixed(2) + "%";
-    catchState.currentPosition = position;
-    catchState.rafId = requestAnimationFrame(frame);
-  }
-  catchState.rafId = requestAnimationFrame(frame);
+// Jede Phase hat ihr eigenes Widget + eigene Eingabegeste (User-Korrektur
+// nach dem ersten Entwurf: "ich will nicht, dass alles nur ein Ring ist") --
+// die Sichtbarkeit der drei Widget-Container wird zentral hier gesteuert,
+// das eigentliche Ein-/Ausblenden der Elemente passiert ueber die "hidden"-
+// Klasse. minScale gilt fuer sowohl den Angriffs-Ring als auch die
+// Fluchtdistanz-Rechnung des Ausweich-Pulses gleichermassen.
+function updateWidgetVisibility() {
+  document.getElementById("battle-ring-wrap").classList.toggle("hidden", catchState.phase !== "attack");
+  document.getElementById("catch-bar-track").classList.toggle("hidden", catchState.phase !== "catch");
+  document.getElementById("dodge-hint").classList.toggle("hidden", catchState.phase !== "dodge");
 }
 
-function stopBarLoop() {
+function startBattleRound() {
+  updatePhaseLabelUI();
+  updateWidgetVisibility();
+  resetCreatureImgPulse();
+
+  if (catchState.phase === "attack") {
+    catchState.holding = false;
+    resetRingStatic();
+  } else if (catchState.phase === "dodge") {
+    startDodgePulseLoop();
+  } else if (catchState.phase === "catch") {
+    startBarLoop();
+  }
+}
+
+// Angriff/Ausweichen/Fangen sahen im ersten Entwurf optisch identisch aus
+// (nur der Textlabel unterschied sie) -- jetzt zusaetzlich eigene
+// Widget-Sichtbarkeit (updateWidgetVisibility()) je Phase.
+function updatePhaseLabelUI() {
+  if (!catchState) return;
+  document.getElementById("battle-phase-label").textContent = BATTLE_PHASE_LABELS[catchState.phase] || "";
+  document.getElementById("catch-round-label").textContent =
+    catchState.phase === "catch" ? "Fangversuch" : `Runde ${catchState.round}/${BATTLE_MAX_ROUNDS}`;
+}
+
+// Zielfenster-Groesse fuer die AKTUELL laufende Phase -- Angriff/Ausweichen
+// nutzen die reine Raritaets-Groesse (BATTLE_HIT_WINDOW_BY_RARITY, siehe
+// js/data.js), Fangen bekommt zusaetzlich den bestehenden Item-/Ausruestungs-
+// Fangchance-Bonus PLUS den Element-Vorteil-Bonus obendrauf (User-
+// Entscheidung, siehe Element-Typen-System-Briefing).
+function currentBattleHitWindow() {
+  const creature = CREATURES[catchState.creatureKey];
+  const baseWindow = BATTLE_HIT_WINDOW_BY_RARITY[creature.rarity];
+  if (catchState.phase !== "catch") return baseWindow;
+
+  const itemBoost = getActiveEffectValue("fangchance_boost") + getEquippedBonusTotal("fangchance_boost");
+  const companion = CREATURES[catchState.companionKey];
+  const companionElement = habitatElementForCreature(companion);
+  const wildElement = habitatElementForCreature(creature);
+  const elementMult = elementAttackMultiplier(companionElement, wildElement);
+  return baseWindow * (1 + itemBoost) * elementMult;
+}
+
+function currentTimingDurationMs() {
+  const creature = CREATURES[catchState.creatureKey];
+  return BATTLE_TIMING_DURATION_MS_BY_RARITY[creature.rarity] * (catchState.slowFactor || 1);
+}
+
+function stopTimingLoop() {
   if (catchState && catchState.rafId) {
     cancelAnimationFrame(catchState.rafId);
     catchState.rafId = null;
   }
 }
 
-function handleFangenClick() {
+// ---------- Angriff: Ring gedrueckt halten, im Zentrum loslassen ----------
+// `currentDistance` pulsiert einmal pro Zyklus von 1 (Ring auf voller
+// Groesse) auf 0 (Ring exakt am Zielpunkt) und zurueck -- der Ring bewegt
+// sich aber erst, sobald der Spieler zu druecken beginnt (onCatchPointerDown
+// in js/main.js), nicht automatisch beim Rundenstart (User-Vorgabe: "das
+// macht er, bis ich loslasse").
+function resetRingStatic() {
+  catchState.currentDistance = 1;
+  const ring = document.getElementById("battle-ring");
+  ring.style.transform = "translate(-50%, -50%) scale(1)";
+  ring.classList.remove("in-window");
+}
+
+function startAttackHoldLoop() {
+  catchState.startTime = performance.now();
+  const ring = document.getElementById("battle-ring");
+  const durationMs = currentTimingDurationMs();
+  const cycleMs = durationMs * 2;
+  const hitWindow = currentBattleHitWindow();
+  const minScale = 0.12;
+
+  function frame(now) {
+    const elapsed = (now - catchState.startTime) % cycleMs;
+    const distance = elapsed < durationMs ? 1 - elapsed / durationMs : (elapsed - durationMs) / durationMs;
+    catchState.currentDistance = distance;
+    const scale = minScale + distance * (1 - minScale);
+    ring.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    ring.classList.toggle("in-window", distance < hitWindow);
+    catchState.rafId = requestAnimationFrame(frame);
+  }
+  catchState.rafId = requestAnimationFrame(frame);
+}
+
+// ---------- Ausweichen: Wisch-Geste bei pulsierender Gefahren-Anzeige ----------
+// Kein Ring/Balken -- stattdessen pulsiert das wilde Looma selbst (roter
+// Gefahren-Glow, staerker/naeher am Hoehepunkt = jetzt wegwischen), siehe
+// User-Vorgabe "das war fuer mich eigentlich die Attacke des Gegners". Nur
+// Timing zaehlt (User-Entscheidung), keine Wisch-RICHTUNG -- jeder Pointer-
+// Up waehrend dieser Phase zaehlt als Ausweichversuch (siehe
+// onCatchPointerUp() in js/main.js), unabhaengig von zurueckgelegter Strecke.
+function resetCreatureImgPulse() {
+  const img = document.getElementById("catch-creature-img");
+  img.classList.remove("dodge-danger", "in-window");
+  img.style.transform = "";
+}
+
+function startDodgePulseLoop() {
+  catchState.startTime = performance.now();
+  const img = document.getElementById("catch-creature-img");
+  img.classList.add("dodge-danger");
+  const durationMs = currentTimingDurationMs();
+  const cycleMs = durationMs * 2;
+  const hitWindow = currentBattleHitWindow();
+
+  function frame(now) {
+    const elapsed = (now - catchState.startTime) % cycleMs;
+    const distance = elapsed < durationMs ? 1 - elapsed / durationMs : (elapsed - durationMs) / durationMs;
+    catchState.currentDistance = distance;
+    const scale = 1 + (1 - distance) * 0.16;
+    img.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    img.classList.toggle("in-window", distance < hitWindow);
+    catchState.rafId = requestAnimationFrame(frame);
+  }
+  catchState.rafId = requestAnimationFrame(frame);
+}
+
+// ---------- Fangen: der urspruengliche Pendel-Balken ----------
+// User-Vorgabe: "das Fangen, das ist wie es bisher war, mit diesem Balken".
+// Der Marker sweept kontinuierlich 0% -> 100% -> 0% -- anders als der
+// Angriffs-Ring/Ausweich-Puls (die einmal pro Zyklus das Zentrum erreichen)
+// durchquert er die gruene Zone dabei ZWEIMAL pro Zyklus, exakt wie der
+// urspruengliche Balken vor dem Rundenbasierten-Fangsystem-Briefing.
+function startBarLoop() {
+  catchState.startTime = performance.now();
+  const marker = document.getElementById("catch-bar-marker");
+  const track = document.querySelector(".catch-bar-track");
+  const durationMs = currentTimingDurationMs();
+  const cycleMs = durationMs * 2;
+  const hitWindow = currentBattleHitWindow();
+  track.style.setProperty("--catch-green-start", `${50 - hitWindow * 50}%`);
+  track.style.setProperty("--catch-green-end", `${50 + hitWindow * 50}%`);
+
+  function frame(now) {
+    const elapsed = (now - catchState.startTime) % cycleMs;
+    const position = elapsed < durationMs ? (elapsed / durationMs) * 100 : 100 - ((elapsed - durationMs) / durationMs) * 100;
+    catchState.currentDistance = Math.abs(position - 50) / 50;
+    marker.style.left = `${position.toFixed(2)}%`;
+    catchState.rafId = requestAnimationFrame(frame);
+  }
+  catchState.rafId = requestAnimationFrame(frame);
+}
+
+// ---------- Eingabe-Dispatch je Phase (siehe onCatchPointerDown/-Up in js/main.js) ----------
+// Nur der Angriff braucht ein Pointerdown-Signal (startet den Ring) --
+// Ausweichen/Fangen laufen automatisch seit Rundenbeginn, jeder PointerUp
+// waehrend dieser Phasen wertet direkt aus.
+function onCatchPointerDown() {
+  if (!catchState || catchState.phase !== "attack" || catchState.holding) return;
+  catchState.holding = true;
+  startAttackHoldLoop();
+}
+
+function onCatchPointerUp() {
   if (!catchState) return;
+  if (catchState.phase === "attack") {
+    if (!catchState.holding) return;
+    catchState.holding = false;
+  }
+  const hitWindow = currentBattleHitWindow();
+  const factor = battleTimingFactor(catchState.currentDistance, hitWindow);
+  stopTimingLoop();
 
-  const distanceFromCenter = Math.abs(catchState.currentPosition - 50);
-  // Aktiver "fangchance_boost"-Verbrauchsitem-Effekt (siehe applyBoostItem()
-  // in js/state.js) PLUS dauerhafter Bonus angezogener Ausruestung (siehe
-  // getEquippedBonusTotal() in js/state.js) weiten die gruene Trefferzone
-  // gemeinsam relativ um ihren Prozentwert auf -- bereits in startBarLoop()
-  // fuer diesen Versuch berechnet und gemerkt, damit Trefferauswertung und
-  // sichtbare Zone garantiert uebereinstimmen.
-  const effectiveGreenHalfWidth = catchState.effectiveGreenHalfWidth ?? BAR_CONFIG.greenHalfWidth;
+  if (catchState.phase === "attack") resolveAttack(factor);
+  else if (catchState.phase === "dodge") resolveDodge(factor);
+  else if (catchState.phase === "catch") resolveCatchAttempt(factor);
+}
 
-  if (distanceFromCenter <= effectiveGreenHalfWidth) {
-    stopBarLoop();
-    onCatchSuccess();
+// Spieler-Begleiter greift das wilde Looma an (siehe battleDamage() in
+// js/data.js). Wird das wilde Looma dabei auf 0 Energie gebracht, startet
+// sofort die Fangsequenz -- sonst kontert es umgehend mit einem eigenen
+// Angriff (Ausweichen-Phase, siehe Briefing Schritt 2/3).
+function resolveAttack(factor) {
+  const companion = CREATURES[catchState.companionKey];
+  const wild = CREATURES[catchState.creatureKey];
+  const mult = elementAttackMultiplier(habitatElementForCreature(companion), habitatElementForCreature(wild));
+  const rawDmg = battleDamage(catchState.playerStats.angriff, catchState.wildStats.verteidigung, factor, mult);
+  const dmg = clampBattleDamage(rawDmg, catchState.wildStats.gesundheit);
+  catchState.wildEnergy = Math.max(0, catchState.wildEnergy - dmg);
+  updateBattleEnergyBarsUI();
+  showToast(dmg > 0 ? `⚔️ ${dmg} Schaden!` : "❌ Verfehlt!");
+
+  if (catchState.wildEnergy <= 0) {
+    startCatchSequence();
+    return;
+  }
+  catchState.phase = "dodge";
+  startBattleRound();
+}
+
+// Wildes Looma kontert, Spieler muss ausweichen -- Praezision des Ausweich-
+// Tipps mindert den erlittenen Schaden (invertierter Timing-Faktor: exakt
+// getroffen = volle Ausweich-Wirkung = 0 Schaden, siehe Briefing "Timing-
+// Mechanik").
+function resolveDodge(factor) {
+  const companion = CREATURES[catchState.companionKey];
+  const wild = CREATURES[catchState.creatureKey];
+  const mult = elementAttackMultiplier(habitatElementForCreature(wild), habitatElementForCreature(companion));
+  const rawDmg = battleDamage(catchState.wildStats.angriff, catchState.playerStats.verteidigung, 1 - factor, mult);
+  const dmg = clampBattleDamage(rawDmg, catchState.playerStats.gesundheit);
+  catchState.playerEnergy = Math.max(0, catchState.playerEnergy - dmg);
+  updateBattleEnergyBarsUI();
+  updateHealButtonUI();
+  showToast(dmg > 0 ? `💥 -${dmg} Energie` : "🛡️ Ausweichen gelungen!");
+
+  if (catchState.playerEnergy <= 0) {
+    showToast("😵 Dein Begleiter ist erschöpft — das wilde Looma entkommt!");
+    onCatchFail();
     return;
   }
 
-  stopBarLoop();
-  const healthDepleted = applyMissDamage();
-  if (healthDepleted || catchState.attempt !== 1) {
+  catchState.round += 1;
+  if (catchState.round > BATTLE_MAX_ROUNDS) {
+    showToast("⏱️ Der Kampf zieht sich zu lange hin — das wilde Looma nutzt die Gelegenheit und flieht!");
     onCatchFail();
+    return;
+  }
+  catchState.phase = "attack";
+  startBattleRound();
+}
+
+// Fangsequenz (siehe Briefing): der Pendel-Balken (siehe startBarLoop()
+// oben), einmal antippen in der (matchup-erweiterten) gruenen Zone faengt
+// das Looma, sonst entkommt es trotz Schwaechung.
+function startCatchSequence() {
+  catchState.phase = "catch";
+  startBattleRound();
+}
+
+function resolveCatchAttempt(factor) {
+  if (factor > 0) {
+    onCatchSuccess();
   } else {
-    catchState.attempt = 2;
-    document.getElementById("catch-attempt-label").textContent = "Versuch 2 von 2";
-    startBarLoop();
+    showToast("😮‍💨 Verfehlt — das geschwächte Looma entkommt trotzdem!");
+    onCatchFail();
   }
 }
 
@@ -424,7 +635,7 @@ function onCatchFail() {
 }
 
 function closeCatchScene() {
-  stopBarLoop();
+  stopTimingLoop();
   catchState = null;
   updateFokuszeitButtonUI();
   updateHealButtonUI();
