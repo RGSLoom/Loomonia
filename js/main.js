@@ -324,6 +324,15 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => {
       if (subScreenReturnTo === "screen-profile") {
         openProfile();
+      } else if (subScreenReturnTo === "screen-habitat") {
+        // Dieselbe Frisch-Rendern-Notwendigkeit wie bei "screen-profile"
+        // oben: kommt man ueber das Habitat-Fenster in die Looma-Detailkarte
+        // (siehe attachHabitatHandlers() in js/profile.js) und levelt dort
+        // z.B. auf, muss das Habitat-Fenster beim Zurueckgehen die neuen
+        // Werte zeigen statt des Stands von vor dem Level-Aufstieg.
+        document.getElementById("habitat-content").innerHTML = renderHabitatContent();
+        attachHabitatHandlers();
+        showScreen("screen-habitat");
       } else {
         showScreen(subScreenReturnTo);
       }

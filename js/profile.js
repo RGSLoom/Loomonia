@@ -273,6 +273,7 @@ function openSubScreen(tileKey, returnTo = "screen-profile") {
       break;
     case "habitat":
       document.getElementById("habitat-content").innerHTML = renderHabitatContent();
+      attachHabitatHandlers();
       showScreen("screen-habitat");
       break;
   }
@@ -480,8 +481,40 @@ function renderLoomasGrid() {
 function attachLoomasGridHandlers() {
   document.querySelectorAll(".looma-cell[data-creature]").forEach((cell) => {
     cell.addEventListener("click", () => {
-      showLoomaExchangeDetail(cell.dataset.creature);
+      openHabitatForLooma(cell.dataset.creature);
     });
+  });
+}
+
+// Antippen eines Loomas in der Uebersicht fuehrt jetzt direkt in dessen
+// Habitat statt in die Eintausch-/Level-Detailkarte (User-Wunsch) --
+// setActiveCompanion() waehlt dabei bereits von sich aus automatisch die
+// hoechst-levelnde besessene Instanz dieser Art (siehe Kommentar dort in
+// js/state.js), falls mehrere Exemplare vorhanden sind. Die alte Detailkarte
+// bleibt ueber das Antippen des Loomas IM Habitat-Fenster erreichbar (siehe
+// attachHabitatHandlers() unten), damit Level-aufsteigen/Eintauschen/
+// Begleiter-wechseln nicht verloren gehen.
+function openHabitatForLooma(key) {
+  if (!setActiveCompanion(key)) return;
+  subScreenReturnTo = "screen-loomas";
+  document.getElementById("habitat-content").innerHTML = renderHabitatContent();
+  attachHabitatHandlers();
+  showScreen("screen-habitat");
+}
+
+// Gegenstueck: das Looma IM Habitat-Fenster antippen oeffnet dessen alte
+// Detailkarte (Level aufsteigen/Eintauschen/als Begleiter waehlen), siehe
+// openHabitatForLooma() oben. Zurueck-Pfeil oben fuehrt danach wieder zurueck
+// zum Habitat statt zum Profil-Hub.
+function attachHabitatHandlers() {
+  const img = document.getElementById("habitat-companion-img");
+  if (!img) return;
+  img.addEventListener("click", () => {
+    const companion = getActiveCompanion();
+    if (!companion) return;
+    subScreenReturnTo = "screen-habitat";
+    showLoomaExchangeDetail(companion.key);
+    showScreen("screen-loomas");
   });
 }
 
@@ -633,7 +666,7 @@ function renderHabitatContent() {
   return `
     <div class="habitat-window glass" data-habitat-element="${habitatElement}">
       <span class="habitat-window-element-badge">${habitatInfo.icon} ${habitatInfo.element}</span>
-      <img class="habitat-window-companion-img" src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />
+      <img id="habitat-companion-img" class="habitat-window-companion-img" src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />
       <div class="habitat-stats-panel">
         <div class="habitat-stats-top">
           <span class="habitat-stats-name">${companion.name}</span>

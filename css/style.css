@@ -1508,7 +1508,8 @@ html, body {
    anderen Profil-Unterseiten behalten den Standard-Hintergrund. Dunkles
    Overlay darueber, damit Kachel-Text/Rahmen bei jeder Bildhelligkeit lesbar
    bleiben. */
-#screen-items.items-screen {
+#screen-items.items-screen,
+#screen-settings {
   background:
     linear-gradient(rgba(10,7,24,0.55), rgba(10,7,24,0.8)),
     url("../assets/oberflächen/item-hintergurnd_icon.png") center top / cover no-repeat;
@@ -1847,6 +1848,7 @@ html, body {
   height: auto;
   transform: translate(-50%, -92%);
   filter: drop-shadow(0 0 16px rgba(0,0,0,0.5));
+  cursor: pointer;
 }
 .habitat-window--empty {
   aspect-ratio: 4 / 3;
