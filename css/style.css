@@ -1621,6 +1621,10 @@ html, body {
   margin: 0 auto 18px;
   filter: drop-shadow(0 0 16px rgba(192,132,252,0.5));
 }
+/* Nur das Looma-Bild in der Detailkarte ist antippbar (fuehrt ins Habitat,
+   siehe showLoomaExchangeDetail() in js/profile.js) -- das gleichnamige Item-
+   Detailbild (.detail-card-icon in der Items-Detailkarte) bleibt normal. */
+#looma-detail-icon { cursor: pointer; }
 .detail-card-type {
   display: inline-block;
   font-size: 11px;

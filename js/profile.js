@@ -481,19 +481,20 @@ function renderLoomasGrid() {
 function attachLoomasGridHandlers() {
   document.querySelectorAll(".looma-cell[data-creature]").forEach((cell) => {
     cell.addEventListener("click", () => {
-      openHabitatForLooma(cell.dataset.creature);
+      showLoomaExchangeDetail(cell.dataset.creature);
     });
   });
 }
 
-// Antippen eines Loomas in der Uebersicht fuehrt jetzt direkt in dessen
-// Habitat statt in die Eintausch-/Level-Detailkarte (User-Wunsch) --
-// setActiveCompanion() waehlt dabei bereits von sich aus automatisch die
-// hoechst-levelnde besessene Instanz dieser Art (siehe Kommentar dort in
-// js/state.js), falls mehrere Exemplare vorhanden sind. Die alte Detailkarte
-// bleibt ueber das Antippen des Loomas IM Habitat-Fenster erreichbar (siehe
-// attachHabitatHandlers() unten), damit Level-aufsteigen/Eintauschen/
-// Begleiter-wechseln nicht verloren gehen.
+// Fuehrt direkt in das Habitat des Loomas -- setActiveCompanion() waehlt
+// dabei automatisch die hoechst-levelnde besessene Instanz dieser Art
+// (siehe Kommentar dort in js/state.js), falls mehrere Exemplare vorhanden
+// sind. NICHT der Klick-Handler der Loomas-Uebersicht selbst (User-
+// Korrektur: das wuerde "Als Begleiter wählen"/"Level aufsteigen"/
+// Eintauschen unerreichbar machen) -- stattdessen nur ueber das Antippen
+// des grossen Looma-Bilds IN der Detailkarte (siehe showLoomaExchangeDetail()
+// unten) und ueber das Antippen des Loomas IM Habitat-Fenster selbst (siehe
+// attachHabitatHandlers() unten, fuer den umgekehrten Weg).
 function openHabitatForLooma(key) {
   if (!setActiveCompanion(key)) return;
   subScreenReturnTo = "screen-loomas";
@@ -575,7 +576,7 @@ function showLoomaExchangeDetail(key) {
     <div class="detail-card-synthetic looma-exchange-card">
       <div class="detail-card-name">${creature.name}</div>
       <div class="detail-card-rarity" style="color:${RARITY_COLORS[creature.rarity]}">${creature.rarity}</div>
-      <img src="${creatureIconCache[key] || creature.icon}" alt="${creature.name}" class="detail-card-icon" />
+      <img id="looma-detail-icon" src="${creatureIconCache[key] || creature.icon}" alt="${creature.name}" class="detail-card-icon" title="Zum Habitat" />
       <div class="looma-exchange-owned">Gefangen: ${owned}${isCompanion ? " (1 als Begleiter reserviert)" : ""}</div>
       ${isCompanion
         ? `<div class="looma-companion-active-note">✓ Aktiver Begleiter</div>`
@@ -625,6 +626,12 @@ function showLoomaExchangeDetail(key) {
     content.innerHTML = renderLoomasGrid();
     attachLoomasGridHandlers();
   });
+
+  // Antippen des grossen Looma-Bilds fuehrt direkt ins Habitat (User-Wunsch,
+  // siehe openHabitatForLooma() oben) -- die Buttons darunter (Als Begleiter
+  // waehlen/Level aufsteigen/Eintauschen) bleiben dabei unveraendert hier
+  // erreichbar.
+  document.getElementById("looma-detail-icon").addEventListener("click", () => openHabitatForLooma(key));
 }
 
 // Habitat-Screen (siehe Habitat-Briefing): zeigt den aktuell aktiven
