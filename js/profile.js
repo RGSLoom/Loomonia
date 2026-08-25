@@ -76,14 +76,27 @@ function renderAvatarStage() {
   </div>`;
 }
 
-const PROFILE_TILE_ICONS = {
-  outfit: '<path d="M6 7l6-3 6 3v3H6V7Z"/><path d="M6 10v10h12V10"/>',
-  items: '<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M4 8l2-4h12l2 4"/>',
-  trophies: TROPHY_ICON_PATH,
-  loomas: '<circle cx="12" cy="9" r="3"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/>',
-  habitat: '<path d="M3 20c2-6 6-9 9-9s7 3 9 9"/><circle cx="12" cy="7" r="3"/>',
-  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V19.5a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H4.5a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H10a1.7 1.7 0 0 0 1-1.55V4.5a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V10a1.7 1.7 0 0 0 1.55 1h.09a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/>',
+// Vollflaechige illustrierte Icons statt der frueheren schlichten Linien-
+// Icons (siehe Hero-Bild-Briefing) -- freigestellte PNGs mit echtem
+// transparentem Hintergrund, Rahmen/Hintergrund/Label bleiben Sache der
+// Kachel selbst (.tile in css/style.css).
+const PROFILE_TILE_ICON_SRC = {
+  outfit: "assets/oberflächen/outfit_icon.png",
+  items: "assets/oberflächen/inventar-rucksack_icon.png",
+  trophies: "assets/oberflächen/trophaeen_icon.png",
+  loomas: "assets/oberflächen/Loomas_icon.png",
+  habitat: "assets/oberflächen/habitat_icon.png",
+  settings: "assets/oberflächen/setup_icon.png",
 };
+
+// Hero-Bild vor Skyline (Mann_icon.png/Frau_icon.png) je nach gespeicherter
+// Geschlechts-Auswahl (siehe gameState.avatarGender, Onboarding-Dialog
+// unten) -- vor der ersten Auswahl faellt es auf das maennliche Bild zurueck.
+function avatarHeroImageSrc() {
+  return gameState.avatarGender === "female"
+    ? "assets/oberflächen/Frau_icon.png"
+    : "assets/oberflächen/Mann_icon.png";
+}
 
 function renderProfileHub() {
   const level = xpToLevel(gameState.xp);
@@ -117,35 +130,72 @@ function renderProfileHub() {
     { key: "settings", label: "Einstellungen", sub: "" },
   ]
     .map(
-      (t) => `<button class="tile glass" data-tile="${t.key}" style="border-radius:16px;">
-        <div class="tile-icon-wrap"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${PROFILE_TILE_ICONS[t.key]}</svg></div>
+      (t) => `<button class="tile glass" data-tile="${t.key}">
+        <div class="tile-icon-wrap"><img src="${PROFILE_TILE_ICON_SRC[t.key]}" alt="" /></div>
         <span>${t.label}</span><small>${t.sub || "&nbsp;"}</small>
       </button>`
     )
     .join("");
 
   return `
-    <div class="profile-top">
-      <button class="back-circle glass" id="hotspot-profile-back" aria-label="Zurück" style="border-radius:50%;">
+    <div class="profile-hero">
+      <img class="profile-hero-img" src="${avatarHeroImageSrc()}" alt="" />
+      <button class="back-circle glass profile-hero-back" id="hotspot-profile-back" aria-label="Zurück">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
       </button>
-      <div class="profile-id">
-        <div class="profile-avatar"><img src="assets/generated/hud_avatar.png" alt="" /></div>
-        <div>
-          <div class="profile-name">Dein Profil</div>
-          <div class="profile-lvl">LEVEL ${level}${isMaxLevel ? " · MAX" : ""}</div>
+      <div class="profile-hero-overlay">
+        <div class="profile-hero-top">
+          <div>
+            <div class="profile-hero-name">${gameState.playerName || "Spieler"}</div>
+            <div class="profile-hero-lvl">LEVEL ${level}${isMaxLevel ? " · MAX" : ""}</div>
+          </div>
+          <div class="profile-hero-coins">🪙 ${formatNumber(gameState.coins || 0)}</div>
         </div>
+        <div class="profile-hero-xp-track"><div class="profile-hero-xp-fill" style="width:${xpPct}%"></div></div>
       </div>
     </div>
-    <div class="xp-card glass" style="border-radius:14px;">
-      <div class="xp-card-top"><span>${formatNumber(xpIntoLevel)} XP</span><span>${isMaxLevel ? "Levelcap erreicht" : `${formatNumber(levelCeil - levelFloor)} XP`}</span></div>
-      <div class="xp-track2"><div class="xp-fill2" style="width:${xpPct}%"></div></div>
-    </div>
-    <div class="tile-grid">${tiles}</div>
-    <button class="scan-strip glass" id="hotspot-scan" style="border-radius:14px;">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg>
-      <span class="scan-strip-text"><b>Aktiviere dich im Store</b>Bon scannen für dein nächstes Item</span>
-    </button>`;
+    <div class="profile-tiles-area">
+      <div class="tile-grid">${tiles}</div>
+    </div>`;
+}
+
+// Einmaliger Avatar-Onboarding-Dialog: Gamer-Name + Geschlecht, bevor das
+// Hero-Bild sinnvoll dargestellt werden kann (siehe gameState.playerName/
+// avatarGender in js/state.js). Erscheint bei jedem Oeffnen des Profils,
+// solange eines der beiden Felder noch nicht gesetzt ist -- bis dahin zeigt
+// der Hub selbst schon ein Standardbild (maennlich) + "Spieler" an (siehe
+// renderProfileHub() oben).
+function maybeShowOnboarding() {
+  const modal = document.getElementById("onboarding-modal");
+  const needsOnboarding = !gameState.playerName || !gameState.avatarGender;
+  modal.classList.toggle("hidden", !needsOnboarding);
+}
+
+function updateOnboardingConfirmState() {
+  const selected = document.querySelector(".onboarding-gender-btn.selected");
+  const name = document.getElementById("onboarding-name-input").value.trim();
+  document.getElementById("btn-onboarding-confirm").disabled = !selected || !name;
+}
+
+function initOnboardingModal() {
+  document.querySelectorAll(".onboarding-gender-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".onboarding-gender-btn").forEach((b) => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      updateOnboardingConfirmState();
+    });
+  });
+  document.getElementById("onboarding-name-input").addEventListener("input", updateOnboardingConfirmState);
+  document.getElementById("btn-onboarding-confirm").addEventListener("click", () => {
+    const selected = document.querySelector(".onboarding-gender-btn.selected");
+    const name = document.getElementById("onboarding-name-input").value.trim();
+    if (!selected || !name) return;
+    setAvatarGender(selected.dataset.gender);
+    setPlayerName(name);
+    document.getElementById("onboarding-modal").classList.add("hidden");
+    document.getElementById("profile-content").innerHTML = renderProfileHub();
+    attachProfileHubHandlers();
+  });
 }
 
 // Rucksack-Button im Map-HUD — oeffnet Items direkt, ohne Umweg ueber den
@@ -154,13 +204,17 @@ function openItemsFromHud() {
   openSubScreen("items", "screen-map");
 }
 
-function openProfile() {
-  document.getElementById("profile-content").innerHTML = renderProfileHub();
+function attachProfileHubHandlers() {
   document.getElementById("hotspot-profile-back").addEventListener("click", () => showScreen("screen-map"));
-  document.getElementById("hotspot-scan").addEventListener("click", openScanScreen);
   document.querySelectorAll(".tile[data-tile]").forEach((tile) => {
     tile.addEventListener("click", () => openSubScreen(tile.dataset.tile));
   });
+}
+
+function openProfile() {
+  document.getElementById("profile-content").innerHTML = renderProfileHub();
+  attachProfileHubHandlers();
+  maybeShowOnboarding();
   showScreen("screen-profile");
 }
 

@@ -10,7 +10,7 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Store Walk</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.css" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=105" />
+<link rel="stylesheet" href="css/style.css?v=108" />
 </head>
 <body>
 <div id="app">
@@ -65,6 +65,14 @@
     <div id="map-active-boosts" class="map-active-boosts hidden"></div>
 
     <div id="gps-banner" class="gps-banner hidden"></div>
+
+    <!-- Bon-Scan-Einstieg von der Karte aus verschoben (frueher unterhalb der
+         Profil-Kacheln, siehe Hero-Bild-Briefing) -- genaue Platzierung hier
+         ist bewusst nur ein Platzhalter und wird separat spezifiziert. -->
+    <button id="hotspot-scan" class="scan-strip glass map-scan-strip">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg>
+      <span class="scan-strip-text"><b>Aktiviere dich im Store</b>Bon scannen für dein nächstes Item</span>
+    </button>
 
     <!-- Aufgaben-Detail (erste Tutorial-Quest) — nur solange Trophaee
          "erster_schritt" noch nicht freigeschaltet ist, siehe btn-quest. -->
@@ -273,7 +281,7 @@
   <section id="screen-scan" class="screen fullscreen-scene">
     <div class="scene-veil"></div>
     <div class="scene-top">
-      <button class="btn-close" data-close="screen-profile">✕</button>
+      <button class="btn-close" data-close="screen-map">✕</button>
       <div class="attempt-label">Bon scannen</div>
     </div>
     <div class="scan-stage">
@@ -294,6 +302,30 @@
        renderProfileHub() in js/profile.js mit echten Spielstand-Daten. -->
   <section id="screen-profile" class="screen profile-screen">
     <div id="profile-content" class="profile-content"></div>
+
+    <!-- Einmaliger Avatar-Onboarding-Dialog (Gamer-Name + Geschlecht fuer
+         das Hero-Bild) -- erscheint beim ersten Oeffnen des Profils, solange
+         gameState.playerName/avatarGender noch nicht gesetzt sind (siehe
+         maybeShowOnboarding() in js/profile.js). Wiederverwendet das
+         .quest-modal-Overlay-System. -->
+    <div id="onboarding-modal" class="quest-modal hidden">
+      <div class="quest-modal-card glass">
+        <div class="quest-modal-title">Erstelle deinen Avatar</div>
+        <div class="quest-modal-text">Wähle dein Aussehen und deinen Namen im Spiel.</div>
+        <div class="onboarding-gender-row">
+          <button class="onboarding-gender-btn" data-gender="male" type="button">
+            <img src="assets/oberflächen/Mann_icon.png" alt="Männlich" />
+            <span>Männlich</span>
+          </button>
+          <button class="onboarding-gender-btn" data-gender="female" type="button">
+            <img src="assets/oberflächen/Frau_icon.png" alt="Weiblich" />
+            <span>Weiblich</span>
+          </button>
+        </div>
+        <input type="text" id="onboarding-name-input" class="onboarding-name-input" placeholder="Dein Spielername" maxlength="20" />
+        <button id="btn-onboarding-confirm" class="primary-btn" disabled>Los geht's</button>
+      </div>
+    </div>
   </section>
 
   <!-- ============ PROFIL-UNTERSEITEN (eigene Vollbild-Screens) ============ -->

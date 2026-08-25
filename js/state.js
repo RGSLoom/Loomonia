@@ -87,6 +87,12 @@ function defaultState() {
     activeCompanionInstanceId: null,
     restedXpRemaining: 0,
     sessionEndedAt: null,
+    // Avatar-Onboarding (siehe Hero-Bild-Briefing): beide null bis zum
+    // einmaligen Auswahl-Dialog beim ersten Oeffnen des Profils (siehe
+    // maybeShowOnboarding() in js/profile.js). "male"/"female" steuert, ob
+    // Mann_icon.png oder Frau_icon.png als Profil-Hero-Bild angezeigt wird.
+    avatarGender: null,
+    playerName: null,
   };
 }
 
@@ -619,6 +625,16 @@ function setArCameraEnabled(value) {
 
 function setAllowItemDeletion(value) {
   gameState.settings.allowItemDeletion = value;
+  saveState();
+}
+
+function setAvatarGender(value) {
+  gameState.avatarGender = value;
+  saveState();
+}
+
+function setPlayerName(value) {
+  gameState.playerName = value;
   saveState();
 }
 

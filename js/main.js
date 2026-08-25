@@ -195,6 +195,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // Map-HUD
   document.getElementById("btn-avatar").addEventListener("click", openProfile);
   document.getElementById("btn-backpack").addEventListener("click", openItemsFromHud);
+  // Bon-Scan-Einstieg, umgezogen aus dem Profil-Hub auf die Karte (siehe
+  // Hero-Bild-Briefing) -- statische Markup in index.html statt bei jedem
+  // Profil-Oeffnen neu gerendert, daher hier einmalig gebunden.
+  document.getElementById("hotspot-scan").addEventListener("click", openScanScreen);
+
+  // Avatar-Onboarding-Dialog (Gamer-Name + Geschlecht, siehe js/profile.js) --
+  // statisches Markup, daher ebenfalls nur einmal gebunden.
+  initOnboardingModal();
 
   // Aufgaben-Hinweis (erste Tutorial-Quest) — Button + Detail-Modal auf der
   // Karte, siehe grantReceiptItems() in js/bonscan.js fuer den Ausloeser.
@@ -278,14 +286,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Profil-Hub: renderProfileHub() haengt Back/Tile/Scan-Handler bei jedem
-  // Oeffnen selbst ein (siehe openProfile() in profile.js), da der Inhalt
-  // jetzt dynamisch aus echten Komponenten gerendert wird.
+  // Profil-Hub: attachProfileHubHandlers() haengt Back/Tile-Handler bei
+  // jedem Oeffnen selbst ein (siehe openProfile() in profile.js), da der
+  // Inhalt jetzt dynamisch aus echten Komponenten gerendert wird.
 
   // Bon-Scan — beide Buttons oeffnen nur ein <input type="file">, siehe
   // js/bonscan.js. "Fotografieren" hat zusaetzlich capture="environment"
   // und oeffnet damit auf dem Handy direkt die native Kamera-App.
-  document.querySelector('#screen-scan [data-close]').addEventListener("click", () => showScreen("screen-profile"));
+  document.querySelector('#screen-scan [data-close]').addEventListener("click", () => showScreen("screen-map"));
   document.getElementById("btn-scan-capture").addEventListener("click", () => {
     document.getElementById("scan-camera-input").click();
   });
