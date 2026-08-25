@@ -98,6 +98,25 @@ function avatarHeroImageSrc() {
     : "assets/oberflächen/Mann_icon.png";
 }
 
+// Eigenes, bereits eng zugeschnittenes Profilbild fuer den kleinen Avatar-
+// Kreis im Map-HUD (Profil-mann_icon.png/profil-frau_icon.png) -- bewusst
+// NICHT dieselbe Datei wie avatarHeroImageSrc() oben (das grosse Ganzkoerper-
+// Hero-Bild), das fuer einen winzigen Kreis viel zu weit herausgezoomt waere.
+function hudAvatarIconSrc() {
+  return gameState.avatarGender === "female"
+    ? "assets/oberflächen/profil-frau_icon.png"
+    : "assets/oberflächen/Profil-mann_icon.png";
+}
+
+// Setzt die Bildquelle des Avatar-Kreises im Map-HUD (siehe #hud-avatar-img
+// in index.html). Einmal beim App-Start gesetzt (main.js init()) und erneut
+// nach dem Onboarding-Dialog, falls sich die Geschlechts-Auswahl gerade erst
+// geaendert hat.
+function updateHudAvatarImage() {
+  const img = document.getElementById("hud-avatar-img");
+  if (img) img.src = hudAvatarIconSrc();
+}
+
 function renderProfileHub() {
   const level = xpToLevel(gameState.xp);
   const isMaxLevel = level >= LEVEL_CAP;
@@ -195,6 +214,7 @@ function initOnboardingModal() {
     document.getElementById("onboarding-modal").classList.add("hidden");
     document.getElementById("profile-content").innerHTML = renderProfileHub();
     attachProfileHubHandlers();
+    updateHudAvatarImage();
   });
 }
 

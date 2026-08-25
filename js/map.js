@@ -94,12 +94,11 @@ async function initMap() {
     zoom: 16,
     pitch: 45,
     bearing: 0,
-    attributionControl: true,
+    // Weder Kompass/Zoom-Kontrollen noch Mapbox-Logo/Attribution -- beide
+    // sassen in den Ecken, in denen jetzt die eigene HUD-Leiste
+    // (.hud-bottom-row) liegt, und wurden dort verdeckt (User-Feedback).
+    attributionControl: false,
   });
-  mapboxMap.addControl(
-    new mapboxgl.NavigationControl({ showZoom: false, showCompass: true, visualizePitch: true }),
-    "top-right"
-  );
   setupOneFingerLook(mapboxMap);
 
   // Leichter Farbwasch in den App-eigenen Violett-/Cyan-Toenen (siehe
@@ -703,8 +702,6 @@ function updateCaughtCounter() {
   const energy = getEnergy();
   document.getElementById("hud-energy-label").textContent = energy;
   document.getElementById("hud-energy-fill").style.width = `${(energy / ENERGY_MAX) * 100}%`;
-
-  document.getElementById("hud-coins-count").textContent = formatNumber(gameState.coins || 0);
 
   updateActiveBoostsHud();
 }

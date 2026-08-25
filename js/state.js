@@ -40,8 +40,8 @@ function defaultState() {
     // Cooldown nicht umgeht.
     lastSpawnBoostTriggeredAt: null,
     // Neue Waehrung "Muenzen" (siehe addCoins() unten) — bewusst KEIN
-    // Inventar-Item, sondern ein eigener Zaehler mit HUD-Anzeige am Avatar
-    // (siehe hud-coins-badge in index.html), da Muenzen spaeter als
+    // Inventar-Item, sondern ein eigener Zaehler mit Anzeige im Profil-Hero
+    // (siehe .profile-hero-coins in js/profile.js), da Muenzen spaeter als
     // Zahlungswaehrung dienen sollen statt als sammelbares Item.
     coins: 0,
     settings: {

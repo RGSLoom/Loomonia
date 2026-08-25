@@ -60,8 +60,9 @@ function renderItemSuccess(entry, position, total) {
   }
 
   // Muenzen sind bewusst KEIN Inventar-Item (siehe addCoins() in state.js) —
-  // eigener Zweig statt einer ITEMS-Karte, Anzeige oben am Avatar-HUD statt
-  // im Rucksack (siehe hud-coins-badge in index.html).
+  // eigener Zweig statt einer ITEMS-Karte, Bestand bleibt im Profil-Hero
+  // sichtbar (siehe .profile-hero-coins in js/profile.js) statt im
+  // Rucksack.
   if (entry.type === "coins") {
     document.getElementById("item-success-banner").textContent = "🪙 Münzen erhalten!";
     img.classList.add("hidden");
@@ -195,6 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Map-HUD
   document.getElementById("btn-avatar").addEventListener("click", openProfile);
   document.getElementById("btn-backpack").addEventListener("click", openItemsFromHud);
+  updateHudAvatarImage();
   // Bon-Scan-Einstieg, umgezogen aus dem Profil-Hub auf die Karte (siehe
   // Hero-Bild-Briefing) -- statische Markup in index.html statt bei jedem
   // Profil-Oeffnen neu gerendert, daher hier einmalig gebunden.

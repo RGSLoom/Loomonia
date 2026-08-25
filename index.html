@@ -10,7 +10,7 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Store Walk</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.css" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=108" />
+<link rel="stylesheet" href="css/style.css?v=110" />
 </head>
 <body>
 <div id="app">
@@ -35,27 +35,26 @@
   <section id="screen-map" class="screen active">
     <div id="map"></div>
 
-    <div class="hud-top">
-      <!-- Platzhalter bis zum echten Avatar-Bild: generisches Personen-Icon
-           statt Foto. Einfach spaeter das <span class="avatar-dummy"> gegen
-           ein <img> wie zuvor (assets/generated/hud_avatar.png o.ae.) tauschen. -->
-      <button id="btn-avatar" class="avatar-btn" title="Profil öffnen">
-        <span class="avatar-dummy">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
-        </span>
-        <span id="hud-coins-badge" class="coins-badge" title="Münzen">🪙 <span id="hud-coins-count">0</span></span>
-      </button>
-      <!-- Bewusst als leerer Flex-Spacer erhalten (siehe .hud-title in
-           css/style.css, flex:1) statt komplett entfernt -- haelt Avatar
-           links und Aufgabe/Rucksack rechts, ohne das Layout umzubauen.
-           Nutzer moechte den Produktnamen hier nicht sichtbar haben. -->
-      <div class="hud-title"></div>
+    <!-- Levelleiste (Energie + Level/XP) jetzt oben statt unten (User-
+         Korrektur) -- dieselbe kraeftige Cyan-Karte wie zuvor als
+         .hud-footer, jetzt zusaetzlich mit dem Aufgabe-Button daneben. -->
+    <div class="hud-levelbar">
+      <div class="hud-levelbar-bars">
+        <div class="footer-energy">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="none"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>
+          <div class="xp-track energy-track"><div id="hud-energy-fill" class="xp-fill energy-fill"></div></div>
+          <span id="hud-energy-label" class="footer-level-label energy-label">100</span>
+        </div>
+        <div class="footer-level">
+          <div class="footer-level-top">
+            <span id="hud-level-label" class="footer-level-label">LVL 1</span>
+            <span id="hud-xp-text" class="footer-level-label">0 XP</span>
+          </div>
+          <div class="xp-track"><div id="hud-xp-fill" class="xp-fill"></div></div>
+        </div>
+      </div>
       <button id="btn-quest" class="icon-btn glass action quest-btn" title="Aufgabe">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l2 2 4-4"/><rect x="3" y="4" width="18" height="17" rx="3"/></svg>
-      </button>
-      <button id="btn-backpack" class="icon-btn glass action" title="Items öffnen">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
-        <span id="hud-backpack-badge" class="icon-btn-badge hidden">0</span>
       </button>
     </div>
 
@@ -65,14 +64,6 @@
     <div id="map-active-boosts" class="map-active-boosts hidden"></div>
 
     <div id="gps-banner" class="gps-banner hidden"></div>
-
-    <!-- Bon-Scan-Einstieg von der Karte aus verschoben (frueher unterhalb der
-         Profil-Kacheln, siehe Hero-Bild-Briefing) -- genaue Platzierung hier
-         ist bewusst nur ein Platzhalter und wird separat spezifiziert. -->
-    <button id="hotspot-scan" class="scan-strip glass map-scan-strip">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg>
-      <span class="scan-strip-text"><b>Aktiviere dich im Store</b>Bon scannen für dein nächstes Item</span>
-    </button>
 
     <!-- Aufgaben-Detail (erste Tutorial-Quest) — nur solange Trophaee
          "erster_schritt" noch nicht freigeschaltet ist, siehe btn-quest. -->
@@ -96,19 +87,25 @@
       </div>
     </div>
 
-    <div class="hud-footer">
-      <div class="footer-energy">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="none"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>
-        <div class="xp-track energy-track"><div id="hud-energy-fill" class="xp-fill energy-fill"></div></div>
-        <span id="hud-energy-label" class="footer-level-label energy-label">100</span>
-      </div>
-      <div class="footer-level">
-        <div class="footer-level-top">
-          <span id="hud-level-label" class="footer-level-label">LVL 1</span>
-          <span id="hud-xp-text" class="footer-level-label">0 XP</span>
-        </div>
-        <div class="xp-track"><div id="hud-xp-fill" class="xp-fill"></div></div>
-      </div>
+    <!-- Untere Leiste: Avatar (links) / Bon-Scan (Mitte) / Rucksack (rechts)
+         -- User-Korrektur: alle drei nutzen jetzt fertige PNGs aus
+         assets/oberflächen/ statt SVG-Icons. Avatar-Bildquelle (kleines,
+         bereits passend zugeschnittenes Profilbild -- NICHT das grosse
+         Hero-Bild aus dem Profil-Screen) wird je nach gameState.avatarGender
+         per JS gesetzt, siehe updateHudAvatarImage() in js/profile.js.
+         Muenzen-Badge bewusst entfernt (User-Wunsch) -- Muenzenstand bleibt
+         im Profil-Hero sichtbar. -->
+    <div class="hud-bottom-row">
+      <button id="btn-avatar" class="avatar-btn" title="Profil öffnen">
+        <img id="hud-avatar-img" alt="" />
+      </button>
+      <button id="hotspot-scan" class="icon-btn glass action scan-hud-btn" title="Bon scannen">
+        <img src="assets/oberflächen/QR-Code_icon.png" alt="" />
+      </button>
+      <button id="btn-backpack" class="icon-btn glass action" title="Items öffnen">
+        <img src="assets/oberflächen/inventar-rucksack_icon.png" alt="" />
+        <span id="hud-backpack-badge" class="icon-btn-badge hidden">0</span>
+      </button>
     </div>
 
     <!-- Dev-Testknöpfe (siehe Spezifikation Abschnitt 8 — vor Kunden-Demo
@@ -117,15 +114,19 @@
          gerade ABSICHTLICH ohne "hidden" (User testet aktuell aktiv den
          Kategorie-Umbau, siehe QA-Bug-Liste #22 fuer die urspruengliche
          Verstecken-Begruendung) -- nach Abschluss der Tests wieder
-         "hidden" ergaenzen. Bon-Scan-Test bleibt hinter dem "?dev=1"-Flag
-         (siehe initDevTools() in js/main.js), da der bereits verifiziert
-         funktioniert. -->
-    <button id="btn-test-catch" class="dev-btn dev-btn-left" title="Dev: Testfang auslösen">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="16.5" rx="5" ry="4"/><ellipse cx="4.5" cy="10" rx="2" ry="2.5"/><ellipse cx="9" cy="6" rx="2" ry="2.5"/><ellipse cx="15" cy="6" rx="2" ry="2.5"/><ellipse cx="19.5" cy="10" rx="2" ry="2.5"/></svg>
-    </button>
-    <button id="btn-test-item" class="dev-btn dev-btn-right" title="Dev: Testitem auslösen">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7Z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7Z"/></svg>
-    </button>
+         "hidden" ergaenzen. Beide jetzt rechts mittig uebereinander (User-
+         Korrektur), daher in einem eigenen Stack-Container statt einzeln
+         links/rechts positioniert. Bon-Scan-Test bleibt hinter dem
+         "?dev=1"-Flag (siehe initDevTools() in js/main.js) UND an seiner
+         alten Position, da er nicht Teil dieser Umzugs-Korrektur war. -->
+    <div class="dev-btn-stack">
+      <button id="btn-test-catch" class="dev-btn" title="Dev: Testfang auslösen">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="16.5" rx="5" ry="4"/><ellipse cx="4.5" cy="10" rx="2" ry="2.5"/><ellipse cx="9" cy="6" rx="2" ry="2.5"/><ellipse cx="15" cy="6" rx="2" ry="2.5"/><ellipse cx="19.5" cy="10" rx="2" ry="2.5"/></svg>
+      </button>
+      <button id="btn-test-item" class="dev-btn" title="Dev: Testitem auslösen">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7Z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7Z"/></svg>
+      </button>
+    </div>
     <button id="btn-test-bonscan" class="dev-btn dev-btn-center hidden" title="Dev: Bon-Scan simulieren (löst erste Quest/Trophäe aus)">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4Z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/></svg>
     </button>
@@ -395,16 +396,16 @@
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="js/data.js?v=109"></script>
 <script src="js/utils.js?v=83"></script>
-<script src="js/state.js?v=93"></script>
+<script src="js/state.js?v=95"></script>
 <script src="js/supabase-config.js?v=78"></script>
 <script src="js/mapbox-config.js?v=79"></script>
 <script src="js/tracking.js?v=86"></script>
 <script src="js/locations.js?v=79"></script>
-<script src="js/map.js?v=91"></script>
+<script src="js/map.js?v=92"></script>
 <script src="js/catchgame.js?v=91"></script>
 <script src="js/drawgame.js?v=80"></script>
 <script src="js/bonscan.js?v=97"></script>
-<script src="js/profile.js?v=93"></script>
-<script src="js/main.js?v=93"></script>
+<script src="js/profile.js?v=95"></script>
+<script src="js/main.js?v=95"></script>
 </body>
 </html>

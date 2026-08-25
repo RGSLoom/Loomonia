@@ -79,6 +79,14 @@ html, body {
     radial-gradient(55% 40% at 100% 0%, rgba(20,40,79,0.1), transparent 70%);
 }
 
+/* Mapbox-eigene Ecken-Controls (Logo/Attribution, frueher auch Kompass)
+   sassen genau dort, wo jetzt die eigene HUD-Leiste liegt (siehe
+   .hud-bottom-row) und wurden dadurch verdeckt (User-Feedback) --
+   attributionControl:false in js/map.js deckt das meiste ab, dieser Fallback
+   blendet ein evtl. trotzdem eingehaengtes Logo zusaetzlich aus. */
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib { display: none !important; }
+
 /* ---- Glas-Karten-Baustein, Basis fuer HUD/Profil/Untermenues ---- */
 .glass {
   background: var(--glass-fill);
@@ -96,26 +104,32 @@ html, body {
   stroke-linejoin: round;
 }
 
-.hud-top {
+/* Untere HUD-Leiste (Avatar/Bon-Scan/Rucksack) -- fruehere .hud-top-Klasse,
+   umbenannt weil sie seit der User-Korrektur ("Levelleiste nach oben,
+   Avatar/Scan/Rucksack nach unten") jetzt am unteren statt oberen Rand
+   sitzt. Gradient faedet dafuer jetzt nach OBEN statt nach unten aus. */
+.hud-bottom-row {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
   z-index: 500;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  padding: 16px 16px 0;
-  background: linear-gradient(to bottom, rgba(10,7,24,0.85), rgba(10,7,24,0));
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, rgba(10,7,24,0.85), rgba(10,7,24,0));
   pointer-events: none;
 }
-.hud-top > * { pointer-events: auto; }
+.hud-bottom-row > * { pointer-events: auto; }
 
 .avatar-btn {
   /* Responsiv statt fixer px-Werte: skaliert mit der Viewport-Breite,
-     gedeckelt nach unten/oben (52-68px) statt einer starren Groesse. */
-  width: clamp(52px, 15vw, 68px);
-  height: clamp(52px, 15vw, 68px);
+     gedeckelt nach unten/oben. Groesser als zuvor (User-Feedback: untere
+     HUD-Icons wirkten neben der Levelleiste zu klein). */
+  width: clamp(64px, 18vw, 84px);
+  height: clamp(64px, 18vw, 84px);
   border-radius: 50%;
   flex-shrink: 0;
   padding: 0;
@@ -129,25 +143,13 @@ html, body {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
+  /* Profil-mann_icon.png/profil-frau_icon.png (siehe hudAvatarIconSrc() in
+     js/profile.js) sind bereits eng aufs Gesicht zugeschnittene Bilder,
+     kein Top-Bias wie beim grossen Profil-Hero-Bild noetig. */
+  object-position: center;
   display: block;
   border: 2px solid var(--cosmic-dark);
-}
-/* Platzhalter-Avatar (generisches Icon statt Foto) — dieselbe Bildflaeche/
-   Rahmung wie spaeter das echte <img>, siehe Kommentar in index.html. */
-.avatar-dummy {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: var(--cosmic-mid);
-  border: 2px solid var(--cosmic-dark);
-  color: var(--text-muted);
-}
-.avatar-dummy .icon {
-  width: 56%;
-  height: 56%;
 }
 
 .icon-btn {
@@ -164,9 +166,25 @@ html, body {
   padding: 0;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+/* Scan/Rucksack-Buttons in der unteren HUD-Leiste groesser als der
+   Aufgabe-Button oben in der Levelleiste (User-Feedback: untere Icons
+   wirkten neben der Levelleiste zu klein) -- Aufgabe-Button bleibt bei der
+   kompakteren Basisgroesse, damit die Levelleiste nicht zusaetzlich waechst. */
+.hud-bottom-row .icon-btn {
+  width: clamp(64px, 18vw, 84px);
+  height: clamp(64px, 18vw, 84px);
+}
 .icon-btn .icon {
   width: clamp(21px, 6vw, 27px);
   height: clamp(21px, 6vw, 27px);
+}
+/* Vollflaechige PNG-Icons statt SVG (z.B. Rucksack-Button, siehe
+   assets/oberflächen/inventar-rucksack_icon.png) -- etwas grosszuegiger als
+   die SVG-Groesse, da die PNGs bereits eigenen Leerraum mitbringen. */
+.icon-btn img {
+  width: 68%;
+  height: 68%;
+  object-fit: contain;
 }
 .icon-btn:active { transform: scale(0.9); }
 .icon-btn.action {
@@ -194,52 +212,21 @@ html, body {
 }
 .icon-btn-badge.hidden { display: none; }
 
-/* Muenzen-Zaehler direkt am Avatar (siehe addCoins() in state.js) — bewusst
-   IMMER sichtbar (kein .hidden-Toggle wie beim Rucksack-Badge), da Muenzen
-   im Gegensatz zu Items keine eigene Inventaransicht haben, in der man den
-   Stand sonst nachsehen koennte. */
-.coins-badge {
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(10,7,24,0.85);
-  border: 1.5px solid #fbbf24;
-  color: #fbbf24;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 800;
-  white-space: nowrap;
-}
 .hud-icon-decorative { opacity: 0.6; cursor: default; }
 
-.hud-title {
-  flex: 1;
-  text-align: center;
-  font-weight: 800;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.92;
-  text-shadow: 0 2px 6px rgba(0,0,0,0.6);
-}
-
-.hud-footer {
+/* Levelleiste (Energie + Level/XP) -- fruehere .hud-footer-Klasse, jetzt
+   oben statt unten verankert (User-Korrektur) und um den Aufgabe-Button
+   als zweite Spalte erweitert. */
+.hud-levelbar {
   position: absolute;
   left: 14px;
   right: 14px;
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  top: calc(14px + env(safe-area-inset-top, 0px));
   z-index: 500;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 9px;
-  padding: 14px 20px;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 11px 11px 18px;
   border-radius: 26px;
   /* Kraeftiger Cyan-Farbblock statt gedecktem Glas — auf der hellen,
      bunten Voyager-Karte ging ein dunkler/subtiler Ton komplett unter.
@@ -247,6 +234,14 @@ html, body {
   background: linear-gradient(120deg, var(--accent-cyan), #8ff0ff);
   border: none;
   box-shadow: 0 10px 28px -8px rgba(69,212,255,0.6), 0 4px 14px rgba(0,0,0,0.35);
+}
+.hud-levelbar-bars {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
 }
 .footer-energy {
   min-width: 0;
@@ -342,12 +337,12 @@ html, body {
 .quest-modal-hint { font-size: 12px; opacity: 0.7; margin-bottom: 18px; line-height: 1.4; }
 
 /* Aktive Boost-Effekte im Map-HUD (siehe gameState.activeEffects in
-   js/state.js) -- eigene Zeile direkt unter .hud-top, live-aktualisiert
+   js/state.js) -- eigene Zeile direkt unter .hud-levelbar, live-aktualisiert
    per Sekunden-Timer (updateActiveBoostsHud() in js/map.js, gestartet in
    js/main.js), damit die verbleibende Laufzeit sichtbar mitzaehlt. */
 .map-active-boosts {
   position: absolute;
-  top: 78px;
+  top: 92px;
   left: 14px;
   right: 14px;
   z-index: 480;
@@ -376,18 +371,6 @@ html, body {
   opacity: 0.8;
 }
 
-/* Bon-Scan-Einstieg auf der Karte (umgezogen aus dem Profil-Hub, siehe
-   Hero-Bild-Briefing) -- Position hier bewusst nur ein Platzhalter, direkt
-   ueber der Fusszeile, und wird spaeter separat spezifiziert. */
-.map-scan-strip {
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: calc(108px + env(safe-area-inset-bottom, 0px));
-  z-index: 495;
-  width: auto;
-  box-shadow: 0 8px 22px rgba(0,0,0,0.35);
-}
 
 /* Kurze Bestaetigungsmeldung beim Verwenden eines Verbrauchsitems (siehe
    showToast() in js/utils.js). */
@@ -415,7 +398,7 @@ html, body {
 
 .gps-banner {
   position: absolute;
-  top: 124px;
+  top: 136px;
   left: 14px;
   right: 14px;
   z-index: 500;
@@ -478,6 +461,25 @@ html, body {
 .dev-btn-center { left: 50%; transform: translateX(-50%); }
 .dev-btn-center:active { transform: translateX(-50%) scale(0.9); }
 .dev-btn.hidden { display: none; }
+
+/* Testfang/Testitem jetzt rechts mittig uebereinander statt links/rechts
+   unten (User-Korrektur) -- eigener Stack-Container uebernimmt die
+   Positionierung, die einzelnen .dev-btn darin werden dafuer auf normalen
+   Flex-Fluss zurueckgesetzt (kein eigenes position:absolute mehr). */
+.dev-btn-stack {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dev-btn-stack .dev-btn {
+  position: static;
+}
+.dev-btn-stack .dev-btn:active { transform: scale(0.9); }
 
 /* Ein-Finger-Halten-und-Ziehen zum Kippen/Drehen (siehe setupOneFingerLook()
    in js/map.js) -- Cursor-Feedback fuer Desktop-Tests, auf Touch ohne
@@ -1434,11 +1436,6 @@ html, body {
 .tile-icon-wrap img { width: 96%; height: 96%; object-fit: contain; }
 .tile span { font-size: 11px; font-weight: 700; color: var(--text-light); }
 .tile small { font-size: 9px; color: var(--text-faint); font-weight: 600; }
-
-.scan-strip { border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
-.scan-strip .icon { width: 22px; height: 22px; color: var(--accent-cyan); flex-shrink: 0; }
-.scan-strip-text { font-size: 11px; line-height: 1.4; color: var(--text-muted); }
-.scan-strip-text b { display: block; color: var(--text-light); font-size: 12.5px; margin-bottom: 1px; }
 
 /* Avatar-Onboarding-Dialog (Gamer-Name + Geschlecht, siehe #onboarding-modal
    in index.html) -- nutzt die .quest-modal-Overlay-Basis. */
