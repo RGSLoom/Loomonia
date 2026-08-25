@@ -358,6 +358,16 @@ function loomaStatsAtLevel(rarity, level) {
   };
 }
 
+// Einzelne "Kampfkraft"-Kennzahl aus den drei Kernattributen fuer die
+// Habitat-Anzeige (siehe renderHabitatContent() in js/profile.js) -- kein
+// Wert aus einem Briefing, sondern eine eigene Interpretationsentscheidung:
+// Angriff+Verteidigung direkt summiert, Gesundheit durch 10 geteilt, damit
+// deren viel groessere Zahlenskala (100-2000+) die Kampfkraft nicht komplett
+// dominiert.
+function loomaCombatPower(stats) {
+  return stats.angriff + stats.verteidigung + Math.round(stats.gesundheit / 10);
+}
+
 // Schatten-Essenz-Kosten fuer den Aufstieg AUF `targetLevel` (von
 // targetLevel-1), quadratische Kurve aus dem Briefing -- gilt unabhaengig von
 // der Raritaet, jedes Looma zahlt fuer denselben Levelschritt denselben

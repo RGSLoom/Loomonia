@@ -1801,38 +1801,28 @@ html, body {
 }
 .looma-companion-active-note { font-size: 13px; font-weight: 700; color: var(--cosmic-accent-2); margin-bottom: 16px; }
 
-/* Habitat-Screen (Habitat-Briefing) */
-.habitat-companion-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  margin-bottom: 14px;
-  border-radius: 14px;
-}
-.habitat-companion-banner img { width: 52px; height: 52px; object-fit: contain; }
-.habitat-companion-name { font-size: 15px; font-weight: 700; }
-.habitat-companion-sub { font-size: 12px; opacity: 0.8; line-height: 1.4; }
-
-.habitat-rested-card { padding: 14px; margin-bottom: 16px; border-radius: 14px; }
-.habitat-rested-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
-.habitat-rested-bar { height: 6px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; margin-bottom: 8px; }
-.habitat-rested-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--cosmic-accent), var(--accent-cyan)); transition: width 0.4s ease; }
-.habitat-rested-text { font-size: 12px; opacity: 0.8; line-height: 1.4; }
-
-/* Einzelnes Habitat-Fenster (nur das Element des aktiven Begleiters, siehe
-   renderHabitatContent() in js/profile.js) -- data-habitat-element ist der
-   Haken fuer spaeter, wenn jedes Habitat einen eigenen Hintergrund je
-   Element bekommt, z.B. .habitat-window[data-habitat-element="Feuer"] {...}. */
+/* Habitat-Screen (Habitat-Briefing) -- ein einzelnes grosses Fenster (nur
+   das Element des aktiven Begleiters, siehe renderHabitatContent() in
+   js/profile.js) mit eigenem Szenen-Hintergrund je Element (sechs fertige
+   Bilder, User-Wunsch) statt der frueheren separaten Banner-/Karten-Stapel
+   darueber -- Name/Level/Kampfkraft/Attribute/Ausgeruht-Status sitzen jetzt
+   alle direkt IM Fenster (siehe .habitat-stats-panel unten). Aspect-Ratio
+   entspricht der nativen Groesse der sechs Hintergrundbilder (941x1672),
+   damit background-size:cover sie ohne Beschnitt/Letterbox komplett zeigt. */
 .habitat-window {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 941 / 1672;
   border-radius: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
+  background-size: cover;
+  background-position: center;
 }
+.habitat-window[data-habitat-element="Erde"] { background-image: url("../assets/oberflächen/habitat_erde.png"); }
+.habitat-window[data-habitat-element="Feuer"] { background-image: url("../assets/oberflächen/habitat_feuer.png"); }
+.habitat-window[data-habitat-element="Wasser"] { background-image: url("../assets/oberflächen/habitat_wasser.png"); }
+.habitat-window[data-habitat-element="Luft"] { background-image: url("../assets/oberflächen/habitat_luft.png"); }
+.habitat-window[data-habitat-element="Licht"] { background-image: url("../assets/oberflächen/habitat_licht.png"); }
+.habitat-window[data-habitat-element="Schatten"] { background-image: url("../assets/oberflächen/habitat_schatten.png"); }
 .habitat-window-element-badge {
   position: absolute;
   top: 12px;
@@ -1843,14 +1833,56 @@ html, body {
   border-radius: 20px;
   background: rgba(0,0,0,0.35);
 }
+/* Auf dem runden Podest zentriert, das in allen sechs Hintergrundbildern an
+   derselben relativen Position sitzt -- Breite skaliert mit dem Fenster
+   (User-Wunsch: "passe die Groesse an das Podest an"), Hoehe automatisch im
+   Seitenverhaeltnis der jeweiligen Kreatur, per translateY am unteren
+   Bildrand (den Fuessen) auf die Podestflaeche verankert statt am
+   Bild-Mittelpunkt. */
 .habitat-window-companion-img {
-  width: 48%;
-  height: 48%;
-  object-fit: contain;
-  filter: drop-shadow(0 0 14px rgba(74,222,128,0.55));
+  position: absolute;
+  left: 50%;
+  top: 68%;
+  width: 38%;
+  height: auto;
+  transform: translate(-50%, -92%);
+  filter: drop-shadow(0 0 16px rgba(0,0,0,0.5));
 }
-.habitat-window--empty { padding: 24px; }
+.habitat-window--empty {
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
 .habitat-window-empty-text { text-align: center; font-size: 13px; opacity: 0.8; line-height: 1.5; }
+
+/* Stats-Karte am unteren Fensterrand -- Podest+Kreatur sitzen im mittleren/
+   oberen Bereich des Fensters, dieser Streifen bleibt bewusst dafuer frei
+   (siehe top:68% oben). Verlaufs-Scrim statt fester Flaeche, damit die Szene
+   nach oben hin sichtbar bleibt. */
+.habitat-stats-panel {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 28px 16px 16px;
+  background: linear-gradient(to top, rgba(10,7,24,0.95) 45%, transparent);
+}
+.habitat-stats-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.habitat-stats-name { font-size: 15px; font-weight: 800; color: var(--text-light); }
+.habitat-stats-level { font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); white-space: nowrap; }
+.habitat-stats-power { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+.habitat-stats-power b { color: #fbbf24; font-weight: 800; }
+.habitat-stats-row { display: flex; gap: 14px; font-size: 12.5px; font-weight: 700; margin-bottom: 10px; }
+.habitat-stats-rested { display: flex; align-items: center; gap: 10px; }
+.habitat-stats-rested-label { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.habitat-rested-bar { flex: 1; height: 6px; border-radius: 4px; background: rgba(255,255,255,0.15); overflow: hidden; }
+.habitat-rested-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--cosmic-accent), var(--accent-cyan)); transition: width 0.4s ease; }
 
 /* Anzeige aktiver, zeitlich befristeter Boost-Effekte (siehe
    gameState.activeEffects in js/state.js) oben im Items-Screen -- macht

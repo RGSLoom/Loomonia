@@ -603,55 +603,54 @@ function showLoomaExchangeDetail(key) {
 // showLoomaExchangeDetail() oben) -- hier nur Anzeige.
 function renderHabitatContent() {
   const companion = getActiveCompanion();
-  const companionInstance = companion ? getActiveCompanionInstance() : null;
+
+  if (!companion) {
+    return `<div class="habitat-window habitat-window--empty glass">
+      <div class="habitat-window-empty-text">Wähle im Loomas-Screen einen aktiven Begleiter, damit sein Habitat hier erscheint.</div>
+    </div>`;
+  }
+
+  const companionInstance = getActiveCompanionInstance();
   const cap = restedXpCap();
   const remaining = Math.round(gameState.restedXpRemaining || 0);
   const isResting = remaining > 0;
   const pct = cap > 0 ? Math.min(100, Math.round((remaining / cap) * 100)) : 0;
-
-  const companionBannerHtml = companion
-    ? `<div class="habitat-companion-banner glass">
-        <img src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />
-        <div>
-          <div class="habitat-companion-name">${companion.name}</div>
-          <div class="habitat-companion-sub">Aktiver Begleiter · Level ${companionInstance.level}</div>
-        </div>
-      </div>`
-    : `<div class="habitat-companion-banner glass">
-        <div class="habitat-companion-sub">Kein aktiver Begleiter gewählt — wähle im Loomas-Screen eins aus.</div>
-      </div>`;
-
-  const restedCardHtml = companion
-    ? `<div class="habitat-rested-card glass">
-        <div class="habitat-rested-title">${isResting ? "😴 Ausgeruht" : "Wach"}</div>
-        <div class="habitat-rested-bar"><div class="habitat-rested-fill" style="width:${pct}%"></div></div>
-        <div class="habitat-rested-text">${
-          isResting
-            ? `Doppelte XP, bis ${formatNumber(remaining)} Bonus-XP verbraucht sind.`
-            : "Schließe die App eine Weile, damit dein Begleiter sich in seinem Habitat ausruht und du beim nächsten Spielstart doppelte XP erhältst."
-        }</div>
-      </div>`
-    : "";
+  const atMaxLevel = companionInstance.level >= LOOMA_MAX_LEVEL;
+  const stats = loomaStatsAtLevel(companion.rarity, companionInstance.level);
+  const power = loomaCombatPower(stats);
 
   // Nur EIN Habitat-Fenster statt aller sechs Elemente nebeneinander --
   // der Spieler hat immer nur einen aktiven Begleiter, die anderen fuenf
   // Habitate waeren also zwangslaeufig immer leer (siehe User-Feedback: "so
   // macht das keinen Sinn"). Zeigt das zum Begleiter-Element passende
-  // Habitat gross, das Looma darin gross zentriert, das Element nur als
-  // kleines Badge -- data-habitat-element als Haken fuer spaeter, wenn jedes
-  // Habitat optisch (Hintergrund je Element) eigens gestaltet wird.
-  const habitatElement = companion && habitatElementForCreature(companion);
-  const habitatInfo = habitatElement && HABITATS.find((h) => h.element === habitatElement);
-  const habitatWindowHtml = companion
-    ? `<div class="habitat-window glass" data-habitat-element="${habitatElement}">
-        <span class="habitat-window-element-badge">${habitatInfo.icon} ${habitatInfo.element}</span>
-        <img class="habitat-window-companion-img" src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />
-      </div>`
-    : `<div class="habitat-window habitat-window--empty glass">
-        <div class="habitat-window-empty-text">Wähle im Loomas-Screen einen aktiven Begleiter, damit sein Habitat hier erscheint.</div>
-      </div>`;
+  // Habitat gross, das Looma darauf auf dem Podest, alle Werte (Level,
+  // Kampfkraft, Kernattribute, Ausgeruht-Status) als eigene Karte direkt IM
+  // Fenster statt in separaten Karten darueber (User-Wunsch) -- Hintergrund
+  // je Element ueber data-habitat-element in css/style.css.
+  const habitatElement = habitatElementForCreature(companion);
+  const habitatInfo = HABITATS.find((h) => h.element === habitatElement);
 
-  return `${companionBannerHtml}${restedCardHtml}${habitatWindowHtml}`;
+  return `
+    <div class="habitat-window glass" data-habitat-element="${habitatElement}">
+      <span class="habitat-window-element-badge">${habitatInfo.icon} ${habitatInfo.element}</span>
+      <img class="habitat-window-companion-img" src="${creatureIconCache[companion.key] || companion.icon}" alt="${companion.name}" />
+      <div class="habitat-stats-panel">
+        <div class="habitat-stats-top">
+          <span class="habitat-stats-name">${companion.name}</span>
+          <span class="habitat-stats-level">Level ${companionInstance.level}${atMaxLevel ? " · MAX" : ""}</span>
+        </div>
+        <div class="habitat-stats-power">💪 Kampfkraft <b>${formatNumber(power)}</b></div>
+        <div class="habitat-stats-row">
+          <span>⚔️ ${formatNumber(stats.angriff)}</span>
+          <span>🛡️ ${formatNumber(stats.verteidigung)}</span>
+          <span>❤️ ${formatNumber(stats.gesundheit)}</span>
+        </div>
+        <div class="habitat-stats-rested">
+          <span class="habitat-stats-rested-label">${isResting ? "😴 Ausgeruht" : "🌤️ Wach"}</span>
+          <div class="habitat-rested-bar"><div class="habitat-rested-fill" style="width:${pct}%"></div></div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function renderTrophiesGrid() {
