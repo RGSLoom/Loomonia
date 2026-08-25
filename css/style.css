@@ -186,14 +186,17 @@ html, body {
   height: 68%;
   object-fit: contain;
 }
-/* Bon-Scan-Button (QR-Code_icon.png): Bild fuellt den ganzen Kreis statt
-   mit sichtbarem Rand darin zu "schweben" (User-Feedback) -- object-
-   fit:cover schneidet dafuer die Ecken des quadratischen Bildes ab, bei
-   einem rein dekorativen QR-Motiv unproblematisch. */
+/* Bon-Scan-Button (QR-Code_icon.png): eckig statt rund (User-Feedback --
+   passt fuer ein QR-Motiv deutlich besser als ein Kreis) und das Bild
+   fuellt die ganze Flaeche ohne sichtbaren Rand. Ueberschreibt dafuer die
+   runde .icon-btn-Basisform gezielt nur fuer diesen einen Button. */
+.scan-hud-btn {
+  border-radius: 18px;
+}
 .scan-hud-btn img {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
+  border-radius: 18px;
   object-fit: cover;
 }
 .icon-btn:active { transform: scale(0.9); }
