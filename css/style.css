@@ -1498,6 +1498,22 @@ html, body {
   letter-spacing: 0.02em;
   margin-right: 36px;
 }
+/* Items-Screen hat mit dem Sortier-Button ein echtes drittes, gleich
+   grosses Element rechts (statt der sonst leeren Ausgleichs-Reserve) --
+   der margin-right-Ausgleich oben waere hier doppelt gemoppelt. */
+#screen-items .sub-screen-title { margin-right: 0; }
+
+/* Eigener Hintergrund fuer den Items-Screen (User-Wunsch) -- ueberschreibt
+   den generischen Radial-Verlauf von .profile-screen gezielt per ID, alle
+   anderen Profil-Unterseiten behalten den Standard-Hintergrund. Dunkles
+   Overlay darueber, damit Kachel-Text/Rahmen bei jeder Bildhelligkeit lesbar
+   bleiben. */
+#screen-items.items-screen {
+  background:
+    linear-gradient(rgba(10,7,24,0.55), rgba(10,7,24,0.8)),
+    url("../assets/oberflächen/item-hintergurnd_icon.png") center top / cover no-repeat;
+}
+
 .sub-screen-content {
   max-width: 460px;
   margin: 10px auto 0;

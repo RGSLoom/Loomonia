@@ -304,6 +304,12 @@ const RARITY_COLORS = {
   "Legendär": "#fbbf24",
 };
 
+// Aufsteigende Seltenheits-Reihenfolge (weiss -> gruen -> blau -> lila ->
+// gold), fuer die Sortierfunktion im Items-Screen (siehe renderItemsGrid()
+// in js/profile.js) -- dieselbe Stufenfolge wie RARITY_COLORS oben, nur als
+// Array statt als Lookup, weil hier die Reihenfolge selbst die Nutzlast ist.
+const RARITY_ORDER = ["Gewöhnlich", "Ungewöhnlich", "Selten", "Episch", "Legendär"];
+
 // ============ Looma-Level-System ============
 // Siehe Level-System-Briefing. Baut auf dem Habitat-Briefing auf (Rested-XP
 // wirkt NICHT auf den Levelaufstieg selbst, siehe isActiveCompanionMaxLevel()

@@ -10,7 +10,7 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Store Walk</title>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.css" rel="stylesheet" />
-<link rel="stylesheet" href="css/style.css?v=112" />
+<link rel="stylesheet" href="css/style.css?v=113" />
 </head>
 <body>
 <div id="app">
@@ -340,12 +340,19 @@
     <div id="outfit-content" class="sub-screen-content"></div>
   </section>
 
-  <section id="screen-items" class="screen profile-screen">
+  <!-- items-screen als Modifier-Klasse fuer den eigenen Hintergrund (siehe
+       #screen-items.items-screen in css/style.css) -- Sortier-Button ersetzt
+       hier das sonstige margin-right-Ausgleichspolster von .sub-screen-title
+       (siehe dortige Regel), da es hier ein echtes drittes Element gibt. -->
+  <section id="screen-items" class="screen profile-screen items-screen">
     <div class="sub-screen-topbar">
       <button class="back-circle glass sub-back-btn" aria-label="Zurück">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
       </button>
       <div class="sub-screen-title">Items</div>
+      <button id="btn-items-sort" class="back-circle glass" aria-label="Sortierung nach Seltenheit umkehren" title="Sortierung nach Seltenheit umkehren">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 20V4M8 4 4 8M8 4l4 4"/><path d="M16 4v16m0 0 4-4m-4 4-4-4"/></svg>
+      </button>
     </div>
     <div id="items-content" class="sub-screen-content"></div>
   </section>
@@ -394,7 +401,7 @@
 
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.js"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="js/data.js?v=109"></script>
+<script src="js/data.js?v=110"></script>
 <script src="js/utils.js?v=83"></script>
 <script src="js/state.js?v=95"></script>
 <script src="js/supabase-config.js?v=78"></script>
@@ -405,7 +412,7 @@
 <script src="js/catchgame.js?v=91"></script>
 <script src="js/drawgame.js?v=80"></script>
 <script src="js/bonscan.js?v=97"></script>
-<script src="js/profile.js?v=95"></script>
-<script src="js/main.js?v=95"></script>
+<script src="js/profile.js?v=96"></script>
+<script src="js/main.js?v=96"></script>
 </body>
 </html>

@@ -206,6 +206,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // statisches Markup, daher ebenfalls nur einmal gebunden.
   initOnboardingModal();
 
+  // Sortier-Umschalter im Items-Screen-Topbar (siehe toggleItemsSort() in
+  // js/profile.js) -- statisches Markup, daher nur einmal gebunden statt bei
+  // jedem renderItemsGrid()-Aufruf neu.
+  document.getElementById("btn-items-sort").addEventListener("click", toggleItemsSort);
+
   // Aufgaben-Hinweis (erste Tutorial-Quest) — Button + Detail-Modal auf der
   // Karte, siehe grantReceiptItems() in js/bonscan.js fuer den Ausloeser.
   const questTrophy = TROPHIES.erster_schritt;

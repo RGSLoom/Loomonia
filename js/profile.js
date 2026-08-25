@@ -278,12 +278,24 @@ function openSubScreen(tileKey, returnTo = "screen-profile") {
   }
 }
 
+// Sortierrichtung im Items-Screen (siehe RARITY_ORDER in js/data.js) --
+// bewusst nur Session-State statt gameState-Feld, da es sich um eine reine
+// Anzeige-Einstellung handelt. User-Korrektur: keine feste Position mehr pro
+// Item (frueher wurden auch unbesessene Items als leere "locked"-Kachel an
+// ihrer festen Stelle angezeigt) -- jetzt nur noch besessene Items, dicht
+// gepackt und nach Seltenheitsstufe sortierbar statt in fixer Reihenfolge.
+let itemsSortAscending = true;
+
 function renderItemsGrid() {
-  const cells = Object.values(ITEMS)
+  const owned = Object.values(ITEMS)
+    .filter((item) => (gameState.inventory[item.key] || 0) > 0)
+    .sort((a, b) => {
+      const diff = RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity);
+      return itemsSortAscending ? diff : -diff;
+    });
+  const cells = owned
     .map((item) => {
-      const count = gameState.inventory[item.key] || 0;
-      const owned = count > 0;
-      if (!owned) return `<div class="item-cell locked" data-item="${item.key}"></div>`;
+      const count = gameState.inventory[item.key];
       const isEquipped = item.slotType && gameState.avatarEquipped[item.slotType] === item.key;
       return `<div class="item-cell${isEquipped ? " equipped" : ""}" data-item="${item.key}" style="--rarity-color:${RARITY_COLORS[item.rarity]}">
         <img src="${item.icon}" alt="${item.name}" /><span class="cell-count">${count}</span>
@@ -292,18 +304,24 @@ function renderItemsGrid() {
       </div>`;
     })
     .join("");
-  return `${renderActiveBoostsBanner()}<div class="item-grid">${cells}</div>`;
+  const emptyNote = owned.length === 0
+    ? `<div class="placeholder-note">Noch keine Items gesammelt.</div>`
+    : "";
+  return `${renderActiveBoostsBanner()}<div class="item-grid">${cells}</div>${emptyNote}`;
 }
 
 function attachItemGridHandlers() {
   document.querySelectorAll(".item-cell").forEach((cell) => {
-    cell.addEventListener("click", () => {
-      const key = cell.dataset.item;
-      const owned = (gameState.inventory[key] || 0) > 0;
-      if (!owned) return;
-      showItemDetail(key);
-    });
+    cell.addEventListener("click", () => showItemDetail(cell.dataset.item));
   });
+}
+
+// Umschalt-Sortierung fuer den Items-Screen-Topbar-Button (siehe #btn-items-
+// sort in index.html, Bindung in main.js init()).
+function toggleItemsSort() {
+  itemsSortAscending = !itemsSortAscending;
+  document.getElementById("items-content").innerHTML = renderItemsGrid();
+  attachItemGridHandlers();
 }
 
 function showItemDetail(key) {
