@@ -267,8 +267,8 @@ function openSubScreen(tileKey, returnTo = "screen-profile") {
       showScreen("screen-settings");
       break;
     case "trophies":
-      document.getElementById("trophies-content").innerHTML = renderTrophiesGrid();
-      attachTrophiesGridHandlers();
+      document.getElementById("trophies-content").innerHTML = renderTrophiesList();
+      attachTrophiesListHandlers();
       showScreen("screen-trophies");
       break;
     case "habitat":
@@ -706,24 +706,58 @@ function renderHabitatContent() {
     </div>`;
 }
 
-function renderTrophiesGrid() {
-  const cells = Object.values(TROPHIES)
+// Checkmark fuer erledigte Zeilen -- eigenes kleines Icon statt TROPHY_ICON_PATH
+// (das bleibt das Kategorie-/Rarity-Icon links), analog zur .icon-Konvention.
+const TROPHY_CHECK_ICON_PATH = '<path d="M20 6 9 17l-5-5"/>';
+
+// Sortier-Rang je Zeile: offene Trophaeen mit sichtbarem Fortschritt zuerst
+// (der Spieler sieht sofort, woran er als naechstes arbeitet), dann offene
+// ohne Zaehler, erledigte ganz unten. Siehe Sortier-Vorgabe im Trophaeen-
+// Listen-Briefing.
+function trophyRowRank(trophy, unlocked) {
+  if (unlocked) return 2;
+  return trophy.progressType ? 0 : 1;
+}
+
+function renderTrophiesList() {
+  const rows = Object.values(TROPHIES)
+    .slice()
+    .sort((a, b) => {
+      const unlockedA = !!(gameState.trophies && gameState.trophies[a.key]);
+      const unlockedB = !!(gameState.trophies && gameState.trophies[b.key]);
+      return trophyRowRank(a, unlockedA) - trophyRowRank(b, unlockedB);
+    })
     .map((trophy) => {
       const unlocked = !!(gameState.trophies && gameState.trophies[trophy.key]);
-      if (!unlocked) return `<div class="item-cell locked" data-trophy="${trophy.key}"></div>`;
-      return `<div class="item-cell" data-trophy="${trophy.key}" style="--rarity-color:${TROPHY_TIER_COLORS[trophy.tier]}">
-        <svg class="icon trophy-cell-icon" viewBox="0 0 24 24" aria-hidden="true">${TROPHY_ICON_PATH}</svg>
-        <span class="cell-label">${trophy.name}</span>
+      const color = RARITY_COLORS[trophy.rarity];
+      const progress = unlocked ? null : getTrophyProgress(trophy.key);
+      const progressHtml = progress
+        ? `<div class="trophy-row-progress">
+            <div class="trophy-row-progress-bar"><div class="trophy-row-progress-fill" style="width:${(progress.current / progress.goal) * 100}%"></div></div>
+            <span class="trophy-row-progress-count">${progress.current}/${progress.goal}</span>
+          </div>`
+        : "";
+      const statusHtml = unlocked
+        ? `<svg class="icon trophy-row-check" viewBox="0 0 24 24" aria-hidden="true">${TROPHY_CHECK_ICON_PATH}</svg>`
+        : "";
+      return `<div class="trophy-row${unlocked ? "" : " locked"}" data-trophy="${trophy.key}" style="--rarity-color:${color}">
+        <svg class="icon trophy-row-icon" viewBox="0 0 24 24" aria-hidden="true">${TROPHY_ICON_PATH}</svg>
+        <div class="trophy-row-body">
+          <div class="trophy-row-name">${trophy.name}</div>
+          <div class="trophy-row-desc">${trophy.description}</div>
+          ${progressHtml}
+        </div>
+        <div class="trophy-row-status">${statusHtml}</div>
       </div>`;
     })
     .join("");
-  return `<div class="item-grid">${cells}</div>`;
+  return `<div class="trophy-list">${rows}</div>`;
 }
 
-function attachTrophiesGridHandlers() {
-  document.querySelectorAll(".item-cell[data-trophy]").forEach((cell) => {
-    cell.addEventListener("click", () => {
-      const key = cell.dataset.trophy;
+function attachTrophiesListHandlers() {
+  document.querySelectorAll(".trophy-row[data-trophy]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const key = row.dataset.trophy;
       const unlocked = !!(gameState.trophies && gameState.trophies[key]);
       if (!unlocked) return;
       showTrophyDetail(key);
@@ -767,20 +801,19 @@ function renderTrophyRewardHtml(trophy) {
 function showTrophyDetail(key) {
   const trophy = TROPHIES[key];
   const content = document.getElementById("trophies-content");
-  const tierLabel = trophy.tier.charAt(0).toUpperCase() + trophy.tier.slice(1);
   content.innerHTML = `
     <button class="back-btn" id="btn-trophy-detail-back" style="margin-bottom:12px;">← Übersicht</button>
     <div class="detail-card-synthetic">
       <div class="detail-card-name">${trophy.name}</div>
-      <div class="detail-card-rarity" style="color:${TROPHY_TIER_COLORS[trophy.tier]}">${tierLabel}-Trophäe</div>
-      <svg class="icon detail-card-icon trophy-detail-icon" viewBox="0 0 24 24" aria-hidden="true" style="color:${TROPHY_TIER_COLORS[trophy.tier]}">${TROPHY_ICON_PATH}</svg>
+      <div class="detail-card-rarity" style="color:${RARITY_COLORS[trophy.rarity]}">${trophy.rarity}-Trophäe</div>
+      <svg class="icon detail-card-icon trophy-detail-icon" viewBox="0 0 24 24" aria-hidden="true" style="color:${RARITY_COLORS[trophy.rarity]}">${TROPHY_ICON_PATH}</svg>
       <div class="detail-card-effect">${trophy.description}</div>
       <div class="detail-card-hint">Belohnung: +${formatNumber(trophy.xp)} XP</div>
       ${renderTrophyRewardHtml(trophy)}
     </div>`;
   document.getElementById("btn-trophy-detail-back").addEventListener("click", () => {
-    content.innerHTML = renderTrophiesGrid();
-    attachTrophiesGridHandlers();
+    content.innerHTML = renderTrophiesList();
+    attachTrophiesListHandlers();
   });
 }
 

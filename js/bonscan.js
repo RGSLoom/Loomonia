@@ -1079,7 +1079,7 @@ function grantReceiptItems(matchedArticles, unmatchedArticles, fallbackCategoryK
           storeId: receiptStoreId,
           category: fallbackCategoryKey,
           itemKey: e.trophyKey,
-          rarity: TROPHIES[e.trophyKey].tier,
+          rarity: TROPHIES[e.trophyKey].rarity,
         });
       });
     updateCaughtCounter();

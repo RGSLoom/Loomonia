@@ -497,22 +497,24 @@ function equipmentCoinCostForLevel(level, rarity) {
 // Belohnung der ersten Tutorial-Quest ("Gehe in einen Laden und kaufe einen
 // Gegenstand"). Die 2.500-XP-Belohnung hier ersetzt bewusst den in der
 // Spezifikation urspruenglich notierten "+2% Bonus auf Drops"-Text.
-const TROPHY_TIER_COLORS = {
-  bronze: "#cd7f32",
-  silber: "#c9d3e0",
-  gold: "#fbbf24",
-};
-
 // Gemeinsames Trophaeen-Icon (Pokal) fuer Profil-Kachel, Trophaeen-Screen
-// und Quest-Hinweis — ein Pfad statt an mehreren Stellen dupliziert.
+// und Quest-Hinweis — ein Pfad statt an mehreren Stellen dupliziert. Faerbung
+// erfolgt ueber die bestehende Rarity-Farbskala (RARITY_COLORS oben), nicht
+// ueber ein eigenes Bronze/Silber/Gold-Set — ein Icon reicht dadurch fuer
+// beliebig viele zukuenftige Trophaeen, siehe renderTrophiesList() in
+// js/profile.js.
 const TROPHY_ICON_PATH =
   '<path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4Z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/>';
 
+// progressType/progressGoal treiben den Fortschrittsbalken in
+// renderTrophiesList() (js/profile.js) ueber getTrophyProgress() in
+// js/state.js -- fehlen sie, ist die Trophaee ein einmaliges Ereignis ohne
+// Zaehler (z.B. "Erster Schritt").
 const TROPHIES = {
   erster_schritt: {
     key: "erster_schritt",
     name: "Erster Schritt",
-    tier: "bronze",
+    rarity: "Gewöhnlich",
     description: "Für deinen ersten Einkauf bei einem teilnehmenden Retail-Partner.",
     xp: 2500,
     // Exklusive Item-Belohnung: das einzige Legendaer-Item ("armband"), das
@@ -523,9 +525,11 @@ const TROPHIES = {
   wesen_entdecker: {
     key: "wesen_entdecker",
     name: "Wesen-Entdecker",
-    tier: "bronze",
+    rarity: "Ungewöhnlich",
     description: "Fange 5 gewöhnliche Loomas.",
     xp: 800,
+    progressType: "caught_gewoehnlich",
+    progressGoal: 5,
     // 3 zufaellige Ungewoehnlich-Items statt eines festen (nur 2 Items
     // dieser Seltenheit existieren, siehe ITEMS) — Dopplungen sind ok und
     // werden beim Verleihen zu einem Stapel zusammengefasst, siehe
@@ -536,9 +540,11 @@ const TROPHIES = {
   treuer_shopper: {
     key: "treuer_shopper",
     name: "Treuer Shopper",
-    tier: "silber",
+    rarity: "Selten",
     description: "Schließe 5 bestätigte Käufe ab.",
     xp: 1500,
+    progressType: "receipt_scans",
+    progressGoal: 5,
     // Episch/Legendaer sind laut Spielspezifikation keine Zufalls-Drops aus
     // Stores (siehe Kommentar bei ITEMS unten) — hoodie ist deshalb bislang
     // keinem Store-/Bon-Pool zugeordnet und nur ueber diese Trophaee
@@ -548,9 +554,11 @@ const TROPHIES = {
   seltene_beute: {
     key: "seltene_beute",
     name: "Seltene Beute",
-    tier: "gold",
+    rarity: "Legendär",
     description: "Fange 10 seltene Loomas.",
     xp: 3000,
+    progressType: "caught_selten",
+    progressGoal: 10,
     // Ebenfalls bislang keinem Store-/Bon-Pool zugeordnet, siehe oben.
     itemKey: "lockduftflakon",
   },

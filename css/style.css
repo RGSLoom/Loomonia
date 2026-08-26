@@ -1561,7 +1561,6 @@ html, body {
   cursor: default;
 }
 .item-cell img, .looma-cell img { width: 56%; height: 56%; object-fit: contain; }
-.trophy-cell-icon { width: 46%; height: 46%; color: var(--rarity-color); stroke-width: 1.4; }
 .cell-count {
   position: absolute;
   top: 4px;
@@ -1586,6 +1585,83 @@ html, body {
   padding: 2px 6px;
   border-radius: 8px;
   white-space: nowrap;
+}
+
+/* Trophaeen-Liste (statt Kachel-Raster) -- eine Zeile pro Trophaee, beliebig
+   viele ohne Layout-Aenderung. Icon links faerbt sich nach Rarity-Stufe
+   (--rarity-color, gesetzt via RARITY_COLORS) statt einem individuellen
+   Kunstwerk je Trophaee, siehe renderTrophiesList() in js/profile.js. */
+.trophy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.trophy-row {
+  --rarity-color: var(--rarity-common);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: var(--glass-fill);
+  border: 1.5px solid color-mix(in srgb, var(--rarity-color) 55%, transparent);
+  border-radius: 14px;
+  box-shadow: 0 0 16px -8px var(--rarity-color);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+}
+.trophy-row.locked {
+  cursor: default;
+  border-color: var(--glass-border);
+  box-shadow: none;
+  opacity: 0.55;
+}
+.trophy-row-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  color: var(--rarity-color);
+  stroke-width: 1.4;
+}
+.trophy-row.locked .trophy-row-icon {
+  color: var(--glass-border-strong);
+  filter: grayscale(1);
+}
+.trophy-row-body { min-width: 0; flex: 1; }
+.trophy-row-name { font-size: 14px; font-weight: 700; }
+.trophy-row-desc { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+.trophy-row-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+.trophy-row-progress-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.15);
+  overflow: hidden;
+}
+.trophy-row-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--rarity-color);
+}
+.trophy-row-progress-count { font-size: 11px; opacity: 0.8; flex-shrink: 0; }
+.trophy-row-status {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.trophy-row-check {
+  width: 22px;
+  height: 22px;
+  color: var(--rarity-color);
+  stroke-width: 2.4;
 }
 
 .item-detail-card {

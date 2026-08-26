@@ -581,7 +581,7 @@ function onCatchSuccess() {
           storeId: "catch",
           category: null,
           itemKey: e.trophyKey,
-          rarity: TROPHIES[e.trophyKey].tier,
+          rarity: TROPHIES[e.trophyKey].rarity,
         });
       });
   }

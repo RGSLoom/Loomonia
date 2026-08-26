@@ -711,20 +711,23 @@ function claimTrophy(trophyKey) {
   return entries;
 }
 
-// Nach einem Fang zu pruefen: Anzahl gefangener Wesen je Seltenheitsstufe
-// (ueber alle Arten summiert, nicht verschiedene Arten) gegen die
-// Schwellenwerte der fang-bezogenen Trophaeen.
-function checkCatchTrophies() {
-  // CREATURES[key] kann fehlen, wenn ein Wesen aus alten Testdaten nicht
-  // (mehr) in der aktuellen CREATURES-Definition existiert -- ohne diesen
-  // Guard wirft der Zugriff auf .rarity einen TypeError und reisst den
-  // kompletten Nach-Fang-Ablauf (inkl. XP-Vergabe) mit sich (siehe
-  // QA-Bug-Liste).
-  const caughtByRarity = (rarity) =>
-    Object.entries(gameState.caughtCreatures)
-      .filter(([key]) => CREATURES[key] && CREATURES[key].rarity === rarity)
-      .reduce((sum, [, count]) => sum + count, 0);
+// Anzahl gefangener Wesen je Seltenheitsstufe (ueber alle Arten summiert,
+// nicht verschiedene Arten) -- Grundlage sowohl fuer checkCatchTrophies()
+// als auch fuer die Fortschrittsanzeige in getTrophyProgress() unten.
+// CREATURES[key] kann fehlen, wenn ein Wesen aus alten Testdaten nicht
+// (mehr) in der aktuellen CREATURES-Definition existiert -- ohne diesen
+// Guard wirft der Zugriff auf .rarity einen TypeError und reisst den
+// kompletten Nach-Fang-Ablauf (inkl. XP-Vergabe) mit sich (siehe
+// QA-Bug-Liste).
+function caughtByRarity(rarity) {
+  return Object.entries(gameState.caughtCreatures)
+    .filter(([key]) => CREATURES[key] && CREATURES[key].rarity === rarity)
+    .reduce((sum, [, count]) => sum + count, 0);
+}
 
+// Nach einem Fang zu pruefen: Anzahl gefangener Wesen je Seltenheitsstufe
+// gegen die Schwellenwerte der fang-bezogenen Trophaeen.
+function checkCatchTrophies() {
   let entries = [];
   if (caughtByRarity("Gewöhnlich") >= 5) entries = entries.concat(claimTrophy("wesen_entdecker"));
   if (caughtByRarity("Selten") >= 10) entries = entries.concat(claimTrophy("seltene_beute"));
@@ -736,6 +739,31 @@ function checkCatchTrophies() {
 function checkPurchaseTrophies() {
   if (gameState.receiptScanCount >= 5) return claimTrophy("treuer_shopper");
   return [];
+}
+
+// Liefert den aktuellen Zaehlerstand einer zaehlbaren Trophaee (siehe
+// progressType/progressGoal in TROPHIES, js/data.js) fuer die
+// Fortschrittsanzeige in renderTrophiesList() (js/profile.js). Trophaeen
+// ohne progressType (einmalige Ereignisse wie "Erster Schritt") liefern
+// null -- der Aufrufer zeigt dann nur den Status erledigt/offen an.
+function getTrophyProgress(trophyKey) {
+  const trophy = TROPHIES[trophyKey];
+  if (!trophy.progressType) return null;
+  let current;
+  switch (trophy.progressType) {
+    case "caught_gewoehnlich":
+      current = caughtByRarity("Gewöhnlich");
+      break;
+    case "caught_selten":
+      current = caughtByRarity("Selten");
+      break;
+    case "receipt_scans":
+      current = gameState.receiptScanCount || 0;
+      break;
+    default:
+      return null;
+  }
+  return { current: Math.min(current, trophy.progressGoal), goal: trophy.progressGoal };
 }
 
 // Anonyme, geraetelokale Spieler-ID fuers Haendler-Dashboard (Zaehlung
