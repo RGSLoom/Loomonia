@@ -154,6 +154,19 @@ function loadConfiguredStores() {
 // Fertig-Reihenfolge unerwartet den Erfolgs-Screen des jeweils ANDEREN
 // Laufs anzeigen oder dessen Fehlermeldung ueberschreiben.
 let scanInProgress = false;
+// Wird true, wenn der Nutzer den Scan-Screen ueber den Schliessen-Button
+// verlaesst, waehrend eine OCR noch laeuft (bis zu 45s, siehe Timeout unten)
+// -- ohne dieses Signal riss ein zwischenzeitlich fertig gewordener Scan den
+// Nutzer spaeter unvermittelt aus einer ganz anderen Aktivitaet (Profil,
+// Fangszene, ...) auf den Bon-Erfolgsscreen (QA-Bug-Liste). scanInProgress
+// allein reicht dafuer nicht, das verhindert nur einen ZWEITEN gleichzeitigen
+// Scanversuch. Siehe closeScanScreen() unten.
+let scanCancelled = false;
+
+function closeScanScreen() {
+  scanCancelled = true;
+  showScreen("screen-map");
+}
 
 // Grosszuegiges Limit GEGEN das Bild-Decoding selbst (createImageBitmap in
 // normalizeImageForOcr decodiert die komplette Originaldatei, bevor die
@@ -165,6 +178,7 @@ const RECEIPT_PHOTO_MAX_BYTES = 25 * 1024 * 1024;
 async function processReceiptImage(imageSource) {
   if (scanInProgress) return;
   scanInProgress = true;
+  scanCancelled = false;
   resetScanUI();
   if (imageSource && typeof imageSource.size === "number" && imageSource.size > RECEIPT_PHOTO_MAX_BYTES) {
     setScanError("Foto ist zu groß. Bitte ein kleineres Bild (unter 25 MB) verwenden.");
@@ -202,6 +216,17 @@ async function processReceiptImage(imageSource) {
     if (typeof storeLocationsReady !== "undefined" && storeLocationsReady) {
       await storeLocationsReady;
     }
+    // Der Nutzer kann den Scan-Screen jederzeit ueber den Schliessen-Button
+    // verlassen, waehrend die OCR oben noch laeuft (bis zu 45s) -- ohne diese
+    // Pruefung wuerde matchReceiptText() unten den Nutzer aus einer laengst
+    // anderen Aktivitaet (Fangszene, Profil, ...) unvermittelt auf den
+    // Bon-Erfolgsscreen reissen, sobald der Scan doch noch durchlaeuft
+    // (QA-Bug-Liste). Bewusst der ganze Rest inkl. Dashboard-Tracking
+    // uebersprungen statt nur die Screen-Umschaltung zu unterdruecken --
+    // eine bewusst abgebrochene Aktion sauber "nichts passiert" zu lassen
+    // ist einfacher/robuster als Tracking und Anzeige im Nachhinein zu
+    // entkoppeln; der Nutzer kann den Bon jederzeit erneut scannen.
+    if (scanCancelled) return;
     matchReceiptText(result.data.text || "", configuredStores);
   } catch (err) {
     console.warn("OCR fehlgeschlagen:", err && err.message ? err.message : err);
@@ -1000,11 +1025,25 @@ function trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallba
   }
   rewardedMatches.forEach(({ articleText, amountCents, itemKey, categoryKey }) => {
     const item = ITEMS[itemKey];
+    // Der Store-eigene ARTICLE_ITEM_CHOICES-Katalog im Dashboard (siehe
+    // dashboard/js/dashboard-render.js) wird von Hand parallel zu ITEMS
+    // gepflegt -- verweist ein bereits gespeicherter Artikel auf einen
+    // inzwischen umbenannten/entfernten itemKey, war "item" hier undefined
+    // und "item.rarity" liess den ganzen Aufruf VOR dem try/catch in
+    // grantReceiptItems() abstuerzen. Das machte aus einem eigentlich
+    // erfolgreichen Kauf-Treffer eine irrefuehrende "Bon konnte nicht
+    // gelesen werden"-Fehlermeldung fuer den Kunden, UND das Dashboard-
+    // Tracking fuer diesen (und alle nachfolgenden) Treffer fiel mit aus
+    // (QA-Bug-Liste). Fehlt das Item, wird der Umsatz trotzdem getrackt
+    // (nur ohne Raritaet), statt den kompletten Scan zu opfern.
+    if (!item) {
+      console.warn(`Bon-Scan: unbekannter itemKey "${itemKey}" in der Store-Artikelkonfiguration -- Umsatz wird ohne Raritaet getrackt.`);
+    }
     trackEvent("item_receipt_scanned", {
       storeId: receiptStoreId,
       category: categoryKey,
       itemKey,
-      rarity: item.rarity,
+      rarity: item ? item.rarity : null,
       amountCents,
       productText: articleText,
     });
@@ -1050,6 +1089,11 @@ function grantReceiptItems(matchedArticles, unmatchedArticles, fallbackCategoryK
     });
     Object.entries(itemCounts).forEach(([itemKey, count]) => {
       const item = ITEMS[itemKey];
+      // Siehe Kommentar bei trackReceiptScanForDashboard() oben -- derselbe
+      // verwaiste-itemKey-Fall wuerde hier sonst die gesamte forEach-Schleife
+      // abbrechen und JEDEN weiteren (auch gueltigen) Artikel-Treffer
+      // desselben Bons mitreissen, statt nur diesen einen zu ueberspringen.
+      if (!item) return;
       addItem(itemKey, count);
       const itemXpResult = addXp(item.xp * count);
       levelRewardEntries = levelRewardEntries.concat(itemXpResult.entries);

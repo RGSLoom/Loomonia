@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.store-links-admin]
 verify_jwt = false
+
+[functions.store-articles-admin]
+verify_jwt = false
+
+[functions.mapbox-token]
+verify_jwt = false

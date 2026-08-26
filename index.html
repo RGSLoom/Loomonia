@@ -110,15 +110,15 @@
 
     <!-- Dev-Testknöpfe (siehe Spezifikation Abschnitt 8 — vor Kunden-Demo
          entfernen/verstecken). Gestrichelter Rand markiert sie bewusst als
-         Test-Tools statt echter Spielfunktion. Testfang/Testitem sind
-         gerade ABSICHTLICH ohne "hidden" (User testet aktuell aktiv den
-         Kategorie-Umbau, siehe QA-Bug-Liste #22 fuer die urspruengliche
-         Verstecken-Begruendung) -- nach Abschluss der Tests wieder
-         "hidden" ergaenzen. Beide jetzt rechts mittig uebereinander (User-
-         Korrektur), daher in einem eigenen Stack-Container statt einzeln
-         links/rechts positioniert. Bon-Scan-Test bleibt hinter dem
-         "?dev=1"-Flag (siehe initDevTools() in js/main.js) UND an seiner
-         alten Position, da er nicht Teil dieser Umzugs-Korrektur war. -->
+         Test-Tools statt echter Spielfunktion. Testfang/Testitem bewusst
+         WIEDER ohne "hidden" -- User-Wunsch 2026-08-26: sollen vorerst fuer
+         jeden sichtbar bleiben (aktive Nutzung), User meldet sich, sobald sie
+         wieder hinters "?dev=1"-Flag (siehe initDevTools() in js/main.js)
+         sollen -- dann hier wieder "hidden" ergaenzen UND in initDevTools()
+         den Selector zurueck auf ".dev-btn" stellen (aktuell wieder gezielt
+         nur btn-test-bonscan, siehe dort). Beide jetzt rechts mittig
+         uebereinander (User-Korrektur), daher in einem eigenen
+         Stack-Container statt einzeln links/rechts positioniert. -->
     <div class="dev-btn-stack">
       <button id="btn-test-catch" class="dev-btn" title="Dev: Testfang auslösen">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="16.5" rx="5" ry="4"/><ellipse cx="4.5" cy="10" rx="2" ry="2.5"/><ellipse cx="9" cy="6" rx="2" ry="2.5"/><ellipse cx="15" cy="6" rx="2" ry="2.5"/><ellipse cx="19.5" cy="10" rx="2" ry="2.5"/></svg>

@@ -169,8 +169,15 @@ function evaluateDrawing() {
 
   if (coverage >= DRAW_CONFIG.successThreshold) {
     showDrawFeedback(`Erkannt! (${Math.round(coverage * 100)}% Abdeckung)`, true);
+    const storeKey = drawState.storeKey;
     setTimeout(() => {
-      grantRandomItemFromStore(drawState.storeKey);
+      // drawState kann in diesen 500ms bereits null sein, wenn der Nutzer
+      // zwischenzeitlich ueber den Schliessen-Button den Screen verlassen hat
+      // (siehe onDrawClose in js/main.js) -- storeKey oben ausserhalb des
+      // Timeouts einfangen statt drawState.storeKey hier zu lesen, sonst
+      // stuerzt dieser Erfolgsfall ab und das verdiente Item geht verloren
+      // (QA-Bug-Liste).
+      grantRandomItemFromStore(storeKey);
       drawState = null;
     }, 500);
   } else {
@@ -207,7 +214,16 @@ function grantRandomItemFromStore(locationId) {
     const coinAmount = Math.round(randomBetween(BANK_DROP_COINS_MIN, BANK_DROP_COINS_MAX));
     addCoins(coinAmount);
     updateCaughtCounter();
-    trackEvent("coins_received", { storeId: locationId, category: location.categoryKey, amount: coinAmount });
+    // "type" muss in der DB-Check-Constraint "events_type_check" gelistet
+    // sein (siehe supabase/events_add_coins_received_type.sql), sonst
+    // lehnt Postgres den Insert komplett ab -- fetch().catch() in
+    // js/tracking.js faengt nur Netzwerkfehler ab, keine 4xx-Antworten,
+    // solche Ablehnungen blieben bisher unbemerkt (QA-Bug-Liste). coinAmount
+    // ist eine In-Game-Waehrungsmenge, KEIN echter Euro-Betrag -- bewusst
+    // nicht als "amountCents" mitgeschickt (dieses Feld speist im Dashboard
+    // die "verifizierter Umsatz"-KPI, siehe dashboard-render.js; eine
+    // In-Game-Muenzenzahl dort einzumischen wuerde die Umsatzzahl verfaelschen).
+    trackEvent("coins_received", { storeId: locationId, category: location.categoryKey });
     showItemSuccessQueue([
       { type: "coins", amount: coinAmount, storeText: `Ihre Bank-Filiale bei ${category.name}` },
     ]);

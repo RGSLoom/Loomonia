@@ -1,3 +1,21 @@
+-- ##########################################################################
+-- WARNUNG -- Policy-Abschnitt unten VERALTET (QA-Bug-Liste): Die
+-- insert/update/delete-Policies weiter unten oeffnen "using(true)/with
+-- check(true)" -- also OEFFENTLICHES, unauthentifiziertes Schreiben/Aendern/
+-- Loeschen der KOMPLETTEN locations-Tabelle fuer jeden, der den (im
+-- Client-Code offen liegenden) anon-Key kennt. Das war beim erstmaligen
+-- Aufsetzen dieser Tabelle so gewollt, wurde aber durch
+-- supabase/rls_lockdown.sql WIEDER ENTZOGEN: seither laeuft Schreiben nur
+-- noch ueber die Edge Function "locations-admin" (Service-Role-Key,
+-- passwortgeschuetzt), anon darf nur noch lesen. Ein erneutes Ausfuehren
+-- DIESES kompletten Skripts (z.B. fuer ein neues Projekt "aus Versehen" nach
+-- statt vor rls_lockdown.sql, oder zum Pruefen des Schemas) oeffnet die
+-- Schreib-Luecke wieder komplett. Tabellen-Erstellung/Trigger/Seed-Daten oben
+-- bleiben unbedenklich -- NUR die vier "create policy"-Bloecke unten sind das
+-- Risiko. Bei Zweifel danach IMMER zusaetzlich rls_lockdown.sql erneut
+-- ausfuehren, das ist der massgebliche, aktuelle Stand.
+-- ##########################################################################
+--
 -- Loomonia: Standorte-Tabelle fuers Store-Manager-Dashboard ("Standortverwaltung",
 -- dashboard/standorte.html). Einmalig im Supabase SQL-Editor ausfuehren:
 -- https://supabase.com/dashboard/project/oztsymfskxaeonxqggfb/sql/new

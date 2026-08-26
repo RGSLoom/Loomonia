@@ -10,11 +10,18 @@
 // alle, die Zugriff auf beide Dashboards haben) -- das ist laut Auftrag
 // explizit eine spaetere, groessere Aufgabe.
 
+// Vergleicht ueber eine FESTE Laenge (unabhaengig von a.length/b.length), damit
+// die Laufzeit nicht verraet, ob/wie sehr die Laenge des mitgeschickten Werts
+// vom erwarteten SHA-256-Hex-Digest (64 Zeichen) abweicht -- ein fruehes
+// "return false" bei ungleicher Laenge waere technisch nicht komplett
+// konstant-zeitig gewesen (in der Praxis vernachlaessigbares Risiko, da beide
+// Seiten hier immer feste 64-Zeichen-Hex-Digests sind, aber der Funktionsname
+// verspricht "timing-safe" -- das sollte dann auch fuer die Laenge gelten).
 function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  const maxLen = Math.max(a.length, b.length, 64);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < maxLen; i++) {
+    diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
   }
   return diff === 0;
 }

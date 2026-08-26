@@ -9,6 +9,12 @@ let catchState = null;
 let cameraStream = null; // MediaStream der Fangszenen-Kamera (AR-Hintergrund)
 
 function openCatchSceneForCreature(entry) {
+  // Wiedereintritts-Sperre: ohne diese Pruefung konnte ein Doppel-Tap auf
+  // einen Kreatur-Marker (oder den Dev-Testfang-Button) zwei parallele
+  // Kampf-Zustaende/rAF-Loops ueber demselben catchState-Objekt erzeugen
+  // (QA-Bug-Liste) -- ein bereits laufender Fangversuch blockiert daher
+  // jeden weiteren Aufruf, bis er regulaer beendet wird.
+  if (catchState) return;
   // Energie-Gate: das Fuss-HUD zeigt Energie als begrenzte Ressource an
   // (sinkt pro Fangversuch, regeneriert passiv ueber Zeit, siehe
   // settleEnergy() in js/state.js). Testfaenge (Dev-Button, entry.isTest)
@@ -251,7 +257,16 @@ function setupCatchBackground(creature) {
 
   if (gameState.settings.arCameraEnabled) {
     tryStartCamera().then((success) => {
-      if (success && catchState) showCameraLayer(creature);
+      if (success && catchState) {
+        showCameraLayer(creature);
+      } else if (success) {
+        // Die Fangszene wurde bereits verlassen, waehrend getUserMedia()
+        // noch lief (catchState ist schon null) -- showScreen() beim
+        // Verlassen hat dann noch keinen Stream zum Stoppen vorgefunden.
+        // Ohne dieses Aufraeumen bliebe die Kamera im Hintergrund aktiv
+        // (Kamera-Indikator an, echtes Privacy-Problem, QA-Bug-Liste).
+        stopCameraBackground();
+      }
     });
   } else {
     stopCameraBackground();
@@ -270,7 +285,11 @@ function toggleArCamera() {
   const creature = CREATURES[catchState.creatureKey];
   if (newValue) {
     tryStartCamera().then((success) => {
-      if (success && catchState) showCameraLayer(creature);
+      if (success && catchState) {
+        showCameraLayer(creature);
+      } else if (success) {
+        stopCameraBackground();
+      }
     });
   } else {
     stopCameraBackground();

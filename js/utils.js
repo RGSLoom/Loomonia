@@ -172,5 +172,16 @@ async function getCutoutImage(imgSrc) {
   if (cutoutCache.has(imgSrc)) return cutoutCache.get(imgSrc);
   const promise = removeWhiteBackground(imgSrc);
   cutoutCache.set(imgSrc, promise);
-  return promise;
+  try {
+    return await promise;
+  } catch (err) {
+    // Ein einzelner fehlgeschlagener Freistellungs-Versuch (z.B. kurzzeitiger
+    // Decode-Fehler) blieb sonst fuer den Rest der Session permanent als
+    // abgelehntes Promise im Cache haengen -- jeder weitere Aufruf fuer
+    // dasselbe Bild bekam denselben Fehler zurueck, ohne je einen erneuten
+    // Versuch zu bekommen (QA-Bug-Liste). Cache-Eintrag entfernen, damit der
+    // naechste Aufruf es einfach nochmal versucht.
+    cutoutCache.delete(imgSrc);
+    throw err;
+  }
 }

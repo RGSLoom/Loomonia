@@ -504,10 +504,28 @@ function onStoreMarkerClick(locationId) {
 // ---------- Wesen-Spawns ----------
 
 function fillCreatureSpawns() {
+  if (!playerPos) return; // spawnCreature() selbst spawnt ohne playerPos nichts -- ohne diesen Guard wuerde die while-Schleife unten endlos laufen
   const maxActive = isLoomaBoostActive() ? SPAWN_BOOST_MAX_ACTIVE_CREATURES : MAX_ACTIVE_CREATURES;
   while (activeCreatures.length < maxActive) {
     spawnCreature();
   }
+}
+
+// Bisher wurde fillCreatureSpawns() nur EINMAL beim allerersten GPS-Fix
+// aufgerufen (siehe onFirstFix()) -- jeder spaetere Fang/jede Flucht ersetzt
+// ein Wesen seither nur 1-zu-1 (siehe removeCreature() unten), ohne den
+// Bestand je wieder gegen das aktuelle Maximum aufzufuellen. Ein spaeter im
+// Spielverlauf genutztes "loomas_anlocken"-Item (Frischedeo/Kaffeebecher/
+// Lockduft-Flakon) erhoehte dadurch zwar isLoomaBoostActive(), aber ohne
+// erneuten fillCreatureSpawns()-Aufruf tatsaechlich NIE die Anzahl
+// gleichzeitig aktiver Wesen in der Naehe -- das Item hielt sein Versprechen
+// ("mehr Loomas in der Naehe") faktisch nicht ein (QA-Bug-Liste). Per
+// Sekunden-Timer aus js/main.js aufgerufen (dieselbe Taktung wie
+// tickFrischedeoSpawn()/updateActiveBoostsHud()) -- fillCreatureSpawns()
+// selbst ist eine reine Auffuell-Operation (kein Abbau bei ablaufendem
+// Boost), ein zusaetzlicher Sekundentakt-Aufruf ist also gefahrlos.
+function tickSpawnPopulation() {
+  fillCreatureSpawns();
 }
 
 // Direkt beim allerersten GPS-Fix aufgerufen (siehe onFirstFix()) --
@@ -694,7 +712,11 @@ function updateCaughtCounter() {
     : `${formatNumber(gameState.xp - levelFloor)} / ${formatNumber(levelCeil - levelFloor)} XP`;
   document.getElementById("hud-xp-fill").style.width = `${xpPct}%`;
 
-  const itemsOwnedTypes = Object.keys(gameState.inventory).length;
+  // Wie renderProfileHub() in js/profile.js gefiltert (siehe dortiger
+  // Kommentar): ein veralteter/entfernter itemKey im gespeicherten Inventar
+  // blaehte diesen Badge sonst gegenueber dem, was der Items-Screen selbst
+  // anzeigt, auf (QA-Bug-Liste).
+  const itemsOwnedTypes = Object.keys(gameState.inventory).filter((key) => ITEMS[key]).length;
   const badge = document.getElementById("hud-backpack-badge");
   badge.textContent = itemsOwnedTypes;
   badge.classList.toggle("hidden", itemsOwnedTypes === 0);

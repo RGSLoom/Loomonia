@@ -326,6 +326,7 @@ function claimLevelRewards() {
   if (currentLevel <= lastRewarded) return [];
 
   const entries = [];
+  const itemXpQueue = []; // { entry, rawXp } -- siehe Kommentar unten
   for (let level = lastRewarded + 1; level <= currentLevel; level++) {
     const reward = levelRewardForLevel(level);
     const rewardText = `Level-Aufstieg auf Level ${level}! 🎉`;
@@ -334,11 +335,30 @@ function claimLevelRewards() {
     if (reward.itemPool && reward.itemPool.length > 0) {
       const itemKey = randomChoice(reward.itemPool);
       addItem(itemKey);
-      entries.push({ type: "item", itemKey, count: 1, storeText: rewardText });
+      const entry = { type: "item", itemKey, count: 1, storeText: rewardText };
+      entries.push(entry);
+      itemXpQueue.push({ entry, rawXp: ITEMS[itemKey].xp });
     }
   }
+  // lastRewardedLevel MUSS vor den addXp()-Aufrufen unten aktualisiert
+  // werden: addXp() ruft selbst wieder claimLevelRewards() auf (der
+  // Boost-/Ausruestungs-Bonus dort gilt laut eigenem Kommentar oben bewusst
+  // auf JEDE XP-Quelle, auch Levelaufstiege) -- ohne das hier VORHER zu
+  // setzen, wuerde ein solcher verschachtelter Aufruf dieselben, gerade erst
+  // in der Schleife oben verarbeiteten Level nochmal verarbeiten und
+  // Muenzen/Items doppelt vergeben.
   gameState.lastRewardedLevel = currentLevel;
   saveState();
+  // Item-XP erst NACH dem Setzen von lastRewardedLevel vergeben (s.o.) --
+  // vorher stand hier nur der rohe Item-XP-Wert als Anzeige-Attrappe im
+  // Erfolgsmeldungs-Popup, ohne dass addXp() je aufgerufen wurde: die
+  // angezeigte "+X XP" wurde nie tatsaechlich gutgeschrieben (QA-Bug-Liste).
+  // Jedes Level-Belohnungsitem bekommt jetzt dieselbe (evtl. geboostete)
+  // XP-Gutschrift wie jede andere Item-Aufnahme im Spiel.
+  itemXpQueue.forEach(({ entry, rawXp }) => {
+    const { awardedXp } = addXp(rawXp);
+    entry.xpAwarded = awardedXp;
+  });
   return entries;
 }
 

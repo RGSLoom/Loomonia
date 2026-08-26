@@ -87,10 +87,9 @@ function renderItemSuccess(entry, position, total) {
     `<span class="rarity-pill" style="background:${RARITY_COLORS[item.rarity]}">${item.rarity}</span>`;
   document.getElementById("item-success-store").textContent = entry.storeText;
   document.getElementById("item-success-effect").textContent = item.effect;
-  // xpAwarded (tatsaechlich gutgeschriebener, evtl. geboosteter Betrag,
-  // siehe addXp() in js/state.js) fehlt nur bei Level-Up-Item-Belohnungen
-  // (claimLevelRewards() vergibt dafuer bewusst keine eigene Item-XP) --
-  // dort bleibt der rohe item.xp*count-Wert als Fallback.
+  // xpAwarded ist der tatsaechlich gutgeschriebene (evtl. geboostete) Betrag,
+  // siehe addXp() in js/state.js -- der ??-Fallback greift nur, falls ein
+  // Aufrufer das Feld ausnahmsweise nicht mitgibt.
   document.getElementById("item-success-xp").textContent = `+${entry.xpAwarded ?? item.xp * count} XP`;
 }
 
@@ -154,12 +153,11 @@ function initDevTools() {
   if (params.get("dev") === "1") localStorage.setItem(DEV_TOOLS_STORAGE_KEY, "1");
   if (params.get("dev") === "0") localStorage.removeItem(DEV_TOOLS_STORAGE_KEY);
   const enabled = localStorage.getItem(DEV_TOOLS_STORAGE_KEY) === "1";
-  // Testfang/Testitem sind aktuell absichtlich IMMER sichtbar (User testet
-  // gerade aktiv, siehe index.html-Kommentar bei den Buttons) -- nur der
-  // Bon-Scan-Test bleibt hinter dem Dev-Flag. Sobald Testfang/Testitem
-  // wieder "hidden" im Markup bekommen, greift hier wieder dieselbe Logik
-  // fuer alle drei wie zuvor (einfach den Selector auf ".dev-btn" zurueck-
-  // stellen).
+  // Testfang/Testitem sind aktuell wieder absichtlich IMMER sichtbar
+  // (User-Wunsch 2026-08-26, siehe index.html-Kommentar bei den Buttons) --
+  // nur der Bon-Scan-Test bleibt hinter dem Dev-Flag. Sobald Testfang/
+  // Testitem wieder "hidden" im Markup bekommen, hier den Selector auf
+  // ".dev-btn" zurueckstellen, um wieder alle drei gemeinsam zu steuern.
   document.getElementById("btn-test-bonscan").classList.toggle("hidden", !enabled);
 }
 
@@ -178,7 +176,20 @@ document.addEventListener("DOMContentLoaded", () => {
   // pagehide nicht immer zuverlaessig feuert.
   window.addEventListener("pagehide", markSessionEnded);
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") markSessionEnded();
+    if (document.visibilityState === "hidden") {
+      markSessionEnded();
+    } else {
+      // Rechnet einen waehrend des Hintergrunds angesammelten Rested-XP-
+      // Bonus sofort ab, sobald die Seite wieder sichtbar wird -- ohne das
+      // lief settleRestedXp() nur einmal beim allerersten DOMContentLoaded,
+      // ein Tab-Wechsel/App-Hintergrund OHNE vollstaendigen Reload (auf
+      // Mobilgeraeten der Normalfall) liess den naechsten "hidden"-Zeitpunkt
+      // den noch unverbrauchten sessionEndedAt-Zeitstempel einfach ueber-
+      // schreiben, wodurch der ganze Hintergrund-Zeitraum verloren ging
+      // (QA-Bug-Liste). settleRestedXp() ist ueber gameState.sessionEndedAt
+      // idempotent, ein zusaetzlicher Aufruf hier ist also gefahrlos.
+      settleRestedXp();
+    }
   });
   updateCaughtCounter();
   // Energie regeneriert passiv mit echter Zeit — Anzeige alle 30s
@@ -191,6 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // js/map.js) nutzt denselben Takt fuer ihren 45s-Nahspawn-Rhythmus.
   setInterval(updateActiveBoostsHud, 1000);
   setInterval(tickFrischedeoSpawn, 1000);
+  setInterval(tickSpawnPopulation, 1000);
 
   // Map-HUD
   document.getElementById("btn-avatar").addEventListener("click", openProfile);
@@ -249,6 +261,17 @@ document.addEventListener("DOMContentLoaded", () => {
     if (catchInteractionBlocked(e)) return;
     onCatchPointerUp(e);
   });
+  // Sicherheitsnetz: wird der Angriffs-Ring gedrueckt gehalten und der
+  // Pointer dann auf einen der oben ausgenommenen Buttons (Heilung/
+  // Fokuszeit/AR/Schliessen) oder ganz aus der Fangszene heraus gezogen,
+  // greift der obige Handler nicht (catchInteractionBlocked/anderes
+  // Ziel-Element) -- der Ring bliebe sonst bis zum naechsten unbeteiligten
+  // Tap gedrueckt (QA-Bug-Liste). Fenster-weiter Fallback, der NUR eingreift,
+  // wenn tatsaechlich noch gehalten wird (kein Doppel-Ausloesen, siehe
+  // onCatchPointerUp()'s eigener holding-Check).
+  window.addEventListener("pointerup", () => {
+    if (catchState && catchState.holding) onCatchPointerUp();
+  });
   // Laenger Gedrueckthalten beim Angriff (siehe onCatchPointerDown()) loeste
   // auf Android Chrome sonst das native "Bild speichern"-Kontextmenue aus,
   // obwohl die CSS-Touch-Callout-Regeln (siehe .catch-stage in
@@ -298,7 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Bon-Scan — beide Buttons oeffnen nur ein <input type="file">, siehe
   // js/bonscan.js. "Fotografieren" hat zusaetzlich capture="environment"
   // und oeffnet damit auf dem Handy direkt die native Kamera-App.
-  document.querySelector('#screen-scan [data-close]').addEventListener("click", () => showScreen("screen-map"));
+  document.querySelector('#screen-scan [data-close]').addEventListener("click", closeScanScreen);
   document.getElementById("btn-scan-capture").addEventListener("click", () => {
     document.getElementById("scan-camera-input").click();
   });

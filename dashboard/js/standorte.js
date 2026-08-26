@@ -4,6 +4,43 @@
 
 const LOCATIONS_TABLE_URL = `${SUPABASE_URL}/rest/v1/locations`;
 
+// Ersetzt window.confirm() fuer Loeschen/Deaktivieren (siehe onDeleteClick()/
+// revokeStoreLink() unten) durch ein eigenes UI-Element -- dieselbe
+// Begruendung wie beim Reset-Button in dashboard.js: natives confirm() wird
+// auf manchen eingebetteten/PWA-Browsern stillschweigend ohne Anzeige
+// uebersprungen (liefert sofort false zurueck), wodurch der Button dort
+// wirkungslos wirkt, obwohl der Code korrekt ist (QA-Bug-Liste). Nutzt
+// dieselbe .reset-confirm-box-Optik wie der bestehende Reset-Dialog, nur als
+// Overlay statt fest im Panel plaziert (fuer beliebige Tabellenzeilen
+// wiederverwendbar). Gibt ein Promise<boolean> zurueck.
+function showConfirmDialog(message, confirmLabel) {
+  return new Promise((resolve) => {
+    const backdrop = document.createElement("div");
+    backdrop.style.cssText =
+      "position:fixed; inset:0; background:rgba(20,25,40,0.55); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px;";
+    backdrop.innerHTML = `
+      <div class="reset-confirm-box" style="max-width:420px; background:#fff;">
+        <p class="reset-confirm-text"></p>
+        <div class="reset-confirm-actions">
+          <button type="button" class="reset-btn" data-action="cancel">Abbrechen</button>
+          <button type="button" class="reset-btn reset-btn-danger" data-action="confirm"></button>
+        </div>
+      </div>`;
+    backdrop.querySelector(".reset-confirm-text").textContent = message;
+    backdrop.querySelector('[data-action="confirm"]').textContent = confirmLabel || "Ja, löschen";
+    const finish = (result) => {
+      backdrop.remove();
+      resolve(result);
+    };
+    backdrop.querySelector('[data-action="cancel"]').addEventListener("click", () => finish(false));
+    backdrop.querySelector('[data-action="confirm"]').addEventListener("click", () => finish(true));
+    backdrop.addEventListener("click", (e) => {
+      if (e.target === backdrop) finish(false);
+    });
+    document.body.appendChild(backdrop);
+  });
+}
+
 // Nominatim-Nutzungsbedingungen (https://operations.osmfoundation.org/policies/nominatim/):
 // max. 1 Anfrage/Sekunde, keine automatisierten Massenabfragen, Anfrage
 // muss per User-Agent oder Referer identifizierbar sein. Der Browser sendet
@@ -294,7 +331,7 @@ function startEdit(row) {
 }
 
 async function onDeleteClick(row) {
-  const confirmed = confirm(`„${row.name}“ (${row.id}) wirklich unwiderruflich löschen?`);
+  const confirmed = await showConfirmDialog(`„${row.name}“ (${row.id}) wirklich unwiderruflich löschen?`, "Ja, löschen");
   if (!confirmed) return;
   try {
     const res = await fetchWithAdminAuth(`${LOCATIONS_ADMIN_URL}?id=eq.${encodeURIComponent(row.id)}`, {
@@ -361,7 +398,10 @@ async function generateStoreLink(locationId, btn) {
 }
 
 async function revokeStoreLink(locationId, name) {
-  const confirmed = confirm(`Link für „${name}“ wirklich deaktivieren? Der bisherige Link funktioniert danach nicht mehr.`);
+  const confirmed = await showConfirmDialog(
+    `Link für „${name}“ wirklich deaktivieren? Der bisherige Link funktioniert danach nicht mehr.`,
+    "Ja, deaktivieren"
+  );
   if (!confirmed) return;
   try {
     const res = await fetchWithAdminAuth(`${STORE_LINKS_ADMIN_URL}?location_id=${encodeURIComponent(locationId)}`, {
@@ -523,7 +563,20 @@ async function loadLocations() {
       body.appendChild(tr);
     });
   } catch (err) {
-    body.innerHTML = `<tr><td colspan="8" class="empty-note">Standorte konnten nicht geladen werden: ${err.message || err}. Prüfen, ob supabase/locations_setup.sql bereits ausgeführt wurde.</td></tr>`;
+    // textContent statt innerHTML -- konsistent mit dem Rest dieser Datei
+    // (siehe Kommentar weiter oben ueber die urspruengliche Stored-XSS-
+    // Bereinigung); err.message ist hier zwar aktuell immer ein lokaler
+    // Error-/Status-String, kein Angreifer-kontrollierter Wert, aber diese
+    // eine verbliebene innerHTML-Stelle durchbrach das sonst durchgaengige
+    // Muster (QA-Bug-Liste).
+    body.innerHTML = "";
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 8;
+    td.className = "empty-note";
+    td.textContent = `Standorte konnten nicht geladen werden: ${err.message || err}. Prüfen, ob supabase/locations_setup.sql bereits ausgeführt wurde.`;
+    tr.appendChild(td);
+    body.appendChild(tr);
   }
 }
 
