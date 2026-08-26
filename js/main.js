@@ -333,6 +333,14 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("habitat-content").innerHTML = renderHabitatContent();
         attachHabitatHandlers();
         showScreen("screen-habitat");
+        // subScreenReturnTo zeigte bis eben auf "screen-habitat" (die gerade
+        // erreichte Ebene selbst) -- ohne diese Wiederherstellung wuerde der
+        // NAECHSTE Rueckweg-Klick erneut hierher statt weiter nach oben
+        // fuehren (siehe habitatBackTarget-Kommentar in js/profile.js).
+        subScreenReturnTo = habitatBackTarget;
+      } else if (subScreenReturnTo === "screen-loomas") {
+        showScreen("screen-loomas");
+        subScreenReturnTo = loomasBackTarget;
       } else {
         showScreen(subScreenReturnTo);
       }

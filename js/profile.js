@@ -486,6 +486,17 @@ function attachLoomasGridHandlers() {
   });
 }
 
+// Merkt sich jeweils, wohin Loomas/Habitat selbst zurueckfuehren sollen,
+// BEVOR openHabitatForLooma()/attachHabitatHandlers() unten subScreenReturnTo
+// fuer die naechste Ebene ueberschreiben -- ohne das haengt man nach Loomas
+// -> Habitat -> zurueck fest (subScreenReturnTo zeigte sonst dauerhaft auf
+// "screen-loomas" statt auf Loomas' eigentlichen Einstiegspunkt, siehe
+// User-Bug-Report: "komme aus dem Menü nicht mehr raus"). Wird in main.js im
+// sub-back-btn-Handler wieder zurueckgeschrieben, sobald die jeweils
+// zugehoerige Ebene tatsaechlich erreicht wird.
+let loomasBackTarget = "screen-profile";
+let habitatBackTarget = "screen-profile";
+
 // Fuehrt direkt in das Habitat des Loomas -- setActiveCompanion() waehlt
 // dabei automatisch die hoechst-levelnde besessene Instanz dieser Art
 // (siehe Kommentar dort in js/state.js), falls mehrere Exemplare vorhanden
@@ -497,6 +508,7 @@ function attachLoomasGridHandlers() {
 // attachHabitatHandlers() unten, fuer den umgekehrten Weg).
 function openHabitatForLooma(key) {
   if (!setActiveCompanion(key)) return;
+  loomasBackTarget = subScreenReturnTo;
   subScreenReturnTo = "screen-loomas";
   document.getElementById("habitat-content").innerHTML = renderHabitatContent();
   attachHabitatHandlers();
@@ -513,6 +525,7 @@ function attachHabitatHandlers() {
   img.addEventListener("click", () => {
     const companion = getActiveCompanion();
     if (!companion) return;
+    habitatBackTarget = subScreenReturnTo;
     subScreenReturnTo = "screen-habitat";
     showLoomaExchangeDetail(companion.key);
     showScreen("screen-loomas");
