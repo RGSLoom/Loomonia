@@ -2088,8 +2088,8 @@ html, body {
   gap: 8px;
   padding: 10px 12px;
   border-radius: 14px;
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
+  background: rgba(148,153,166,0.9);
+  border: 1.5px solid rgba(0,0,0,0.25);
 }
 .outfit-bonus-badge {
   display: flex;
@@ -2097,14 +2097,14 @@ html, body {
   gap: 6px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid var(--glass-border-strong);
+  background: rgba(255,255,255,0.35);
+  border: 1px solid rgba(0,0,0,0.2);
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-light);
+  color: #10101a;
   white-space: nowrap;
 }
-.outfit-bonus-empty { font-size: 13px; opacity: 0.75; text-align: center; padding: 4px 0; }
+.outfit-bonus-empty { font-size: 13px; color: #10101a; opacity: 0.7; text-align: center; padding: 4px 0; }
 
 /* Kachel mit grauer Fuellflaeche (User-Korrektur: reiner Rahmen liess Item +
    Schrift auf dem Avatar-Hintergrundbild kaum erkennen) statt transparent --
