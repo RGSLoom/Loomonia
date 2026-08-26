@@ -96,7 +96,8 @@ function defaultState() {
   };
 }
 
-const gameState = Object.assign(defaultState(), loadState() || {});
+const loadedState = loadState();
+const gameState = Object.assign(defaultState(), loadedState || {});
 
 // Migration auf das Instanz-Format von caughtCreatures (siehe Level-System-
 // Briefing): Bestandsspielstaende speichern hier bislang eine reine Anzahl
@@ -132,6 +133,19 @@ if (gameState.activeCompanion && !gameState.activeCompanionInstanceId) {
 // Level 1 (xpToLevel(0) === 1).
 if (gameState.lastRewardedLevel === undefined) {
   gameState.lastRewardedLevel = xpToLevel(gameState.xp);
+}
+
+// Einmalige Entschaedigung fuer den naechsten Live-Deploy (User-Wunsch): 1x
+// "Hose" ins Inventar, damit bereits bestehende Spielstaende das Item zum
+// Testen besitzen. Nur fuer SCHON VORHANDENE Spielstaende (loadedState !==
+// null), nicht fuer brandneue Installationen nach diesem Update -- sonst
+// waere es kein Ausgleich mehr, sondern ein dauerhaftes Startgeschenk. Nach
+// dem naechsten Deploy laut Briefing nicht mehr noetig, dieser Block darf
+// dann wieder entfernt werden.
+if (loadedState && gameState.hoseCompensationGranted === undefined) {
+  gameState.inventory.hose = (gameState.inventory.hose || 0) + 1;
+  gameState.hoseCompensationGranted = true;
+  saveState();
 }
 
 function saveState() {
