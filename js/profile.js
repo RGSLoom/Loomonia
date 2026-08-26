@@ -907,20 +907,17 @@ function renderOutfitSlotCurrent(slotKey, equippedKey) {
 }
 
 // Level-Karte des aktuell ausgeruesteten Items in diesem Slot (Ausruestungs-
-// Level-System-Briefing) -- Statwerte, Feed-Fortschritt, Verfuettern-Liste
-// und Level-aufsteigen-Button. Leerer String ohne ausgeruestetes Item, denn
-// laut Briefing lassen sich nur AUSGERUESTETE Teile hochleveln. Steckt hinter
-// einem Auf-/Zuklapp-Toggle (siehe renderOutfitSlotDetail), damit sie nicht
-// mehr wie ein fest sichtbarer Dummy wirkt.
+// Level-System-Briefing) -- Feed-Fortschritt, Verfuettern-Liste und Level-
+// aufsteigen-Button. Leerer String ohne ausgeruestetes Item, denn laut
+// Briefing lassen sich nur AUSGERUESTETE Teile hochleveln. Zeigt bewusst
+// KEINEN Kampfwert (Verteidigung/Angriffskraft) mehr -- User-Entscheidung:
+// diese Werte sind nur fuer Loomas gedacht, am Avatar ohne Bedeutung
+// (zumindest fuers MVP).
 function renderEquipmentLevelCard(equippedKey) {
   if (!equippedKey || !ITEMS[equippedKey]) return "";
   const item = ITEMS[equippedKey];
   const level = getEquipmentLevelState(equippedKey).level;
   const atMaxLevel = isEquipmentMaxLevel(equippedKey);
-  const stats = equipmentStatsForItem(equippedKey);
-  const statsHtml = Object.entries(stats)
-    .map(([statKey, value]) => `<span>${EQUIPMENT_STAT_LABELS[statKey]} ${value}</span>`)
-    .join("");
 
   let progressHtml = "";
   let feedListHtml = "";
@@ -950,7 +947,6 @@ function renderEquipmentLevelCard(equippedKey) {
   return `
     <div class="equip-level-card" style="--rarity-color:${RARITY_COLORS[item.rarity]}; --equip-level:${level}">
       <div class="equip-level-title">Level ${level}${atMaxLevel ? " (Max)" : ""}</div>
-      <div class="equip-level-stats">${statsHtml}</div>
       ${progressHtml}
       ${feedListHtml}
     </div>`;

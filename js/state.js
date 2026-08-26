@@ -540,15 +540,6 @@ function isEquipmentMaxLevel(itemKey) {
   return getEquipmentLevelState(itemKey).level >= EQUIPMENT_MAX_LEVEL;
 }
 
-// Aktuelle Statwerte eines Ausruestungsteils auf seinem jetzigen Level, oder
-// null, wenn es kein bekanntes Anlegbar-Item mit slotType ist.
-function equipmentStatsForItem(itemKey) {
-  const item = ITEMS[itemKey];
-  if (!item || !item.slotType) return null;
-  const level = getEquipmentLevelState(itemKey).level;
-  return equipmentStatsAtLevel(item.slotType, item.rarity, level);
-}
-
 // Wie viele Feed-Punkte/Muenzen fuer den naechsten Levelaufstieg noch
 // fehlen, oder null auf Max-Level. `canLevelUp` ist true, sobald BEIDE
 // Bedingungen gleichzeitig erfuellt sind (siehe Briefing).
@@ -890,35 +881,13 @@ function wildLoomaBattleStats(creature) {
   return loomaStatsAtLevel(rarity, wildLoomaBattleLevel());
 }
 
-// Summe eines Ausruestungs-Kampfwerts (angriff/verteidigung) ueber ALLE
-// aktuell angezogenen Teile, geleveled (siehe equipmentStatsForItem() unten)
-// -- bisher nirgends verdrahtet (siehe Ausruestungs-Level-System-Briefing),
-// das rundenbasierte Fangsystem ist die erste Stelle, die diese Werte
-// tatsaechlich braucht. Bewusst GETRENNT von getEquippedBonusTotal() oben
-// (das deckt die aeltere, flache Prozent-Boni-Schicht wie z.B. hoodie/
-// armband ab, die nicht Teil des gelevelten Slot-Stat-Systems ist).
-function equippedCombatStatTotal(statKey) {
-  return Object.values(gameState.avatarEquipped)
-    .filter(Boolean)
-    .reduce((sum, key) => {
-      const stats = equipmentStatsForItem(key);
-      return sum + (stats ? (stats[statKey] || 0) : 0);
-    }, 0);
-}
-
-// Kampfwerte, mit denen der SPIELER tatsaechlich kaempft: die Basiswerte
-// seines aktiven Begleiters (siehe activeCompanionStats() oben) plus die
-// geleveled Ausruestungs-Boni. Gesundheit bekommt bewusst KEINEN
-// Ausruestungs-Zuschlag -- kein Slot liefert laut EQUIPMENT_SLOT_STATS
-// (js/data.js) einen Gesundheitswert. Null ohne aktiven Begleiter.
+// Kampfwerte, mit denen der SPIELER tatsaechlich kaempft: einfach die
+// Basiswerte seines aktiven Begleiters (siehe activeCompanionStats() oben)
+// -- Angriff/Verteidigung ueber Ausruestung war urspruenglich geplant, laut
+// User-Entscheidung aber bewusst NICHT Teil des MVP (Kampfwerte sollen nur
+// von den Loomas kommen, nicht vom Avatar). Null ohne aktiven Begleiter.
 function playerBattleStats() {
-  const base = activeCompanionStats();
-  if (!base) return null;
-  return {
-    angriff: base.angriff + equippedCombatStatTotal("angriff"),
-    verteidigung: base.verteidigung + equippedCombatStatTotal("verteidigung"),
-    gesundheit: base.gesundheit,
-  };
+  return activeCompanionStats();
 }
 
 // Schatten-Essenz-Kosten, um den aktiven Begleiter um genau 1 Level

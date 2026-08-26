@@ -1835,15 +1835,6 @@ html, body {
   text-align: center;
 }
 .equip-level-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
-.equip-level-stats {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
 .equip-level-progress-row { font-size: 12px; opacity: 0.8; margin-bottom: 6px; }
 .equip-level-bar { height: 6px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; margin-bottom: 10px; }
 .equip-level-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--cosmic-accent), var(--accent-cyan)); transition: width 0.4s ease; }

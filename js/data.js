@@ -288,8 +288,7 @@ function elementAttackMultiplier(attackerElement, defenderElement) {
 // wendet den Element-Bonus (falls vorhanden) auf die uebergebene
 // Angriffskraft an. Es gibt laut Briefing keinen separaten
 // Ausruestungs-Elementbonus -- der Multiplikator wirkt einheitlich auf den
-// finalen Angriffswert, `attackerAngriff` darf also bereits
-// Ausruestungs-Boni (siehe EQUIPMENT_SLOT_STATS oben) eingerechnet haben.
+// finalen Angriffswert.
 function effectiveAttack(attackerAngriff, attackerElement, defenderElement) {
   return attackerAngriff * elementAttackMultiplier(attackerElement, defenderElement);
 }
@@ -394,65 +393,6 @@ const SHADOW_ESSENCE_PER_CREATURE_BY_RARITY = {
 // (kopfteil/oberteil/hose/sneaker/accessoire/outfit) hat ein EIGENES Level,
 // unabhaengig vom Looma-Level -- Max-Level einheitlich fuer alle Slots.
 const EQUIPMENT_MAX_LEVEL = 20;
-
-// Welcher Kampfwert pro Slot mit dem Level steigt. "sneaker"->fangchance ist
-// laut Briefing selbst ein Platzhalter, bis das separate Fangsystem-Briefing
-// (Energie) steht -- siehe dortige offene Frage, ob Fangchance darin
-// ueberhaupt als Mechanik existiert oder Sneaker stattdessen z.B.
-// Geschwindigkeit bekommen sollte. "outfit" deckt beide Werte gleichzeitig
-// ab (kombinierter Bonus, da es alle fuenf Einzel-Slots ersetzt).
-const EQUIPMENT_SLOT_STATS = {
-  kopfteil: ["verteidigung"],
-  oberteil: ["verteidigung"],
-  hose: ["verteidigung"],
-  sneaker: ["fangchance"],
-  accessoire: ["angriff"],
-  outfit: ["verteidigung", "angriff"],
-};
-
-const EQUIPMENT_STAT_LABELS = {
-  verteidigung: "🛡️ Verteidigung",
-  angriff: "⚔️ Angriffskraft",
-  fangchance: "🎯 Fangchance",
-};
-
-// Basiswerte (Level 1) je Slot+Raritaet, aus dem Briefing uebernommen --
-// skalieren mit denselben Raritaets-Multiplikatoren wie ueberall sonst
-// (Weiss x1, Gruen x2, Blau x5, Lila x10, Gold x20).
-const EQUIPMENT_RARITY_BASE_STATS = {
-  kopfteil: { "Gewöhnlich": 2, "Ungewöhnlich": 4, "Selten": 10, "Episch": 20, "Legendär": 40 },
-  oberteil: { "Gewöhnlich": 3, "Ungewöhnlich": 6, "Selten": 15, "Episch": 30, "Legendär": 60 },
-  hose: { "Gewöhnlich": 2, "Ungewöhnlich": 4, "Selten": 10, "Episch": 20, "Legendär": 40 },
-  sneaker: { "Gewöhnlich": 1, "Ungewöhnlich": 2, "Selten": 5, "Episch": 10, "Legendär": 20 },
-  accessoire: { "Gewöhnlich": 3, "Ungewöhnlich": 6, "Selten": 15, "Episch": 30, "Legendär": 60 },
-  outfit: { "Gewöhnlich": 8, "Ungewöhnlich": 16, "Selten": 40, "Episch": 80, "Legendär": 160 },
-};
-
-// Gesamtwachstum ueber die volle Levelspanne (Level 1 bis Max-Level 20):
-// 100% Zuwachs = Verdopplung bis Max-Level, wie im Briefing vorgerechnet
-// (z.B. Kopfteil Blau 10 -> 20). Als Bruchteil von (MAX_LEVEL - 1)
-// Levelschritten hinterlegt statt fix "5% pro Level" -- analog zu
-// LOOMA_STAT_GROWTH_TOTAL oben, trifft dadurch die vorgerechnete
-// Verdopplung an Level 1 UND Max-Level exakt.
-const EQUIPMENT_STAT_GROWTH_TOTAL = 1;
-
-// Kampfwert EINES Statwerts eines Ausruestungsteils bei gegebenem Slot,
-// Raritaet und Level.
-function equipmentStatAtLevel(slotType, rarity, level) {
-  const base = EQUIPMENT_RARITY_BASE_STATS[slotType][rarity];
-  const growthFraction = (Math.min(level, EQUIPMENT_MAX_LEVEL) - 1) / (EQUIPMENT_MAX_LEVEL - 1);
-  return Math.round(base * (1 + EQUIPMENT_STAT_GROWTH_TOTAL * growthFraction) * 10) / 10;
-}
-
-// Alle Statwerte eines Slots (bei "outfit" zwei gleichzeitig) als { statKey:
-// value }-Objekt.
-function equipmentStatsAtLevel(slotType, rarity, level) {
-  const result = {};
-  EQUIPMENT_SLOT_STATS[slotType].forEach((statKey) => {
-    result[statKey] = equipmentStatAtLevel(slotType, rarity, level);
-  });
-  return result;
-}
 
 // Feed-Punkte, die ein verfuettertes Item abhaengig von SEINER EIGENEN
 // Raritaet bringt (nicht die des Ziel-Items) -- siehe Briefing.
