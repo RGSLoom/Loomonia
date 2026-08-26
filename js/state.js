@@ -558,16 +558,16 @@ function equipmentLevelUpRequirements(itemKey) {
   };
 }
 
-// Alle Anlegbar-Items im Inventar (Bestand > 0, beliebiger Slot/Raritaet),
-// die sich zum Hochleveln von `targetItemKey` verfuettern lassen -- User-
-// Korrektur: die urspruengliche Beschraenkung auf denselben Slot ("nur ein
-// anderer Schuh levelt Schuhe hoch") liess Spieler ohne Slot-Duplikat sofort
-// feststecken, obwohl sie andere Mode-Items zum Verfuettern besassen.
+// Alle Items DESSELBEN Slots im Inventar (Bestand > 0, beliebige Raritaet),
+// die sich zum Hochleveln von `targetItemKey` verfuettern lassen -- z.B.
+// leveln nur andere Schuhe einen Schuh hoch, kein Hoody/keine Hose (User-
+// Korrektur: die kurzzeitige Ausweitung auf beliebige Mode-Items war
+// ausdruecklich nicht gewuenscht).
 function feedableItemsForEquipment(targetItemKey) {
   const targetItem = ITEMS[targetItemKey];
   if (!targetItem || !targetItem.slotType) return [];
   return Object.values(ITEMS).filter(
-    (item) => !!item.slotType && (gameState.inventory[item.key] || 0) > 0
+    (item) => item.slotType === targetItem.slotType && (gameState.inventory[item.key] || 0) > 0
   );
 }
 
@@ -576,14 +576,14 @@ function feedableItemsForEquipment(targetItemKey) {
 // Item wird dabei aus dem Inventar entfernt (siehe Briefing). Erhoeht nur
 // den Fortschritt, der eigentliche Levelaufstieg passiert separat ueber
 // levelUpEquipmentItem() (braucht zusaetzlich genug Muenzen). Gibt false
-// zurueck (kein State-Change), wenn Ziel/Feed-Item ungueltig sind, das
-// Feed-Item kein Anlegbar-Item bzw. nicht im Inventar liegt oder das Ziel
-// bereits Max-Level ist. Feed-Item kann aus JEDEM Slot stammen (siehe
-// feedableItemsForEquipment() oben).
+// zurueck (kein State-Change), wenn Ziel/Feed-Item ungueltig sind, nicht
+// zum selben Slot gehoeren, das Feed-Item nicht im Inventar liegt oder das
+// Ziel bereits Max-Level ist.
 function feedEquipmentItem(targetItemKey, feedItemKey) {
   const targetItem = ITEMS[targetItemKey];
   const feedItem = ITEMS[feedItemKey];
-  if (!targetItem || !feedItem || !targetItem.slotType || !feedItem.slotType) return false;
+  if (!targetItem || !feedItem || !targetItem.slotType) return false;
+  if (feedItem.slotType !== targetItem.slotType) return false;
   if ((gameState.inventory[feedItemKey] || 0) < 1) return false;
   if (isEquipmentMaxLevel(targetItemKey)) return false;
 

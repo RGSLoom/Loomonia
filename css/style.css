@@ -1823,26 +1823,8 @@ html, body {
    siehe renderEquipmentLevelCard() in js/profile.js) -- analog zur
    .looma-level-card, zusaetzlich mit raritaets-/levelabhaengigem Glanz-
    Rahmen (--equip-level waechst 1-20, siehe .outfit-cell.equipped weiter
-   unten). Steckt hinter einem Auf-/Zuklapp-Toggle (.outfit-level-toggle),
-   nicht mehr fest sichtbar im Slot-Detail. */
-.outfit-level-toggle {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  margin-bottom: 10px;
-  border-radius: 12px;
-  background: var(--glass-fill);
-  border: 1px solid var(--glass-border);
-  color: var(--text-light);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.outfit-level-toggle-chevron { width: 16px; height: 16px; transition: transform 0.2s ease; }
-.outfit-level-toggle[aria-expanded="true"] .outfit-level-toggle-chevron { transform: rotate(180deg); }
-.outfit-level-panel.hidden { display: none; }
+   unten). Fest sichtbar im Slot-Detail (User-Korrektur: kein Auf-/Zuklapp-
+   Toggle mehr). */
 .equip-level-card {
   padding: 14px;
   margin-bottom: 18px;

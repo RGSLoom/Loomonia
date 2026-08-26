@@ -871,10 +871,6 @@ function renderOutfitGrid() {
 function attachOutfitGridHandlers() {
   document.querySelectorAll(".outfit-cell").forEach((cell) => {
     cell.addEventListener("click", () => {
-      // Level-Panel startet bei frischem Betreten eines Slots immer
-      // eingeklappt (siehe outfitLevelPanelExpanded unten) -- bleibt aber
-      // offen, wenn innerhalb desselben Slots geleveled/gefuettert wird.
-      outfitLevelPanelExpanded = false;
       openOutfitSlotDetail(cell.dataset.slot);
     });
   });
@@ -960,13 +956,6 @@ function renderEquipmentLevelCard(equippedKey) {
     </div>`;
 }
 
-// Haelt fest, ob das Level-Panel im aktuellen Slot gerade aufgeklappt ist --
-// bewusst ein simples Modul-Flag statt pro Slot, da immer nur ein Slot-Detail
-// gleichzeitig sichtbar ist. Wird beim Wechsel in einen neuen Slot ueber
-// attachOutfitGridHandlers() zurueckgesetzt, bleibt aber ueber ein Level-
-// aufsteigen/Verfuettern-Refresh im selben Slot erhalten.
-let outfitLevelPanelExpanded = false;
-
 function renderOutfitSlotDetail(slotKey) {
   const equippedKey = gameState.avatarEquipped[slotKey];
   // Das angezogene Item selbst bleibt hier auch bei Inventar-Bestand 0
@@ -988,18 +977,11 @@ function renderOutfitSlotDetail(slotKey) {
   const emptyNote = ownedItems.length === 0
     ? `<div class="placeholder-note">Noch keine passenden Items im Inventar für diesen Slot.</div>`
     : "";
-  const levelToggleHtml = equippedKey && ITEMS[equippedKey]
-    ? `<button id="btn-outfit-level-toggle" class="outfit-level-toggle" aria-expanded="${outfitLevelPanelExpanded}">
-        <span>Level &amp; Verfüttern</span>
-        <svg class="icon outfit-level-toggle-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-      </button>
-      <div id="outfit-level-panel" class="outfit-level-panel${outfitLevelPanelExpanded ? "" : " hidden"}">${renderEquipmentLevelCard(equippedKey)}</div>`
-    : "";
   return `
     <button class="back-btn" id="btn-outfit-slot-back" style="margin-bottom:12px;">← Übersicht</button>
     <div class="outfit-slot-title">${OUTFIT_SLOT_LABELS[slotKey]}</div>
     ${renderOutfitSlotCurrent(slotKey, equippedKey)}
-    ${levelToggleHtml}
+    ${renderEquipmentLevelCard(equippedKey)}
     <div class="item-grid">${cells}</div>
     ${emptyNote}`;
 }
@@ -1022,14 +1004,6 @@ function attachOutfitSlotDetailHandlers(slotKey) {
     });
   });
 
-  const levelToggle = document.getElementById("btn-outfit-level-toggle");
-  if (levelToggle) {
-    levelToggle.addEventListener("click", () => {
-      outfitLevelPanelExpanded = !outfitLevelPanelExpanded;
-      levelToggle.setAttribute("aria-expanded", String(outfitLevelPanelExpanded));
-      document.getElementById("outfit-level-panel").classList.toggle("hidden", !outfitLevelPanelExpanded);
-    });
-  }
   const levelUpBtn = document.getElementById("btn-equip-level-up");
   if (levelUpBtn) {
     levelUpBtn.addEventListener("click", () => {
