@@ -28,54 +28,6 @@ const OUTFIT_SLOT_LABELS = {
   outfit: "Outfit",
 };
 
-// Platzhalter-Ganzkoerpersilhouette fuer die Avatar-Buehne — es gibt noch
-// keine echte, auf den Avatar-Body zugeschnittene Grafik (siehe
-// AVATAR_SINGLE_SLOTS in data.js). Sobald echte Body-Art vorliegt, ersetzt
-// ein <img> diese Silhouette; die Ebenen-Positionierung (.avatar-layer--*
-// in style.css) bleibt unveraendert.
-const AVATAR_SILHOUETTE_SVG = `<svg class="avatar-silhouette" viewBox="0 0 100 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <circle cx="50" cy="34" r="26" fill="rgba(246,243,255,0.16)" />
-  <path d="M22 200 L26 96 Q50 78 74 96 L78 200 Z" fill="rgba(246,243,255,0.12)" />
-  <path d="M30 200 L33 130 L45 130 L43 200 Z" fill="rgba(246,243,255,0.16)" />
-  <path d="M70 200 L67 130 L55 130 L57 200 Z" fill="rgba(246,243,255,0.16)" />
-</svg>`;
-
-// Baut die Ganzkoerper-Buehne mit den aktuell angezogenen Items als Ebenen
-// (siehe .avatar-layer--* in style.css fuer die grobe Positionierung pro
-// Slot). Aktives Outfit ersetzt alle Einzelteil-Ebenen komplett, weil sich
-// Outfit und Einzelteile laut Ausschluss-Logik nie gleichzeitig ueberschneiden
-// (siehe equipItem() in state.js).
-function renderAvatarStage() {
-  const equipped = gameState.avatarEquipped;
-  // ITEMS[key] kann fehlen, wenn ein angezogenes Item nachtraeglich aus der
-  // Item-Definition entfernt/umbenannt wurde (veralteter State) -- ohne
-  // diese Guards stuerzte das Rendern der Avatar-Buehne (Outfit-Tab UND
-  // jede Slot-Detailansicht) mit einem TypeError ab (siehe QA-Bug-Liste).
-  // Ein fehlendes Outfit-Item faellt auf die Einzelteil-Ansicht zurueck,
-  // ein fehlendes Einzelteil-Item wird wie ein leerer Slot behandelt --
-  // derselbe defensive Umgang wie renderOutfitGrid() bereits an anderer
-  // Stelle.
-  if (equipped.outfit && ITEMS[equipped.outfit]) {
-    const item = ITEMS[equipped.outfit];
-    return `<div class="avatar-stage-figure">
-      ${AVATAR_SILHOUETTE_SVG}
-      <div class="avatar-layer avatar-layer--outfit"><img src="${item.icon}" alt="${item.name}" /></div>
-    </div>`;
-  }
-  const layers = AVATAR_SINGLE_SLOTS
-    .map((slot) => {
-      const key = equipped[slot];
-      const item = key ? ITEMS[key] : null;
-      if (!item) return "";
-      return `<div class="avatar-layer avatar-layer--${slot}"><img src="${item.icon}" alt="${item.name}" /></div>`;
-    })
-    .join("");
-  return `<div class="avatar-stage-figure">
-    ${AVATAR_SILHOUETTE_SVG}
-    ${layers}
-  </div>`;
-}
-
 // Vollflaechige illustrierte Icons statt der frueheren schlichten Linien-
 // Icons (siehe Hero-Bild-Briefing) -- freigestellte PNGs mit echtem
 // transparentem Hintergrund, Rahmen/Hintergrund/Label bleiben Sache der
@@ -935,52 +887,23 @@ function openOutfitSlotDetail(slotKey) {
   attachOutfitSlotDetailHandlers(slotKey);
 }
 
-// Level-Karte des aktuell ausgeruesteten Items in diesem Slot (Ausruestungs-
-// Level-System-Briefing) -- Statwerte, Feed-Fortschritt, Verfuettern-Liste
-// und Level-aufsteigen-Button. Leerer String ohne ausgeruestetes Item, denn
-// laut Briefing lassen sich nur AUSGERUESTETE Teile hochleveln.
-function renderEquipmentLevelCard(equippedKey) {
-  if (!equippedKey || !ITEMS[equippedKey]) return "";
-  const item = ITEMS[equippedKey];
-  const level = getEquipmentLevelState(equippedKey).level;
-  const atMaxLevel = isEquipmentMaxLevel(equippedKey);
-  const stats = equipmentStatsForItem(equippedKey);
-  const statsHtml = Object.entries(stats)
-    .map(([statKey, value]) => `<span>${EQUIPMENT_STAT_LABELS[statKey]} ${value}</span>`)
-    .join("");
-
-  let progressHtml = "";
-  let feedListHtml = "";
-  if (!atMaxLevel) {
-    const req = equipmentLevelUpRequirements(equippedKey);
-    const pct = Math.min(100, Math.round((req.feedProgress / req.feedCost) * 100));
-    progressHtml = `
-      <div class="equip-level-progress-row">Feed-Punkte: ${req.feedProgress}/${req.feedCost} · Münzen: ${req.coins}/${req.coinCost}</div>
-      <div class="equip-level-bar"><div class="equip-level-bar-fill" style="width:${pct}%"></div></div>
-      <button id="btn-equip-level-up" class="primary-btn" ${req.canLevelUp ? "" : "disabled"}>Level aufsteigen</button>`;
-
-    const feedCandidates = feedableItemsForEquipment(equippedKey);
-    feedListHtml = feedCandidates.length > 0
-      ? `<div class="equip-feed-list">
-          ${feedCandidates
-            .map(
-              (feedItem) => `<button class="equip-feed-row" data-feed-item="${feedItem.key}">
-                <span>${feedItem.name}</span>
-                <span class="equip-feed-points">🍽️ +${EQUIPMENT_FEED_POINTS_BY_RARITY[feedItem.rarity]} · Bestand ${gameState.inventory[feedItem.key]}</span>
-              </button>`
-            )
-            .join("")}
-        </div>`
-      : `<div class="placeholder-note" style="margin-top:10px;">Keine passenden Items im Inventar zum Verfüttern.</div>`;
-  }
-
-  return `
-    <div class="equip-level-card" style="--rarity-color:${RARITY_COLORS[item.rarity]}; --equip-level:${level}">
-      <div class="equip-level-title">Level ${level}${atMaxLevel ? " (Max)" : ""}</div>
-      <div class="equip-level-stats">${statsHtml}</div>
-      ${progressHtml}
-      ${feedListHtml}
+// Vorschau des aktuell ausgeruesteten Items im Slot (User-Korrektur: die
+// vorherige Silhouette-Buehne + Level/Feed-Karte wirkten wie ein Uebrigbleibsel
+// aus einer frueheren Version) -- zeigt nur noch Icon + Name/Level bzw. einen
+// leeren Platzhalter, direkt ueber der Auswahl-Kachelliste.
+function renderOutfitSlotCurrent(slotKey, equippedKey) {
+  const item = equippedKey ? ITEMS[equippedKey] : null;
+  if (!item) {
+    return `<div class="outfit-slot-current outfit-slot-current--empty">
+      <svg class="icon outfit-slot-current-icon" viewBox="0 0 24 24" aria-hidden="true">${OUTFIT_SLOT_EMPTY_ICONS[slotKey]}</svg>
+      <div class="outfit-slot-current-label">Nichts ausgerüstet</div>
     </div>`;
+  }
+  const level = getEquipmentLevelState(equippedKey).level;
+  return `<div class="outfit-slot-current" style="--rarity-color:${RARITY_COLORS[item.rarity]}">
+    <img src="${item.icon}" alt="${item.name}" />
+    <div class="outfit-slot-current-label">${item.name} · Lvl ${level}</div>
+  </div>`;
 }
 
 function renderOutfitSlotDetail(slotKey) {
@@ -1006,9 +929,8 @@ function renderOutfitSlotDetail(slotKey) {
     : "";
   return `
     <button class="back-btn" id="btn-outfit-slot-back" style="margin-bottom:12px;">← Übersicht</button>
-    <div class="outfit-stage" style="margin-top:0; margin-bottom:14px;">${renderAvatarStage()}</div>
     <div class="outfit-slot-title">${OUTFIT_SLOT_LABELS[slotKey]}</div>
-    ${renderEquipmentLevelCard(equippedKey)}
+    ${renderOutfitSlotCurrent(slotKey, equippedKey)}
     <div class="item-grid">${cells}</div>
     ${emptyNote}`;
 }
@@ -1027,20 +949,6 @@ function attachOutfitSlotDetailHandlers(slotKey) {
       } else {
         equipItem(key);
       }
-      openOutfitSlotDetail(slotKey);
-    });
-  });
-
-  const levelUpBtn = document.getElementById("btn-equip-level-up");
-  if (levelUpBtn) {
-    levelUpBtn.addEventListener("click", () => {
-      levelUpEquipmentItem(gameState.avatarEquipped[slotKey]);
-      openOutfitSlotDetail(slotKey);
-    });
-  }
-  document.querySelectorAll(".equip-feed-row[data-feed-item]").forEach((row) => {
-    row.addEventListener("click", () => {
-      feedEquipmentItem(gameState.avatarEquipped[slotKey], row.dataset.feedItem);
       openOutfitSlotDetail(slotKey);
     });
   });

@@ -1819,50 +1819,6 @@ html, body {
 }
 .looma-level-cost { font-size: 12px; opacity: 0.75; margin-bottom: 10px; }
 
-/* Level-Karte eines ausgeruesteten Items (Ausruestungs-Level-System-Briefing,
-   siehe renderEquipmentLevelCard() in js/profile.js) -- analog zur
-   .looma-level-card, zusaetzlich mit raritaets-/levelabhaengigem Glanz-
-   Rahmen (--equip-level waechst 1-20, siehe .outfit-cell.equipped oben). */
-.equip-level-card {
-  padding: 14px;
-  margin-bottom: 18px;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.06);
-  border: 1.5px solid color-mix(in srgb, var(--rarity-color, var(--rarity-common)) 55%, transparent);
-  box-shadow: 0 0 calc(3px + (var(--equip-level, 1) - 1) * 1.6px) var(--rarity-color, var(--rarity-common));
-  text-align: center;
-}
-.equip-level-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
-.equip-level-stats {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-.equip-level-progress-row { font-size: 12px; opacity: 0.8; margin-bottom: 6px; }
-.equip-level-bar { height: 6px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; margin-bottom: 10px; }
-.equip-level-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--cosmic-accent), var(--accent-cyan)); transition: width 0.4s ease; }
-.equip-feed-list { margin-top: 10px; text-align: left; }
-.equip-feed-row {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 10px;
-  margin-bottom: 6px;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: inherit;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-.equip-feed-row:active { background: rgba(255,255,255,0.1); }
-.equip-feed-points { opacity: 0.75; font-size: 11.5px; white-space: nowrap; margin-left: 8px; }
-
 /* Aktiver Begleiter (Habitat-Briefing) -- gruen statt lila (.item-cell.equipped),
    um sich klar vom "Angezogen"-Ausruestungsstatus zu unterscheiden. */
 .looma-cell--companion { box-shadow: 0 0 0 2px var(--cosmic-accent-2), 0 0 16px -4px var(--cosmic-accent-2); }
@@ -2161,38 +2117,29 @@ html, body {
 }
 .outfit-cell-empty-icon { width: 46%; height: 46%; color: #10101a; opacity: 0.55; stroke-width: 1.6; }
 .outfit-cell.empty .outfit-cell-caption { opacity: 0.6; }
-.outfit-stage {
-  margin-top: 14px;
-  border-radius: 14px;
-  overflow: hidden;
-  background: url("../assets/generated/bg_outfit_stage.png") center/cover no-repeat;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px 0;
-}
-.outfit-stage img { width: 100%; display: block; }
 .outfit-slot-title { font-size: 15px; font-weight: 800; margin-bottom: 10px; }
 
-/* Avatar-Buehne: Silhouette + darueber gelegte Item-Icon-Ebenen pro Slot.
-   Grobe, prozentuale Positionierung als Platzhalter, solange es noch keine
-   auf den Body zugeschnittene Kleidungs-Grafik gibt (siehe AVATAR_SINGLE_SLOTS
-   in js/data.js bzw. renderAvatarStage() in js/profile.js). */
-.avatar-stage-figure { position: relative; width: 46%; max-width: 170px; margin: 0 auto; }
-.avatar-silhouette { width: 100%; display: block; }
-.avatar-layer { position: absolute; display: flex; align-items: center; justify-content: center; }
-.avatar-layer img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+/* Vorschau des aktuell ausgeruesteten Items im Slot-Detail (ersetzt die
+   frueher hier gezeigte Ganzkoerper-Silhouette-Buehne, die als Dummy
+   empfunden wurde) -- einfache Karte mit Item-Icon + Name/Level darueber,
+   darunter folgt die Auswahl-Kachelliste (.item-grid). */
+.outfit-slot-current {
+  --rarity-color: var(--rarity-common);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px;
+  margin-bottom: 16px;
+  border-radius: 16px;
+  background: var(--glass-fill);
+  border: 1.5px solid color-mix(in srgb, var(--rarity-color) 55%, transparent);
 }
-.avatar-layer--kopfteil { top: -6%; left: 27%; width: 46%; height: 24%; }
-.avatar-layer--oberteil { top: 30%; left: 18%; width: 64%; height: 30%; }
-.avatar-layer--hose { top: 58%; left: 22%; width: 56%; height: 26%; }
-.avatar-layer--sneaker { top: 84%; left: 20%; width: 60%; height: 16%; }
-.avatar-layer--accessoire { top: 34%; left: 66%; width: 26%; height: 26%; }
-.avatar-layer--outfit { top: 4%; left: 16%; width: 68%; height: 88%; }
+.outfit-slot-current img { width: 88px; height: 88px; object-fit: contain; filter: drop-shadow(0 0 14px var(--rarity-color)); }
+.outfit-slot-current-icon { width: 56px; height: 56px; color: var(--text-light); opacity: 0.5; }
+.outfit-slot-current-label { font-size: 14px; font-weight: 800; color: var(--text-light); text-align: center; }
+.outfit-slot-current--empty { border-style: dashed; }
+.outfit-slot-current--empty .outfit-slot-current-label { opacity: 0.7; }
 
 .settings-row {
   display: flex;
