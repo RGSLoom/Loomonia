@@ -718,11 +718,14 @@ function claimTrophy(trophyKey) {
 // (mehr) in der aktuellen CREATURES-Definition existiert -- ohne diesen
 // Guard wirft der Zugriff auf .rarity einen TypeError und reisst den
 // kompletten Nach-Fang-Ablauf (inkl. XP-Vergabe) mit sich (siehe
-// QA-Bug-Liste).
+// QA-Bug-Liste). caughtCreatures[key] ist seit der Migration auf das
+// Instanz-Format (siehe Kommentar oben bei "Migration auf das
+// Instanz-Format") ein Array von Instanzen, keine Zaehlzahl mehr -- daher
+// .length statt des Rohwerts, analog zu totalCaughtCount() oben.
 function caughtByRarity(rarity) {
   return Object.entries(gameState.caughtCreatures)
     .filter(([key]) => CREATURES[key] && CREATURES[key].rarity === rarity)
-    .reduce((sum, [, count]) => sum + count, 0);
+    .reduce((sum, [, instances]) => sum + instances.length, 0);
 }
 
 // Nach einem Fang zu pruefen: Anzahl gefangener Wesen je Seltenheitsstufe
