@@ -2019,35 +2019,112 @@ html, body {
   color: #10101a;
   margin: 6px 0;
 }
-.outfit-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+/* Ausruestungs-Uebersicht (renderOutfitGrid() in js/profile.js): Avatar
+   (Mann_icon.png/Frau_icon.png) mittig in voller Hoehe, je 3 Slot-Kacheln
+   links/rechts daneben, darunter die Boni-Uebersicht -- alles muss ohne
+   Scrollen auf den Screen passen (siehe #screen-outfit unten), daher hier
+   Flexbox statt fixer vh-Masse: die Kachel-Spalten und die Avatar-Figur
+   teilen sich die verfuegbare Hoehe von #outfit-content dynamisch. */
+#screen-outfit.active { display: flex; flex-direction: column; }
+#screen-outfit { overflow: hidden; padding-bottom: 0; }
+#outfit-content {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  margin: 0 auto;
 }
-.outfit-cell {
-  aspect-ratio: 87 / 100;
+/* Der Avatar ist echter Vollbild-Hintergrund des gesamten Screens (User-
+   Korrektur: vorher war das Bild auf die Mittelspalte zwischen den Kacheln
+   zusammengequetscht) -- position:fixed statt nur inset:0 auf #screen-outfit,
+   damit das Bild auch das max-width/padding von #outfit-content ignoriert und
+   wirklich Kante-zu-Kante reicht. Topbar bekommt einen Scrim, damit Zurueck-
+   Button/Titel unabhaengig von der Bildhelligkeit lesbar bleiben. Kacheln
+   selbst sind transparent und etwa item-icon-gross (siehe .outfit-cell
+   unten), keine grossen Kartenflaechen mehr. */
+.outfit-hero-img {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  object-fit: cover;
+  object-position: center;
+  z-index: 0;
+}
+#screen-outfit .sub-screen-topbar {
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(to bottom, rgba(10,7,24,0.6), transparent);
+}
+.outfit-hero-area {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+}
+.outfit-slot-col {
+  flex: 0 0 auto;
+  width: clamp(64px, 22vw, 92px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: center;
+}
+.outfit-bonus-bar {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
   border-radius: 14px;
-  border: none;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+}
+.outfit-bonus-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--glass-border-strong);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+.outfit-bonus-empty { font-size: 13px; opacity: 0.75; text-align: center; padding: 4px 0; }
+
+/* Transparente Kachel (keine Fuellflaeche) aber mit sichtbarem Rahmen, damit
+   der Slot trotzdem als eigenes Tap-Ziel erkennbar bleibt -- schwebt auf dem
+   Avatar-Hintergrundbild, in etwa so gross wie ein Item-Icon im normalen
+   Inventar-Raster (siehe .item-cell), nicht als grosse Kartenflaeche. */
+.outfit-cell {
+  --rarity-color: var(--rarity-common);
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 84px;
+  border-radius: 14px;
+  border: 1.5px solid color-mix(in srgb, var(--rarity-color) 55%, transparent);
   padding: 0;
-  overflow: hidden;
   cursor: pointer;
   background: transparent;
+  position: relative;
 }
-.outfit-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.outfit-cell:active img { filter: brightness(1.2); }
-.outfit-cell { position: relative; }
-/* Belegter Slot: Kachel zeigt das angezogene Item selbst (statt des
-   generischen Platzhalter-Kachelbilds), Rarity-Farbe als Rahmen/Glow. */
-.outfit-cell.equipped {
-  --rarity-color: var(--rarity-common);
-  background: var(--glass-fill);
-  border: 1.5px solid color-mix(in srgb, var(--rarity-color) 55%, transparent);
-  /* Glanz-Effekt (Ausruestungs-Level-System-Briefing): zusaetzliche Glow-
-     Ebene, deren Groesse mit --equip-level (1-20, siehe renderOutfitGrid()
-     in js/profile.js) waechst, damit hoehere Level auch optisch erkennbar
-     sind. */
-  box-shadow: 0 0 16px -6px var(--rarity-color), 0 0 calc(3px + (var(--equip-level, 1) - 1) * 1.6px) var(--rarity-color);
-}
+.outfit-cell.empty { border-style: dashed; border-color: var(--glass-border-strong); }
+.outfit-cell:active .outfit-cell-filled img,
+.outfit-cell:active .outfit-cell-empty-icon { opacity: 0.7; }
 .outfit-cell-filled {
   width: 100%;
   height: 100%;
@@ -2055,27 +2132,28 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px;
+  gap: 2px;
 }
+/* Belegter Slot: Item-Icon mit Rarity-Glow, Rahmenfarbe kommt bereits von
+   der Basisregel oben (--rarity-color, per Inline-Style ueberschrieben).
+   Glanz-Staerke skaliert mit --equip-level (1-20, siehe renderOutfitGrid()
+   in js/profile.js), damit hoehere Level auch optisch erkennbar bleiben. */
 .outfit-cell-filled img {
-  width: 56%;
-  height: 56%;
+  width: 68%;
+  height: 68%;
   object-fit: contain;
-  filter: drop-shadow(0 0 8px var(--rarity-color));
+  filter: drop-shadow(0 0 6px var(--rarity-color)) drop-shadow(0 0 calc(3px + (var(--equip-level, 1) - 1) * 1.6px) var(--rarity-color));
 }
 .outfit-cell-caption {
-  font-size: 12px;
+  font-size: 9.5px;
   font-weight: 800;
   color: var(--text-light);
-  text-shadow: 0 1px 4px rgba(0,0,0,0.8), 0 0 10px rgba(0,0,0,0.6);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.7);
+  text-align: center;
+  line-height: 1.15;
 }
-.outfit-cell.empty {
-  background: var(--glass-fill);
-  border: 1.5px dashed var(--glass-border-strong);
-}
-.outfit-cell-empty-icon { width: 38%; height: 38%; color: var(--text-light); opacity: 0.85; stroke-width: 1.6; }
-.outfit-cell.empty .outfit-cell-caption { opacity: 0.7; text-shadow: none; }
+.outfit-cell-empty-icon { width: 46%; height: 46%; color: var(--text-light); opacity: 0.65; stroke-width: 1.6; filter: drop-shadow(0 1px 4px rgba(0,0,0,0.7)); }
+.outfit-cell.empty .outfit-cell-caption { opacity: 0.65; }
 .outfit-stage {
   margin-top: 14px;
   border-radius: 14px;

@@ -830,47 +830,90 @@ const OUTFIT_SLOT_EMPTY_ICONS = {
   outfit: `<circle cx="12" cy="5" r="2.2"/><path d="M8.5 20 9.5 10h5l1 10"/><path d="M9.5 10 6 13.5"/><path d="M14.5 10 18 13.5"/>`,
 };
 
+// Baut eine einzelne Ausruestungs-Kachel (belegt oder leer) -- gemeinsam
+// genutzt von linker und rechter Slot-Spalte in renderOutfitGrid(), damit
+// beide Spalten exakt dieselbe Kachel-Logik verwenden.
+function renderOutfitCell(slotKey, label) {
+  const equippedKey = gameState.avatarEquipped[slotKey];
+  const equippedItem = equippedKey ? ITEMS[equippedKey] : null;
+  // Belegter Slot: die Kachel zeigt das angezogene Item selbst. Leerer
+  // Slot: schlichter, gedimmter Platzhalter statt eines detaillierten
+  // Bildes, damit auf den ersten Blick klar ist, dass hier nichts
+  // angezogen ist.
+  if (equippedItem) {
+    // Level + Glanz-Effekt (Ausruestungs-Level-System-Briefing): die
+    // Glow-Staerke der Kachel skaliert mit --equip-level (siehe
+    // .outfit-cell.equipped in style.css), damit hoehere Level auch
+    // rein visuell erkennbar sind.
+    const level = getEquipmentLevelState(equippedKey).level;
+    return `<button class="outfit-cell equipped" data-slot="${slotKey}" style="--rarity-color:${RARITY_COLORS[equippedItem.rarity]}; --equip-level:${level}">
+      <div class="outfit-cell-filled">
+        <img src="${equippedItem.icon}" alt="${equippedItem.name}" />
+        <span class="outfit-cell-caption">${label} · Lvl ${level}</span>
+      </div>
+    </button>`;
+  }
+  return `<button class="outfit-cell empty" data-slot="${slotKey}">
+    <div class="outfit-cell-filled">
+      <svg class="icon outfit-cell-empty-icon" viewBox="0 0 24 24" aria-hidden="true">${OUTFIT_SLOT_EMPTY_ICONS[slotKey]}</svg>
+      <span class="outfit-cell-caption">${label}</span>
+    </div>
+  </button>`;
+}
+
+// Anzeigetexte + Icon je Bonus-Effekttyp, den ausgeruestete Mode-Items ueber
+// ITEMS[key].equipBonuses beisteuern koennen (siehe getEquippedBonusTotal()
+// in state.js) -- bewusst eigene, kompaktere Badge-Texte statt der
+// ACTIVE_EFFECT_LABELS aus utils.js, die fuer die zeitlich befristeten
+// Verbrauchsitem-Boosts gedacht sind.
+const OUTFIT_BONUS_TYPES = [
+  { key: "xp_boost", icon: "⭐", label: "XP" },
+  { key: "fangchance_boost", icon: "🎯", label: "Fangchance" },
+];
+
+// Boni-Uebersicht unterhalb von Avatar + Kacheln: summiert alle equipBonuses
+// der aktuell ausgeruesteten Mode-Items. Leerer Zustand bleibt sichtbar
+// statt komplett zu verschwinden.
+function renderOutfitBonusBar() {
+  const badges = OUTFIT_BONUS_TYPES
+    .map((b) => {
+      const value = getEquippedBonusTotal(b.key);
+      if (value <= 0) return "";
+      return `<div class="outfit-bonus-badge"><span>${b.icon}</span><span>+${Math.round(value * 100)}% ${b.label}</span></div>`;
+    })
+    .join("");
+  return badges || `<div class="outfit-bonus-empty">Keine aktiven Boni</div>`;
+}
+
+// Ausruestungs-Uebersicht: gewaehlter Avatar-Charakter (Mann_icon.png/
+// Frau_icon.png, siehe avatarHeroImageSrc() oben) mittig als Hintergrund-
+// Figur, je 3 Slot-Kacheln links/rechts daneben, darunter die Boni-
+// Uebersicht -- alles auf einen Bildschirm ohne Scrollen (siehe #screen-outfit
+// in style.css). Reihenfolge der Kacheln orientiert sich an der Position am
+// Koerper: Kopf oben, Beine unten links; Accessoire (Armband) auf Hoehe des
+// Handgelenks ueber dem Sneaker (Fuesse) ganz unten rechts.
 function renderOutfitGrid() {
-  const slots = [
+  const leftSlots = [
     { key: "kopfteil", label: "Kopfteil" },
     { key: "oberteil", label: "Oberteil" },
     { key: "hose", label: "Hose" },
-    { key: "outfit", label: "Outfit" },
-    { key: "sneaker", label: "Sneaker" },
-    { key: "accessoire", label: "Accessoire" },
   ];
-  const cells = slots
-    .map((s) => {
-      const equippedKey = gameState.avatarEquipped[s.key];
-      const equippedItem = equippedKey ? ITEMS[equippedKey] : null;
-      // Belegter Slot: die Kachel zeigt das angezogene Item selbst. Leerer
-      // Slot: schlichter, gedimmter Platzhalter statt eines detaillierten
-      // Bildes, damit auf den ersten Blick klar ist, dass hier nichts
-      // angezogen ist.
-      if (equippedItem) {
-        // Level + Glanz-Effekt (Ausruestungs-Level-System-Briefing): die
-        // Glow-Staerke der Kachel skaliert mit --equip-level (siehe
-        // .outfit-cell.equipped in style.css), damit hoehere Level auch
-        // rein visuell erkennbar sind.
-        const level = getEquipmentLevelState(equippedKey).level;
-        return `<button class="outfit-cell equipped" data-slot="${s.key}" style="--rarity-color:${RARITY_COLORS[equippedItem.rarity]}; --equip-level:${level}">
-          <div class="outfit-cell-filled">
-            <img src="${equippedItem.icon}" alt="${equippedItem.name}" />
-            <span class="outfit-cell-caption">${s.label} · Lvl ${level}</span>
-          </div>
-        </button>`;
-      }
-      return `<button class="outfit-cell empty" data-slot="${s.key}">
-        <div class="outfit-cell-filled">
-          <svg class="icon outfit-cell-empty-icon" viewBox="0 0 24 24" aria-hidden="true">${OUTFIT_SLOT_EMPTY_ICONS[s.key]}</svg>
-          <span class="outfit-cell-caption">${s.label}</span>
-        </div>
-      </button>`;
-    })
-    .join("");
+  const rightSlots = [
+    { key: "outfit", label: "Outfit" },
+    { key: "accessoire", label: "Accessoire" },
+    { key: "sneaker", label: "Sneaker" },
+  ];
   return `
-    <div class="outfit-grid">${cells}</div>
-    <div class="outfit-stage">${renderAvatarStage()}</div>`;
+    <img class="outfit-hero-img" src="${avatarHeroImageSrc()}" alt="Avatar" />
+    <div class="outfit-hero-area">
+      <div class="outfit-slot-col outfit-slot-col--left">
+        ${leftSlots.map((s) => renderOutfitCell(s.key, s.label)).join("")}
+      </div>
+      <div class="outfit-slot-col outfit-slot-col--right">
+        ${rightSlots.map((s) => renderOutfitCell(s.key, s.label)).join("")}
+      </div>
+    </div>
+    <div class="outfit-bonus-bar">${renderOutfitBonusBar()}</div>`;
 }
 
 function attachOutfitGridHandlers() {
