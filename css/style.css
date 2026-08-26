@@ -2060,6 +2060,15 @@ html, body {
   z-index: 2;
   background: linear-gradient(to bottom, rgba(10,7,24,0.6), transparent);
 }
+/* Der helle Himmel-Hintergrund liess den Zurueck-Button (Glas-Kreis mit
+   gedaempfter Icon-Farbe, siehe .back-circle/.glass) fast verschwinden --
+   hier kraeftigerer, dunkler Kreis + helle Icon-Farbe statt der gedaempften
+   Standard-Variante. */
+#screen-outfit .back-circle {
+  background: rgba(10,7,24,0.65);
+  border-color: rgba(255,255,255,0.35);
+  color: var(--text-light);
+}
 .outfit-hero-area {
   position: relative;
   z-index: 1;
