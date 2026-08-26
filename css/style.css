@@ -2116,13 +2116,12 @@ html, body {
   aspect-ratio: 1;
   max-width: 84px;
   border-radius: 14px;
-  border: 1.5px solid color-mix(in srgb, var(--rarity-color) 55%, transparent);
+  border: 1.5px solid rgba(255,255,255,0.4);
   padding: 0;
   cursor: pointer;
   background: transparent;
   position: relative;
 }
-.outfit-cell.empty { border-style: dashed; border-color: var(--glass-border-strong); }
 .outfit-cell:active .outfit-cell-filled img,
 .outfit-cell:active .outfit-cell-empty-icon { opacity: 0.7; }
 .outfit-cell-filled {
