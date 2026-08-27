@@ -115,22 +115,24 @@ async function cloudOcrReceipt(imageBlob) {
   return (body && body.text) || "";
 }
 
-// Liefert den erkannten Bon-Rohtext. Immer in die Konsole geloggt (nicht nur
-// bei Fehlern) -- einzige Moeglichkeit, bei "Preis erkannt, aber falscher/
-// fehlender Artikel" nachzuvollziehen, was die OCR tatsaechlich gelesen hat.
+// Liefert { text, source } -- source benennt die tatsaechlich genutzte OCR
+// ("Cloud / OCR.space" oder "Tesseract / deu[ (Fallback: ...)]") fuer die
+// Handy-Diagnose ueber den Kopier-Button. Immer in die Konsole geloggt
+// (nicht nur bei Fehlern) -- am Desktop die schnellste Moeglichkeit
+// nachzuvollziehen, was die OCR tatsaechlich gelesen hat.
 async function recognizeReceiptText(imageBlob) {
+  let fallbackReason = "";
   try {
     const cloudText = await withTimeout(cloudOcrReceipt(imageBlob), 20000, "Cloud-OCR");
     if (cloudText && cloudText.trim().length >= 3) {
       console.log("Bon-OCR (Cloud / OCR.space):", cloudText);
-      return cloudText;
+      return { text: cloudText, source: "Cloud / OCR.space" };
     }
-    console.warn("Cloud-OCR lieferte kein brauchbares Ergebnis -- Fallback auf Tesseract.");
+    fallbackReason = "Cloud-OCR ohne brauchbares Ergebnis";
+    console.warn(fallbackReason + " -- Fallback auf Tesseract.");
   } catch (err) {
-    console.warn(
-      "Cloud-OCR nicht verfügbar, Fallback auf Tesseract:",
-      err && err.message ? err.message : err
-    );
+    fallbackReason = err && err.message ? err.message : String(err);
+    console.warn("Cloud-OCR nicht verfügbar, Fallback auf Tesseract:", fallbackReason);
   }
   // Fallback: nur "deu" (DACH-Raum). Tesseract mit mehreren Sprachmodellen
   // gleichzeitig verschlechtert die Erkennung auf einem rein deutschen Bon
@@ -138,7 +140,10 @@ async function recognizeReceiptText(imageBlob) {
   // Sprachpaket-Download beim allerersten Scan bricht ab).
   const result = await withTimeout(Tesseract.recognize(imageBlob, "deu"), 45000, "OCR");
   console.log("Bon-OCR (Tesseract / deu):", result.data.text);
-  return result.data.text || "";
+  return {
+    text: result.data.text || "",
+    source: fallbackReason ? `Tesseract / deu (Fallback: ${fallbackReason})` : "Tesseract / deu",
+  };
 }
 
 function openScanScreen() {
@@ -165,10 +170,16 @@ function resetScanUI() {
 // erkannte Filialen) faktisch nutzlos war.
 let lastBonOcrText = "";
 
-function showBonOcrCopyButton(text) {
-  lastBonOcrText = text || "";
+function showBonOcrCopyButton(text, source) {
+  // source (z.B. "Cloud / OCR.space" oder "Tesseract / deu") wird dem
+  // kopierbaren Text vorangestellt -- auf dem Handy die einzige Moeglichkeit
+  // zu sehen, WELCHE OCR gelaufen ist (Konsole ist dort praktisch nicht
+  // erreichbar). Nur fuer die Diagnose-Anzeige, der Abgleich selbst nutzt
+  // weiterhin den Rohtext.
+  const body = text || "";
+  lastBonOcrText = source ? `[OCR: ${source}]\n\n${body}` : body;
   const copyBtn = document.getElementById("btn-scan-copy-text");
-  if (copyBtn && lastBonOcrText) copyBtn.classList.remove("hidden");
+  if (copyBtn && body) copyBtn.classList.remove("hidden");
 }
 
 function copyBonOcrText() {
@@ -295,8 +306,8 @@ async function processReceiptImage(imageSource) {
     // Cloud-OCR (OCR.space) zuerst, Tesseract "deu" nur als Fallback -- siehe
     // recognizeReceiptText(). Der erkannte Rohtext wird darin bereits in die
     // Konsole geloggt.
-    const text = await recognizeReceiptText(normalized);
-    showBonOcrCopyButton(text);
+    const { text, source } = await recognizeReceiptText(normalized);
+    showBonOcrCopyButton(text, source);
     const configuredStores = await storesPromise;
     // storeLocationsReady (js/map.js) wird erst aufgeloest, wenn STORE_LOCATIONS
     // die echten Adressen aus Supabase enthaelt statt des adresslosen
