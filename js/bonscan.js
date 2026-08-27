@@ -400,7 +400,20 @@ function lineHasOwnPriceAttempt(line) {
 // (besser ein moeglicherweise falscher Preis als gar keiner).
 function capToReceiptTotal(cents, maxCents) {
   if (cents === null || maxCents === null) return cents;
-  return cents > maxCents ? null : cents;
+  if (cents <= maxCents) return cents;
+  // Betrag groesser als der ganze Bon -- fast immer ein OCR-Fehler. Haeufigster
+  // Fall (real auf einem Rossmann-Bon beobachtet): das Waehrungssymbol vor dem
+  // Preis wird als Ziffer gelesen, "€1,29" -> "61,29". Vor dem kompletten
+  // Verwerfen deshalb einmal die fuehrende Euro-Ziffer streichen und pruefen,
+  // ob der Rest plausibel ist ("61,29" -> "1,29"). Nur dann uebernehmen, sonst
+  // (Barcode-/Artikelnummer-Artefakt) weiterhin null.
+  const euros = Math.floor(cents / 100);
+  const rest = cents % 100;
+  if (euros >= 10) {
+    const trimmed = Number(String(euros).slice(1)) * 100 + rest;
+    if (trimmed > 0 && trimmed <= maxCents) return trimmed;
+  }
+  return null;
 }
 
 // Schneidet ab dem ERSTEN Preis-Token alles bis zum Zeilenende ab, bevor
