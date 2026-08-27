@@ -476,7 +476,21 @@ function findReceiptTotalCents(text) {
 // Komma oder Klammer-Zusatz ("79312 Emmendingen, Deutschland"), [^\d]
 // erlaubt jedes Nicht-Ziffer-Zeichen und bleibt trotzdem strikt genug, um
 // echte Preis-/Mengenangaben in einer Artikelzeile zu erkennen.
-const RECEIPT_ADDRESS_LINE = /stra(ss|ß)e|str\.|\b\d{5}\s+[a-zA-ZÀ-ÿ][^\d]*$/i;
+// [s5]tra(ss|ß|b|s)e statt nur stra(ss|ß)e: die OCR liest "Straße" auf
+// Kassenbons regelmaessig falsch -- real beobachtet "StraBe" (ß -> B) und
+// "5traBe" (fuehrendes S -> 5). Ohne diese Toleranz rutschte die Adresszeile
+// ("Karl-Friedrich-StraBe 95") als vermeintlicher Artikel ins Dashboard.
+// Das "...e" direkt hinter ss/ß/b/s haelt den Filter eng genug, dass echte
+// Produktnamen wie "Straßburger Wurst" (nach ß kommt "b", nicht "e") NICHT
+// mitgetroffen werden.
+const RECEIPT_ADDRESS_LINE = /[s5]tra(ss|ß|b|s)e|str\.|\b\d{5}\s+[a-zA-ZÀ-ÿ][^\d]*$/i;
+
+// Nackte Waehrungs-/Summen-Fragmente ("EUR", "EUR 12,34", "€ 3,50",
+// "* EUR") -- entstehen, wenn die OCR (v.a. im Tabellen-Modus von
+// OCR.space) eine Summen-/Preiszeile in Einzelteile zerlegt. Kein Artikel;
+// ohne diesen Filter erscheint ein blosses "EUR" mit dem geerbten
+// Gesamtbetrag als grosse Fantasie-Position im Dashboard.
+const RECEIPT_CURRENCY_FRAGMENT = /^[^a-z0-9€]*(eur|euro|€)\s*\d{0,4}(?:[.,]\d{2})?\s*$/i;
 
 // Generischer Rechtsform-/Firmierungs-Hinweis (GmbH, OHG, e.K., ...) in den
 // ersten Zeilen des Bons -- ergaenzt RECEIPT_STORE_PATTERNS fuer Retailer,
@@ -618,6 +632,7 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
     if (RECEIPT_NON_PRODUCT_LINE.test(line)) continue;
     if (RECEIPT_NEGATIVE_AMOUNT.test(line)) continue;
     if (RECEIPT_ADDRESS_LINE.test(line)) continue;
+    if (RECEIPT_CURRENCY_FRAGMENT.test(line)) continue;
     if (!RECEIPT_LINE_HAS_WORD.test(line)) continue;
     // Store-Kopfzeile (z.B. "EDEKA MARKT") ist kein Artikel — nutzt dieselben
     // Retailer-Muster wie die Store-Erkennung oben, damit der Ladenname nie
@@ -1059,7 +1074,12 @@ function matchReceiptText(text, configuredStores) {
       });
     } else {
       unmatchedArticles.push({
-        articleText: line.text,
+        // Fuehrende Artikel-/EAN-Nummer abschneiden (wie beim Matching oben)
+        // -- die liest die OCR pro Zeile/Scan leicht unterschiedlich, wodurch
+        // dieselbe Position im Dashboard sonst als mehrere verschiedene
+        // Eintraege auftaucht ("329347 H-Milch 1L" vs "329347 H-Milch IL").
+        // Bleibt nach dem Abschneiden nichts uebrig, der Rohtext.
+        articleText: strippedLine.trim() || line.text,
         amountCents: line.amountCents,
         // Kein Store-Treffer -> keine echte Kategorie aufloesbar, bleibt
         // beim kosmetischen Fallback (siehe RECEIPT_STORE_PATTERNS-Kommentar

@@ -175,36 +175,58 @@ function aggregateAllTimeTotals(events) {
 // Events ohne erkannten Produkttext (product_text null/leer -- der seltene
 // Fall "gar keine Kandidatenzeile gefunden", siehe trackReceiptScanForDashboard
 // in js/bonscan.js) tauchen hier bewusst NICHT auf -- kein erfundener
-// "Unbekannt"-Artikel, siehe renderTopArticles(). Jede tatsaechlich erkannte
-// Bon-Position landet dagegen hier, egal ob Treffer (item_key vorhanden,
-// product_text = vom Store hinterlegter Artikelname) oder nicht zugeordnet
-// (item_key null, product_text = roher OCR-Zeilentext) -- matched
-// unterscheidet die beiden Faelle fuer die Status-Spalte in
-// renderTopArticles(). sharePct bezieht sich auf den Umsatz ALLER
-// item_receipt_scanned-Events im Fenster (Treffer + nicht zugeordnet),
-// damit der Anteil wirklich "Anteil am kompletten erfassten Umsatz" bedeutet.
+// "Unbekannt"-Artikel, siehe renderTopArticles().
+//
+// NUR echte Treffer (item_key vorhanden, product_text = vom Store
+// hinterlegter Artikelname) werden namentlich gruppiert und gelistet. Nicht
+// zugeordnete Zeilen (item_key null, product_text = roher OCR-Zeilentext)
+// werden NICHT mehr einzeln aufgefuehrt -- der Rohtext ist dort oft Muell
+// (Kassennummern, Kopfzeilen-Reste, OCR-Artefakte) und dieselbe Position
+// tauchte durch OCR-Schwankungen mehrfach auf. Sie laufen stattdessen in
+// EINE Sammelzeile ("unmatched") unter den Treffern zusammen; ihr Umsatz
+// zaehlt dort weiterhin voll mit. sharePct bezieht sich jeweils auf den
+// Umsatz ALLER item_receipt_scanned-Events im Fenster (Treffer + nicht
+// zugeordnet), damit der Anteil wirklich "Anteil am kompletten erfassten
+// Umsatz" bedeutet.
 function countByProductText(receiptEvents) {
   const totalRevenueCents = receiptEvents.reduce((sum, e) => sum + (e.amount_cents || 0), 0);
+  const share = (cents) =>
+    totalRevenueCents > 0 ? Math.round((cents / totalRevenueCents) * 1000) / 10 : null;
+
   const buckets = {};
+  let unmatchedCount = 0;
+  let unmatchedRevenueCents = 0;
   receiptEvents.forEach((e) => {
+    if (!e.item_key) {
+      unmatchedCount++;
+      unmatchedRevenueCents += e.amount_cents || 0;
+      return;
+    }
     const raw = (e.product_text || "").trim();
     if (!raw) return;
     const key = raw.toLowerCase();
-    if (!buckets[key]) buckets[key] = { displayText: raw, count: 0, revenueCents: 0, matched: false };
+    if (!buckets[key]) buckets[key] = { displayText: raw, count: 0, revenueCents: 0 };
     buckets[key].count++;
     buckets[key].revenueCents += e.amount_cents || 0;
-    if (e.item_key) buckets[key].matched = true;
   });
-  return Object.values(buckets)
+
+  const matched = Object.values(buckets)
     .map((b) => ({
       productText: b.displayText,
       count: b.count,
       revenueCents: b.revenueCents,
-      matched: b.matched,
-      sharePct: totalRevenueCents > 0 ? Math.round((b.revenueCents / totalRevenueCents) * 1000) / 10 : null,
+      matched: true,
+      sharePct: share(b.revenueCents),
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
+
+  const unmatched =
+    unmatchedCount > 0
+      ? { count: unmatchedCount, revenueCents: unmatchedRevenueCents, sharePct: share(unmatchedRevenueCents) }
+      : null;
+
+  return { matched, unmatched };
 }
 
 // Baut aus den rohen Supabase-Zeilen dieselbe Struktur, die renderStats()
@@ -386,7 +408,7 @@ function renderTopItems(bodyId, topItems, emptyText) {
 // innerHTML-Template gesetzt, damit ein praeparierter Bon (z.B. mit
 // "<img onerror=...>" als Produktname) niemals als HTML interpretiert
 // werden kann.
-function renderTopArticles(bodyId, articles, emptyText) {
+function renderTopArticles(bodyId, data, emptyText) {
   const body = document.getElementById(bodyId);
   // dashboard-render.js wird auch von store-view.html genutzt, das (noch)
   // keinen Artikel-Reiter hat -> dort existiert die Tabelle nicht, dann
@@ -395,12 +417,17 @@ function renderTopArticles(bodyId, articles, emptyText) {
   if (!body) return;
   body.innerHTML = "";
 
-  if (articles.length === 0) {
+  // Abwaertskompatibel: frueher wurde hier ein flaches Array uebergeben,
+  // jetzt { matched, unmatched } aus countByProductText().
+  const matched = Array.isArray(data) ? data : (data && data.matched) || [];
+  const unmatched = Array.isArray(data) ? null : data && data.unmatched;
+
+  if (matched.length === 0 && !unmatched) {
     body.innerHTML = `<tr><td colspan="5" class="empty-note">${emptyText}</td></tr>`;
     return;
   }
 
-  articles.forEach((entry, i) => {
+  matched.forEach((entry, i) => {
     const row = document.createElement("tr");
 
     const rankTd = document.createElement("td");
@@ -415,20 +442,48 @@ function renderTopArticles(bodyId, articles, emptyText) {
     const shareTd = document.createElement("td");
     shareTd.textContent = entry.sharePct === null ? "–" : `${entry.sharePct} %`;
 
-    // Treffer (item_key vorhanden, provisionsrelevant) vs. nicht zugeordnet
-    // (roher OCR-Text, zaehlt nur als Umsatz-Info) -- siehe
-    // countByProductText() oben. Wiederverwendet die bereits vorhandenen
-    // .status-pill-Klassen (siehe dashboard/css/style.css), statt neue
-    // Farben einzufuehren.
+    // Alle Zeilen hier sind echte Treffer (item_key vorhanden,
+    // provisionsrelevant) -- nicht zugeordnete Zeilen stehen nur noch in der
+    // Sammelzeile unten. Wiederverwendet die vorhandenen .status-pill-Klassen
+    // (siehe dashboard/css/style.css).
     const statusTd = document.createElement("td");
     const statusPill = document.createElement("span");
-    statusPill.className = "status-pill " + (entry.matched ? "status-pill-active" : "status-pill-planned");
-    statusPill.textContent = entry.matched ? "Treffer" : "Nicht zugeordnet";
+    statusPill.className = "status-pill status-pill-active";
+    statusPill.textContent = "Treffer";
     statusTd.appendChild(statusPill);
 
     row.append(rankTd, nameTd, countTd, shareTd, statusTd);
     body.appendChild(row);
   });
+
+  // Eine einzige Sammelzeile fuer alle nicht zugeordneten Bon-Zeilen --
+  // zaehlt zum erfassten Umsatz, aber ohne Provision/Item (item_key null).
+  // Bewusst KEIN Rohtext, kein Rang: das sind Positionen, die die OCR
+  // gelesen, aber keinem hinterlegten Artikel zugeordnet hat.
+  if (unmatched) {
+    const row = document.createElement("tr");
+
+    const rankTd = document.createElement("td");
+    rankTd.textContent = "–";
+
+    const nameTd = document.createElement("td");
+    nameTd.textContent = "Nicht zugeordnete Zeilen";
+
+    const countTd = document.createElement("td");
+    countTd.textContent = String(unmatched.count);
+
+    const shareTd = document.createElement("td");
+    shareTd.textContent = unmatched.sharePct === null ? "–" : `${unmatched.sharePct} %`;
+
+    const statusTd = document.createElement("td");
+    const statusPill = document.createElement("span");
+    statusPill.className = "status-pill status-pill-planned";
+    statusPill.textContent = "Sammelzeile";
+    statusTd.appendChild(statusPill);
+
+    row.append(rankTd, nameTd, countTd, shareTd, statusTd);
+    body.appendChild(row);
+  }
 }
 
 // series: [{ key, color }, ...] — welche Tages-Felder als Linien gezeichnet
@@ -505,7 +560,11 @@ function renderStats(data) {
 
   renderTopItems("top-items-body", data.topItems || [], "Noch keine Items vergeben.");
   renderTopItems("top-purchase-items-body", data.topReceiptItems || [], "Noch keine Bon-Scans erfasst.");
-  renderTopArticles("top-articles-body", data.topArticles || [], "Noch keine Artikel erkannt.");
+  renderTopArticles(
+    "top-articles-body",
+    data.topArticles || { matched: [], unmatched: null },
+    "Noch keine Artikel erkannt."
+  );
 }
 
 function renderAllTimeStats(totals) {
