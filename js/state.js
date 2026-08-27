@@ -220,6 +220,13 @@ function addXp(amount) {
   // bereits Max-Level ist (Punkt 7 des Briefings, siehe
   // isActiveCompanionMaxLevel()).
   let restedBonus = 0;
+  // Defensiv: der Pool darf nie ueber der aktuellen Obergrenze liegen (siehe
+  // Klemmung in settleRestedXp()) -- hier nochmal absichern, falls addXp()
+  // vor dem naechsten settleRestedXp() mit einem ueberhoehten Bestandsstand
+  // laeuft.
+  if (gameState.restedXpRemaining > 0) {
+    gameState.restedXpRemaining = Math.min(gameState.restedXpRemaining, restedXpCap());
+  }
   if (gameState.restedXpRemaining > 0 && !isActiveCompanionMaxLevel()) {
     restedBonus = Math.min(boostedXp, gameState.restedXpRemaining);
     gameState.restedXpRemaining -= restedBonus;
@@ -1145,16 +1152,24 @@ function isActiveCompanionMaxLevel() {
 function settleRestedXp() {
   const endedAt = gameState.sessionEndedAt;
   gameState.sessionEndedAt = null;
-  if (!endedAt || !getActiveCompanion()) {
-    saveState();
-    return;
+  const cap = restedXpCap();
+
+  if (endedAt && getActiveCompanion()) {
+    const elapsedMs = Date.now() - endedAt;
+    if (elapsedMs >= RESTED_MIN_OFFLINE_MS) {
+      const gained = (elapsedMs / RESTED_FULL_MS) * cap;
+      gameState.restedXpRemaining = (gameState.restedXpRemaining || 0) + gained;
+    }
   }
-  const elapsedMs = Date.now() - endedAt;
-  if (elapsedMs >= RESTED_MIN_OFFLINE_MS) {
-    const cap = restedXpCap();
-    const gained = (elapsedMs / RESTED_FULL_MS) * cap;
-    gameState.restedXpRemaining = Math.min(cap, (gameState.restedXpRemaining || 0) + gained);
-  }
+
+  // Immer hart auf die aktuelle Obergrenze klemmen -- NICHT nur im
+  // Zuwachs-Zweig oben. Faengt sonst den Fall nicht ab, dass der Pool schon
+  // ueber der Obergrenze liegt (Bestandsstand, der vor der Halbierung von
+  // RESTED_XP_CAP_FRACTION mit der alten, doppelt so hohen Obergrenze
+  // gefuellt wurde). Ohne diese Zeile "ruht" der Spieler dann effektiv
+  // laenger, als der volle Balken anzeigt, bis er zufaellig mal >=10 Min
+  // offline ist. Wenn der Balken voll ist, darf nichts mehr nachwachsen.
+  gameState.restedXpRemaining = Math.max(0, Math.min(cap, gameState.restedXpRemaining || 0));
   saveState();
 }
 
