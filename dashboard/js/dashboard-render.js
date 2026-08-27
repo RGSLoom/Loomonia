@@ -144,11 +144,12 @@ function localDateKey(d) {
 // revenueCents/provisionCents beziehen sich AUSSCHLIESSLICH auf Treffer
 // (item_key vorhanden -- ein Store hat den Artikel selbst hinterlegt und
 // dafuer ein Item gewaehlt, siehe js/bonscan.js grantReceiptItems).
-// unmatchedRevenueCents sind Bon-Zeilen, die zwar erkannt und mit Preis
-// getrackt wurden, aber zu keinem hinterlegten Artikel passten (item_key
-// null, product_text = roher OCR-Text) -- zaehlen bewusst NICHT in die
-// Provision ein (siehe Briefing "Item-Vergabe von Umsatzerfassung
-// entkoppeln"), werden aber als eigene Zahl ausgewiesen, damit der
+// unmatchedRevenueCents ist der nicht zugeordnete Umsatz (alle Events mit
+// item_key null): im Anker-Modus im Wesentlichen EIN Rest-Event pro Bon
+// ("gedruckte Bon-Summe minus Treffer-Summe", product_text null), sonst die
+// einzelnen nicht zugeordneten Zeilen mit ihrem OCR-Preis (siehe
+// trackReceiptScanForDashboard in js/bonscan.js). Zaehlt bewusst NICHT in
+// die Provision ein, wird aber als eigene Zahl ausgewiesen, damit der
 // vollstaendige, durch die Plattform ausgeloeste Umsatz sichtbar bleibt.
 function aggregateAllTimeTotals(events) {
   const receiptEvents = events.filter((e) => e.type === "item_receipt_scanned");
@@ -194,15 +195,20 @@ function countByProductText(receiptEvents) {
     totalRevenueCents > 0 ? Math.round((cents / totalRevenueCents) * 1000) / 10 : null;
 
   const buckets = {};
-  let unmatchedCount = 0;
+  // lineCount: Anzahl nicht zugeordneter Bon-ZEILEN (Events mit product_text).
+  // revenueCents: gesamter nicht zugeordneter Umsatz -- schliesst das
+  // product_text-lose "Rest-Event" mit ein (gedruckte Bon-Summe minus
+  // Treffer-Summe, siehe trackReceiptScanForDashboard in js/bonscan.js), das
+  // bewusst NICHT als eigene Zeile zaehlt.
+  let unmatchedLineCount = 0;
   let unmatchedRevenueCents = 0;
   receiptEvents.forEach((e) => {
+    const raw = (e.product_text || "").trim();
     if (!e.item_key) {
-      unmatchedCount++;
+      if (raw) unmatchedLineCount++;
       unmatchedRevenueCents += e.amount_cents || 0;
       return;
     }
-    const raw = (e.product_text || "").trim();
     if (!raw) return;
     const key = raw.toLowerCase();
     if (!buckets[key]) buckets[key] = { displayText: raw, count: 0, revenueCents: 0 };
@@ -222,8 +228,8 @@ function countByProductText(receiptEvents) {
     .slice(0, 10);
 
   const unmatched =
-    unmatchedCount > 0
-      ? { count: unmatchedCount, revenueCents: unmatchedRevenueCents, sharePct: share(unmatchedRevenueCents) }
+    unmatchedLineCount > 0 || unmatchedRevenueCents > 0
+      ? { lineCount: unmatchedLineCount, revenueCents: unmatchedRevenueCents, sharePct: share(unmatchedRevenueCents) }
       : null;
 
   return { matched, unmatched };
@@ -456,10 +462,13 @@ function renderTopArticles(bodyId, data, emptyText) {
     body.appendChild(row);
   });
 
-  // Eine einzige Sammelzeile fuer alle nicht zugeordneten Bon-Zeilen --
+  // Eine einzige Sammelzeile fuer den gesamten nicht zugeordneten Umsatz --
   // zaehlt zum erfassten Umsatz, aber ohne Provision/Item (item_key null).
-  // Bewusst KEIN Rohtext, kein Rang: das sind Positionen, die die OCR
-  // gelesen, aber keinem hinterlegten Artikel zugeordnet hat.
+  // Das ist die Summe aus nicht zugeordneten Bon-Zeilen UND der Differenz
+  // zwischen gedruckter Bon-Summe und der Summe der Treffer-Zeilen (siehe
+  // trackReceiptScanForDashboard in js/bonscan.js). Die "Käufe"-Spalte zeigt
+  // die Anzahl nicht zugeordneter Zeilen; kommt der Betrag nur aus der
+  // Bon-Differenz (keine eigene Zeile), steht dort "–".
   if (unmatched) {
     const row = document.createElement("tr");
 
@@ -467,10 +476,10 @@ function renderTopArticles(bodyId, data, emptyText) {
     rankTd.textContent = "–";
 
     const nameTd = document.createElement("td");
-    nameTd.textContent = "Nicht zugeordnete Zeilen";
+    nameTd.textContent = "Nicht zugeordnet";
 
     const countTd = document.createElement("td");
-    countTd.textContent = String(unmatched.count);
+    countTd.textContent = unmatched.lineCount > 0 ? String(unmatched.lineCount) : "–";
 
     const shareTd = document.createElement("td");
     shareTd.textContent = unmatched.sharePct === null ? "–" : `${unmatched.sharePct} %`;

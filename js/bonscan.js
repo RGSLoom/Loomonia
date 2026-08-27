@@ -1152,7 +1152,7 @@ function matchReceiptText(text, configuredStores) {
     : `Echter Kauf erkannt 🧾`;
 
   setScanStatus("");
-  grantReceiptItems(matchedArticles, unmatchedArticles, categoryKey, storeText, receiptStoreId);
+  grantReceiptItems(matchedArticles, unmatchedArticles, categoryKey, storeText, receiptStoreId, receiptTotalCents);
 }
 
 // Bestimmt PRO Fuzzy-Treffer das zu vergebende Item: vorrangig das vom
@@ -1191,7 +1191,19 @@ function pickReceiptMatchRewards(matchedArticles) {
 // item_key: null (zaehlt im Dashboard als Umsatz, aber NICHT in die
 // Provision, siehe aggregateEvents()/aggregateAllTimeTotals() in
 // dashboard-render.js) -- diese Unterscheidung braucht kein eigenes Feld.
-function trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallbackCategoryKey, receiptStoreId) {
+//
+// Umsatz-Anker (printedTotalCents = auf dem Bon GEDRUCKTE Summe, siehe
+// findReceiptTotalCents): ist sie lesbar, wird der "nicht zugeordnete"
+// Umsatz NICHT mehr aus den einzelnen, oft von der OCR verstuemmelten
+// Zeilenpreisen aufsummiert, sondern als Differenz "gedruckte Summe minus
+// Summe der Treffer-Zeilen" in EINEM zusaetzlichen Rest-Event gefuehrt. Die
+// nicht zugeordneten Zeilen selbst werden dann ohne Betrag getrackt (nur
+// als Zeilenzahl fuer die Sammelzeile). Ergebnis: der pro Bon erfasste
+// Gesamtumsatz (Treffer + nicht zugeordnet) entspricht immer der gedruckten
+// Bon-Summe, unabhaengig davon, wie gut die einzelnen Zeilen lesbar waren.
+// Ohne lesbare Bon-Summe (printedTotalCents null) bleibt es beim bisherigen
+// Verhalten (jede nicht zugeordnete Zeile mit ihrem OCR-Preis).
+function trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallbackCategoryKey, receiptStoreId, printedTotalCents) {
   if (rewardedMatches.length === 0 && unmatchedArticles.length === 0) {
     // Kein einziger Kandidat gefunden (z.B. komplett unlesbares Foto) --
     // der Kaufversuch zaehlt trotzdem (Kaeuferzahl, "treuer_shopper"-Ziel
@@ -1231,21 +1243,47 @@ function trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallba
       productText: articleText,
     });
   });
+  // Anker-Modus nur mit lesbarer gedruckter Bon-Summe.
+  const anchor = typeof printedTotalCents === "number" && printedTotalCents > 0;
+  const matchedSumCents = rewardedMatches.reduce((sum, m) => sum + (m.amountCents || 0), 0);
+
   unmatchedArticles.forEach(({ articleText, amountCents, categoryKey }) => {
     trackEvent("item_receipt_scanned", {
       storeId: receiptStoreId,
       category: categoryKey,
       itemKey: null,
       rarity: null,
-      amountCents,
+      // Im Anker-Modus tragen die einzelnen nicht zugeordneten Zeilen KEINEN
+      // (oft falschen) OCR-Betrag mehr -- der nicht zugeordnete Umsatz kommt
+      // gesammelt aus dem Rest-Event unten. Sie zaehlen dann nur noch als
+      // Zeilenzahl fuer die Sammelzeile (product_text bleibt gesetzt).
+      amountCents: anchor ? null : amountCents,
       productText: articleText,
     });
   });
+
+  // Rest-Event: gedruckte Bon-Summe minus Summe der Treffer-Zeilen. Traegt
+  // KEINEN product_text -> zaehlt im Dashboard als nicht zugeordneter Umsatz,
+  // aber NICHT als eigene "Zeile" in der Sammelzeile (siehe
+  // countByProductText). Nur wenn wirklich eine positive Differenz bleibt.
+  if (anchor) {
+    const remainderCents = Math.max(0, printedTotalCents - matchedSumCents);
+    if (remainderCents > 0) {
+      trackEvent("item_receipt_scanned", {
+        storeId: receiptStoreId,
+        category: fallbackCategoryKey,
+        itemKey: null,
+        rarity: null,
+        amountCents: remainderCents,
+        productText: null,
+      });
+    }
+  }
 }
 
-function grantReceiptItems(matchedArticles, unmatchedArticles, fallbackCategoryKey, storeText, receiptStoreId) {
+function grantReceiptItems(matchedArticles, unmatchedArticles, fallbackCategoryKey, storeText, receiptStoreId, printedTotalCents) {
   const rewardedMatches = pickReceiptMatchRewards(matchedArticles);
-  trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallbackCategoryKey, receiptStoreId);
+  trackReceiptScanForDashboard(rewardedMatches, unmatchedArticles, fallbackCategoryKey, receiptStoreId, printedTotalCents);
 
   // Ab hier: die eigentliche Spiel-Belohnung (Item/XP/Trophaeen) und die
   // Erfolgs-Anzeige -- bewusst in try/catch, damit ein Fehler hier (z.B. in
