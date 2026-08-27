@@ -605,6 +605,33 @@ const RECEIPT_LINE_HAS_WORD = /[a-zA-ZÀ-ÿ]{2,}/;
 function findAllProductLines(text, excludeLines, maxAmountCents) {
   const lines = text.split(/\r?\n/).map((l) => l.trim());
   const found = [];
+
+  // ── Kopfzeilen-Zone komplett ueberspringen ────────────────────────────
+  // Alles VOR der ersten echten Artikelzeile (Store-Name, Eigenwerbung/
+  // Slogans wie dm "HIER BIN ICH MENSCH" / "HIER KAUF ICH EIN", Adresse,
+  // Telefon, Datum/Kassierer) ist fuer die Artikelerkennung irrelevant --
+  // die Kopfzeile dient AUSSCHLIESSLICH der Store-Zuordnung, und die laeuft
+  // voellig getrennt ueber extractReceiptHeaderText() (erste 6 Zeilen).
+  // Bisher wurde jede Kopfzeile einzeln per Wortliste abgewehrt
+  // (RECEIPT_STORE_PATTERNS/_ADDRESS_LINE/_COMPANY_SUFFIX ...), wodurch
+  // beliebige Werbe-/Slogantexte durchrutschten. Stattdessen strukturell:
+  // die Artikelzone beginnt bei der ersten Zeile mit einem artikeltypischen
+  // Preis (X,XX), die nicht selbst Summe/Steuer/Adresse ist -- Telefon-,
+  // Datums- und Slogannummern (z.B. "07641/9686900") passen nicht auf das
+  // Betragsmuster. Findet sich GAR kein Preis (sehr schlecht lesbares Foto),
+  // wird nichts uebersprungen -- lieber etwas Kopfzeilen-Rauschen als alle
+  // Artikel verlieren.
+  let articleZoneStart = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (l.length < 3) continue;
+    if (RECEIPT_TOTAL_KEYWORDS.test(l) || RECEIPT_NON_PRODUCT_LINE.test(l) || RECEIPT_ADDRESS_LINE.test(l)) continue;
+    if (extractLineAmountCents(l) !== null) {
+      articleZoneStart = i;
+      break;
+    }
+  }
+
   // Zeilen-Indizes, deren Preis bereits einem Kandidaten zugeordnet wurde --
   // eigener Preis genauso wie per Nachbarzeilen-Lookaround "geerbter" Preis.
   // Verhindert, dass eine nachfolgende, ebenfalls preislose Muellzeile (z.B.
@@ -623,6 +650,9 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (footerStarted) continue;
+    // Kopfzeilen-Zone (Store-Name, Slogans, Adresse, Telefon, Datum) --
+    // siehe articleZoneStart-Berechnung oben.
+    if (i < articleZoneStart) continue;
     if (line.length < 3) continue;
     if (excludeLines && excludeLines.has(line)) continue;
     if (RECEIPT_TOTAL_KEYWORDS.test(line)) {
