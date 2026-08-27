@@ -365,8 +365,10 @@ function formatAgo(ts) {
   return `vor ${days} Tag(en)`;
 }
 
-function renderTopItems(bodyId, topItems, emptyText) {
-  const body = document.getElementById(bodyId);
+// selector statt id: dieselbe Tabelle kann auf der Startseite UND im
+// Umsatz-Tab stehen (siehe setKpiText). Rendert in JEDES passende <tbody>.
+function renderTopItems(selector, topItems, emptyText) {
+  document.querySelectorAll(selector).forEach((body) => {
   body.innerHTML = "";
 
   if (topItems.length === 0) {
@@ -405,6 +407,7 @@ function renderTopItems(bodyId, topItems, emptyText) {
     row.appendChild(countCell);
     body.appendChild(row);
   });
+  });
 }
 
 // Anders als renderTopItems() kommt der Artikelname hier NICHT aus dem
@@ -414,19 +417,19 @@ function renderTopItems(bodyId, topItems, emptyText) {
 // innerHTML-Template gesetzt, damit ein praeparierter Bon (z.B. mit
 // "<img onerror=...>" als Produktname) niemals als HTML interpretiert
 // werden kann.
-function renderTopArticles(bodyId, data, emptyText) {
-  const body = document.getElementById(bodyId);
-  // dashboard-render.js wird auch von store-view.html genutzt, das (noch)
-  // keinen Artikel-Reiter hat -> dort existiert die Tabelle nicht, dann
-  // einfach nichts tun statt eines Fehlers, der renderStats() abbrechen
-  // wuerde.
-  if (!body) return;
-  body.innerHTML = "";
+// selector statt id -- rendert in JEDES passende <tbody> (Startseite +
+// Artikel-Tab), siehe renderTopItems.
+function renderTopArticles(selector, data, emptyText) {
+  const bodies = document.querySelectorAll(selector);
+  if (!bodies.length) return;
 
   // Abwaertskompatibel: frueher wurde hier ein flaches Array uebergeben,
   // jetzt { matched, unmatched } aus countByProductText().
   const matched = Array.isArray(data) ? data : (data && data.matched) || [];
   const unmatched = Array.isArray(data) ? null : data && data.unmatched;
+
+  bodies.forEach((body) => {
+  body.innerHTML = "";
 
   if (matched.length === 0 && !unmatched) {
     body.innerHTML = `<tr><td colspan="5" class="empty-note">${emptyText}</td></tr>`;
@@ -493,24 +496,40 @@ function renderTopArticles(bodyId, data, emptyText) {
     row.append(rankTd, nameTd, countTd, shareTd, statusTd);
     body.appendChild(row);
   }
+  });
+}
+
+// Rundet einen Rohwert auf eine "glatte" Obergrenze (1/2/5 * 10^n) -- damit
+// die Y-Achse lesbare Schritte bekommt statt eines krummen Maximums.
+function niceCeil(v) {
+  if (!(v > 0)) return 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const norm = v / mag;
+  const step = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+  return step * mag;
 }
 
 // series: [{ key, color }, ...] — welche Tages-Felder als Linien gezeichnet
 // werden. So teilen sich Aktivitaets- und Umsatz-Chart dieselbe Logik.
-function renderChart(svg, days, series) {
+// opts.formatY: Formatter fuer die Y-Achsen-Beschriftung (Default: ganze
+// Zahl; fuer den Umsatz-Chart z.B. formatEuro).
+function renderChart(svg, days, series, opts) {
+  opts = opts || {};
+  const formatY = opts.formatY || ((v) => String(Math.round(v)));
   const W = 640, H = 260;
-  const padL = 34, padR = 10, padT = 14, padB = 28;
+  const padL = 58, padR = 14, padT = 14, padB = 30;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 
-  const maxVal = Math.max(1, ...days.flatMap((d) => series.map((s) => d[s.key])));
-  const totalEvents = days.reduce((sum, d) => sum + series.reduce((s2, s) => s2 + d[s.key], 0), 0);
+  const rawMax = Math.max(0, ...days.flatMap((d) => series.map((s) => d[s.key] || 0)));
+  const totalEvents = days.reduce((sum, d) => sum + series.reduce((s2, s) => s2 + (d[s.key] || 0), 0), 0);
 
   if (totalEvents === 0) {
     svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="#85898f" font-size="14">Noch keine Daten — im Spiel einen Store besuchen, um hier Zahlen zu sehen.</text>`;
     return;
   }
 
+  const maxVal = niceCeil(rawMax);
   const xStep = days.length > 1 ? innerW / (days.length - 1) : 0;
   const toXY = (value, i) => {
     const x = padL + i * xStep;
@@ -518,69 +537,99 @@ function renderChart(svg, days, series) {
     return [x, y];
   };
 
-  const linePath = (key) =>
-    days.map((d, i) => toXY(d[key], i)).map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
-
-  let gridLines = "";
-  for (let g = 0; g <= 2; g++) {
-    const y = padT + (innerH / 2) * g;
-    gridLines += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#E1E6EE" stroke-width="1" />`;
+  // Y-Achse: 5 Schritte mit Wert-Beschriftung links (bisher fehlte die
+  // Y-Achse komplett -- man konnte die Groessenordnung des Charts nicht ablesen).
+  const TICKS = 5;
+  let grid = "";
+  let yLabels = "";
+  for (let t = 0; t <= TICKS; t++) {
+    const val = (maxVal / TICKS) * t;
+    const y = padT + innerH - (val / maxVal) * innerH;
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="#E1E6EE" stroke-width="1" />`;
+    yLabels += `<text x="${padL - 8}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#85898f">${formatY(val)}</text>`;
   }
+  grid += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT + innerH).toFixed(1)}" stroke="#C9D2E0" stroke-width="1" />`;
 
+  const linePath = (key) =>
+    days.map((d, i) => toXY(d[key] || 0, i)).map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const dots = (key, color) =>
+    days.map((d, i) => { const [x, y] = toXY(d[key] || 0, i); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="${color}" />`; }).join("");
+
+  // X-Achse: Datum, ~6 Beschriftungen ueber die 14 Tage plus immer der
+  // letzte Tag.
   let xLabels = "";
-  const labelEvery = Math.ceil(days.length / 5);
+  const labelEvery = Math.max(1, Math.ceil(days.length / 6));
   days.forEach((d, i) => {
     if (i % labelEvery !== 0 && i !== days.length - 1) return;
     const [x] = toXY(0, i);
     const label = d.date.slice(5).replace("-", ".");
-    xLabels += `<text x="${x}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#85898f">${label}</text>`;
+    xLabels += `<text x="${x.toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="10" fill="#85898f">${label}</text>`;
   });
 
   const paths = series
-    .map((s) => `<path d="${linePath(s.key)}" fill="none" stroke="${s.color}" stroke-width="2.5" />`)
+    .map((s) => `<path d="${linePath(s.key)}" fill="none" stroke="${s.color}" stroke-width="2.5" />${dots(s.key, s.color)}`)
     .join("");
 
-  svg.innerHTML = `${gridLines}${paths}${xLabels}`;
+  svg.innerHTML = `${grid}${yLabels}${paths}${xLabels}`;
+}
+
+// Setzt den Text ALLER Elemente mit data-kpi="<name>" -- dieselbe Kennzahl
+// kann dadurch gleichzeitig auf der Startseite UND im Umsatz-Tab stehen,
+// ohne doppelte id-Kollisionen (getElementById liefert nur das erste).
+function setKpiText(name, value) {
+  document.querySelectorAll(`[data-kpi="${name}"]`).forEach((el) => {
+    el.textContent = value;
+  });
 }
 
 function renderStats(data) {
   const kpis = data.kpis || {};
-  document.getElementById("kpi-players").textContent = kpis.playersToday ?? 0;
-  document.getElementById("kpi-items").textContent = kpis.itemsToday ?? 0;
-  document.getElementById("kpi-growth").textContent = formatGrowth(kpis.growthPct);
-  document.getElementById("kpi-last").textContent = formatAgo(kpis.lastEventTs);
-  document.getElementById("info-last-event").textContent = formatAgo(kpis.lastEventTs);
+  setKpiText("players", kpis.playersToday ?? 0);
+  setKpiText("items", kpis.itemsToday ?? 0);
+  setKpiText("growth", formatGrowth(kpis.growthPct));
+  setKpiText("last-item", formatAgo(kpis.lastEventTs));
+  const infoLast = document.getElementById("info-last-event");
+  if (infoLast) infoLast.textContent = formatAgo(kpis.lastEventTs);
 
-  document.getElementById("kpi-buyers").textContent = kpis.buyersToday ?? 0;
-  document.getElementById("kpi-purchase-items").textContent = kpis.purchaseItemsToday ?? 0;
-  document.getElementById("kpi-revenue").textContent = formatEuro(kpis.revenueCentsToday);
-  document.getElementById("kpi-unmatched-revenue").textContent = formatEuro(kpis.unmatchedRevenueCentsToday);
-  document.getElementById("kpi-provision").textContent = formatEuro(kpis.provisionCentsToday);
-  document.getElementById("kpi-purchase-last").textContent = formatAgo(kpis.lastReceiptTs);
+  setKpiText("buyers", kpis.buyersToday ?? 0);
+  setKpiText("purchase-items", kpis.purchaseItemsToday ?? 0);
+  setKpiText("revenue", formatEuro(kpis.revenueCentsToday));
+  setKpiText("unmatched-revenue", formatEuro(kpis.unmatchedRevenueCentsToday));
+  setKpiText("provision", formatEuro(kpis.provisionCentsToday));
+  setKpiText("last-receipt", formatAgo(kpis.lastReceiptTs));
 
-  renderChart(document.getElementById("chart-svg"), data.days || [], [
-    { key: "playersSelected", color: "#2656A3" },
-    { key: "freeItemsReceived", color: "#00354E" },
-  ]);
-  renderChart(document.getElementById("revenue-chart-svg"), data.days || [], [
-    { key: "revenueCents", color: "#2656A3" },
-    { key: "unmatchedRevenueCents", color: "#00354E" },
-  ]);
+  document.querySelectorAll('[data-chart="activity"]').forEach((svg) =>
+    renderChart(svg, data.days || [], [
+      { key: "playersSelected", color: "#2656A3" },
+      { key: "freeItemsReceived", color: "#00354E" },
+    ])
+  );
+  document.querySelectorAll('[data-chart="revenue"]').forEach((svg) =>
+    renderChart(
+      svg,
+      data.days || [],
+      [
+        { key: "revenueCents", color: "#2656A3" },
+        { key: "unmatchedRevenueCents", color: "#00354E" },
+      ],
+      { formatY: (v) => formatEuro(v) }
+    )
+  );
 
-  renderTopItems("top-items-body", data.topItems || [], "Noch keine Items vergeben.");
-  renderTopItems("top-purchase-items-body", data.topReceiptItems || [], "Noch keine Bon-Scans erfasst.");
+  renderTopItems('[data-table-body="top-items"]', data.topItems || [], "Noch keine Items vergeben.");
+  renderTopItems('[data-table-body="top-purchase-items"]', data.topReceiptItems || [], "Noch keine Bon-Scans erfasst.");
   renderTopArticles(
-    "top-articles-body",
+    '[data-table-body="top-articles"]',
     data.topArticles || { matched: [], unmatched: null },
     "Noch keine Artikel erkannt."
   );
 }
 
 function renderAllTimeStats(totals) {
-  document.getElementById("kpi-revenue-total").textContent = formatEuro(totals.revenueCents);
-  document.getElementById("kpi-unmatched-revenue-total").textContent = formatEuro(totals.unmatchedRevenueCents);
-  document.getElementById("kpi-buyers-total").textContent = totals.buyers ?? 0;
-  document.getElementById("kpi-provision-total").textContent = formatEuro(totals.provisionCents);
+  setKpiText("revenue-total", formatEuro(totals.revenueCents));
+  setKpiText("unmatched-revenue-total", formatEuro(totals.unmatchedRevenueCents));
+  setKpiText("buyers-total", totals.buyers ?? 0);
+  setKpiText("provision-total", formatEuro(totals.provisionCents));
 
   renderEventsTable(totals);
 }
