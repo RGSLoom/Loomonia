@@ -611,7 +611,7 @@ function findAllProductLines(text, excludeLines, maxAmountCents) {
   // Slogans wie dm "HIER BIN ICH MENSCH" / "HIER KAUF ICH EIN", Adresse,
   // Telefon, Datum/Kassierer) ist fuer die Artikelerkennung irrelevant --
   // die Kopfzeile dient AUSSCHLIESSLICH der Store-Zuordnung, und die laeuft
-  // voellig getrennt ueber extractReceiptHeaderText() (erste 6 Zeilen).
+  // voellig getrennt ueber extractReceiptHeaderText() (Kopf + Fuss).
   // Bisher wurde jede Kopfzeile einzeln per Wortliste abgewehrt
   // (RECEIPT_STORE_PATTERNS/_ADDRESS_LINE/_COMPANY_SUFFIX ...), wodurch
   // beliebige Werbe-/Slogantexte durchrutschten. Stattdessen strukturell:
@@ -920,14 +920,25 @@ function matchLineToConfiguredStores(lineText, configuredStores) {
 // nachjustierbar bleiben.
 const STORE_ADDRESS_MATCH_THRESHOLD = 0.6;
 
-// Erste paar Zeilen des Bons (Store-Name + Adresse stehen dort, siehe
-// RECEIPT_ADDRESS_LINE) als ein zusammenhaengender Text fuer den
-// Adressabgleich -- bewusst ein Textblock statt Zeile-fuer-Zeile, da nicht
-// sicher ist, auf welcher genauen Zeile die Adresse steht (manche Bons
-// haben den Store-Namen und die Adresse auf verschiedenen Zeilen, andere
-// zusammen).
+// Kopf- UND Fusszeilen des Bons als ein zusammenhaengender Textblock fuer
+// den Adressabgleich (addressTokenMatchScore ist tokenbasiert und
+// reihenfolge-unabhaengig -- ihm ist egal, wo im Block die Adresse steht,
+// Hauptsache sie ist drin).
+//
+// Warum auch der Fuss: NICHT jede Kette druckt die Filialadresse oben.
+// Rossmann z.B. hat im Kopf nur "ROSSMANN / Mein Drogeriemarkt / KdNr:" --
+// die eigentliche Adresse ("79194 Gundelfingen / Alte Bundesstr. 39") steht
+// ganz UNTEN im Bon-Fuss, zusammen mit USt-IdNr., Oeffnungszeiten und der
+// filialfinder-URL. Mit nur den ersten Zeilen wurde ein solcher Bon nie
+// einem Store zugeordnet -> die hinterlegte Artikelliste wurde nie geprueft,
+// alles landete als "nicht zugeordnet". Bewusst begrenzt auf Kopf + Fuss
+// (nicht der ganze Bon), damit die Artikelzeilen in der Mitte nicht
+// zufaellig Adress-Tokens eines FALSCHEN Stores liefern.
 function extractReceiptHeaderText(text) {
-  return text.split(/\r?\n/).slice(0, 6).join(" ");
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const head = lines.slice(0, 8);
+  const tail = lines.length > 8 ? lines.slice(-15) : [];
+  return [...head, ...tail].join(" ");
 }
 
 // Token-basierter Adressabgleich, bewusst NICHT articleSimilarity (Levenshtein
