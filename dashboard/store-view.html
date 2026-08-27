@@ -216,7 +216,7 @@
       <header class="content-header">
         <div>
           <h1>Artikel</h1>
-          <p class="content-sub">Bon-Zeilen, die per Fuzzy-Match gegen deine unten hinterlegte Artikelliste erkannt wurden, erscheinen hier namentlich mit deinem hinterlegten Artikelnamen (Status "Treffer"). Alles Übrige läuft in der einen Sammelzeile "Nicht zugeordnet" zusammen — nicht zugeordnete Bon-Zeilen plus die Differenz zwischen der auf dem Bon gedruckten Gesamtsumme und der Summe der Treffer. So entspricht der pro Bon erfasste Gesamtumsatz immer der gedruckten Bon-Summe. Der nicht zugeordnete Anteil zählt zum Umsatz, aber ohne Provision und ohne Item-Vergabe.</p>
+          <p class="content-sub">Bon-Zeilen, die per Fuzzy-Match gegen deine unten hinterlegte Artikelliste erkannt wurden, erscheinen hier namentlich mit deinem hinterlegten Artikelnamen (Status "Treffer"). Der gesamte Rest läuft in der einen Sammelzeile "Übriger Warenkorb" zusammen — nicht zugeordnete Bon-Zeilen plus die Differenz zwischen der auf dem Bon gedruckten Gesamtsumme und der Summe der Treffer. Treffer + übriger Warenkorb ergeben den erfassten Warenkorb (= gedruckte Bon-Summe). Der übrige Warenkorb zählt zum Umsatz, aber ohne Provision und ohne Item-Vergabe.</p>
         </div>
       </header>
 
@@ -334,7 +334,7 @@
 
 <script src="../js/supabase-config.js?v=1"></script>
 <script src="js/stores-config.js?v=7"></script>
-<script src="js/dashboard-render.js?v=9"></script>
+<script src="js/dashboard-render.js?v=10"></script>
 <script src="js/store-view.js?v=5"></script>
 </body>
 </html>

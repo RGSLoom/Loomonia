@@ -469,13 +469,15 @@ function renderTopArticles(selector, data, emptyText) {
     body.appendChild(row);
   });
 
-  // Eine einzige Sammelzeile fuer den gesamten nicht zugeordneten Umsatz --
-  // zaehlt zum erfassten Umsatz, aber ohne Provision/Item (item_key null).
-  // Das ist die Summe aus nicht zugeordneten Bon-Zeilen UND der Differenz
-  // zwischen gedruckter Bon-Summe und der Summe der Treffer-Zeilen (siehe
-  // trackReceiptScanForDashboard in js/bonscan.js). Die "Käufe"-Spalte zeigt
-  // die Anzahl nicht zugeordneter Zeilen; kommt der Betrag nur aus der
-  // Bon-Differenz (keine eigene Zeile), steht dort "–".
+  // Eine einzige Sammelzeile fuer den Rest des erfassten Warenkorbs, der
+  // KEINEM hinterlegten Artikel zugeordnet wurde -- zaehlt zum Umsatz, aber
+  // ohne Provision/Item (item_key null). Das ist die Summe aus nicht
+  // zugeordneten Bon-Zeilen UND der Differenz zwischen gedruckter Bon-Summe
+  // und der Summe der Treffer-Zeilen (siehe trackReceiptScanForDashboard in
+  // js/bonscan.js). Zusammen mit den Treffer-Zeilen darueber ergibt sie den
+  // erfassten Warenkorb. Die "Käufe"-Spalte zeigt die Anzahl nicht
+  // zugeordneter Zeilen; kommt der Betrag nur aus der Bon-Differenz (keine
+  // eigene Zeile), steht dort "–".
   if (unmatched) {
     const row = document.createElement("tr");
 
@@ -483,7 +485,7 @@ function renderTopArticles(selector, data, emptyText) {
     rankTd.textContent = "–";
 
     const nameTd = document.createElement("td");
-    nameTd.textContent = "Nicht zugeordnet";
+    nameTd.textContent = "Übriger Warenkorb (kein Treffer)";
 
     const countTd = document.createElement("td");
     countTd.textContent = unmatched.lineCount > 0 ? String(unmatched.lineCount) : "–";
