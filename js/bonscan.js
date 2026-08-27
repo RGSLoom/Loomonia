@@ -40,6 +40,107 @@ async function normalizeImageForOcr(source) {
   }
 }
 
+// ================= OCR: Cloud (OCR.space) zuerst, Tesseract als Fallback ====
+// Die reine In-Browser-Erkennung mit Tesseract.js liest Kassenbons (blasser
+// Thermodruck, Handyfoto) nur maessig -- real beobachtet: "Straße" wird zu
+// "5traBe", einzelne Artikelzeilen sind unbrauchbar, der Fuzzy-Abgleich
+// gegen die hinterlegte Artikelliste trifft dann nie. Deshalb laeuft der
+// Scan jetzt zuerst ueber die Edge Function "receipt-ocr" (OCR.space,
+// Deutsch, Beleg-taugliche Engine). Schlaegt das fehl (Secret nicht gesetzt,
+// offline, Kontingent leer, leeres Ergebnis), wird transparent auf das
+// bisherige Tesseract-"deu" zurueckgefallen -- der Scan darf daran nie
+// scheitern.
+const RECEIPT_OCR_URL = `${SUPABASE_URL}/functions/v1/receipt-ocr`;
+
+// OCR.space Free-Tier akzeptiert nur Bilddateien bis 1 MB. Wir komprimieren
+// das (bereits per normalizeImageForOcr vereinheitlichte) Foto vorher gezielt
+// darunter -- mit Sicherheitsabstand, sonst weist die API es ab.
+const CLOUD_OCR_MAX_BYTES = 900 * 1024;
+
+async function compressForCloudOcr(imageBlob) {
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(imageBlob);
+  } catch {
+    return imageBlob; // exotisches Format -- dann ungekuerzt weiterreichen, die API/der Fallback faengt es ab
+  }
+  // Von moderater Kantenlaenge aus schrittweise verkleinern/staerker
+  // komprimieren, bis das JPEG unter dem Free-Tier-Limit liegt. Die groebste
+  // Stufe ist noch gut lesbar (1200px lange Kante) -- Bons sind schmal.
+  const attempts = [
+    { maxDim: 2200, quality: 0.75 },
+    { maxDim: 1800, quality: 0.7 },
+    { maxDim: 1500, quality: 0.62 },
+    { maxDim: 1200, quality: 0.55 },
+  ];
+  let last = imageBlob;
+  for (const { maxDim, quality } of attempts) {
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const jpeg = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", quality));
+    if (!jpeg) break;
+    last = jpeg;
+    if (jpeg.size <= CLOUD_OCR_MAX_BYTES) return jpeg;
+  }
+  return last;
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result)); // "data:image/jpeg;base64,…"
+    reader.onerror = () => reject(reader.error || new Error("FileReader-Fehler"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function cloudOcrReceipt(imageBlob) {
+  const compressed = await compressForCloudOcr(imageBlob);
+  if (compressed && compressed.size > CLOUD_OCR_MAX_BYTES) {
+    // Selbst nach der staerksten Stufe noch zu gross -- gar nicht erst
+    // senden (spart einen sicheren Fehlversuch), Tesseract uebernimmt.
+    throw new Error("Foto auch nach Kompression über 1 MB");
+  }
+  const dataUrl = await blobToDataUrl(compressed);
+  const res = await fetch(RECEIPT_OCR_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+    body: JSON.stringify({ base64Image: dataUrl }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body && body.error ? body.error : `receipt-ocr HTTP ${res.status}`);
+  return (body && body.text) || "";
+}
+
+// Liefert den erkannten Bon-Rohtext. Immer in die Konsole geloggt (nicht nur
+// bei Fehlern) -- einzige Moeglichkeit, bei "Preis erkannt, aber falscher/
+// fehlender Artikel" nachzuvollziehen, was die OCR tatsaechlich gelesen hat.
+async function recognizeReceiptText(imageBlob) {
+  try {
+    const cloudText = await withTimeout(cloudOcrReceipt(imageBlob), 20000, "Cloud-OCR");
+    if (cloudText && cloudText.trim().length >= 3) {
+      console.log("Bon-OCR (Cloud / OCR.space):", cloudText);
+      return cloudText;
+    }
+    console.warn("Cloud-OCR lieferte kein brauchbares Ergebnis -- Fallback auf Tesseract.");
+  } catch (err) {
+    console.warn(
+      "Cloud-OCR nicht verfügbar, Fallback auf Tesseract:",
+      err && err.message ? err.message : err
+    );
+  }
+  // Fallback: nur "deu" (DACH-Raum). Tesseract mit mehreren Sprachmodellen
+  // gleichzeitig verschlechtert die Erkennung auf einem rein deutschen Bon
+  // spuerbar. Timeout als Absicherung, falls die OCR haengt (z.B.
+  // Sprachpaket-Download beim allerersten Scan bricht ab).
+  const result = await withTimeout(Tesseract.recognize(imageBlob, "deu"), 45000, "OCR");
+  console.log("Bon-OCR (Tesseract / deu):", result.data.text);
+  return result.data.text || "";
+}
+
 function openScanScreen() {
   resetScanUI();
   showScreen("screen-scan");
@@ -191,18 +292,11 @@ async function processReceiptImage(imageSource) {
     // -- kostet dadurch effektiv keine zusaetzliche Wartezeit.
     const storesPromise = loadConfiguredStores();
     const normalized = await normalizeImageForOcr(imageSource);
-    // deu+eng+nld: Bon kann auch im Ausland fotografiert werden (DE/EN/NL) —
-    // Tesseract erkennt damit alle drei gemeinsam statt nur Deutsch. Timeout
-    // als Absicherung, falls die OCR haengt (z.B. Sprachpaket-Download beim
-    // allerersten Scan bricht ab) — sonst bleibt der Screen fuer immer auf
-    // "Bon wird gelesen…" stehen.
-    const result = await withTimeout(Tesseract.recognize(normalized, "deu+eng+nld"), 45000, "OCR");
-    // Immer in die Konsole loggen (nicht nur bei Fehlern) -- einzige
-    // Moeglichkeit, bei einem "Preis erkannt, aber falscher/fehlender
-    // Artikel"-Fall nachzuvollziehen, was die OCR tatsaechlich gelesen hat,
-    // ohne dass extra ein Fehlerzustand ausgeloest werden muss.
-    console.log("Bon-OCR-Text:", result.data.text);
-    showBonOcrCopyButton(result.data.text);
+    // Cloud-OCR (OCR.space) zuerst, Tesseract "deu" nur als Fallback -- siehe
+    // recognizeReceiptText(). Der erkannte Rohtext wird darin bereits in die
+    // Konsole geloggt.
+    const text = await recognizeReceiptText(normalized);
+    showBonOcrCopyButton(text);
     const configuredStores = await storesPromise;
     // storeLocationsReady (js/map.js) wird erst aufgeloest, wenn STORE_LOCATIONS
     // die echten Adressen aus Supabase enthaelt statt des adresslosen
@@ -227,7 +321,7 @@ async function processReceiptImage(imageSource) {
     // ist einfacher/robuster als Tracking und Anzeige im Nachhinein zu
     // entkoppeln; der Nutzer kann den Bon jederzeit erneut scannen.
     if (scanCancelled) return;
-    matchReceiptText(result.data.text || "", configuredStores);
+    matchReceiptText(text || "", configuredStores);
   } catch (err) {
     console.warn("OCR fehlgeschlagen:", err && err.message ? err.message : err);
     setScanStatus("");

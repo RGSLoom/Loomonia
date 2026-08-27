@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.mapbox-token]
 verify_jwt = false
+
+[functions.receipt-ocr]
+verify_jwt = false

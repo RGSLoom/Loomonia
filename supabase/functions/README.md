@@ -144,3 +144,66 @@ die darunterliegende Mapbox-Karte (`#screen-map`) wird dabei nie entfernt
 oder neu erzeugt (kein `map.remove()`/Neuaufruf von `initMap()` beim
 Wechseln). Ein normaler Spieldurchlauf verursacht dadurch nur einen einzigen
 Kartenaufruf pro Sitzung, unabhängig davon, wie oft gefangen/gemalt wird.
+
+## receipt-ocr
+
+Liest Bon-Fotos per Cloud-OCR (OCR.space) aus, damit der Bon-Scan im Spiel
+Kassenzettel deutlich zuverlässiger erkennt als die bisherige reine
+In-Browser-Erkennung mit Tesseract.js. Tesseract (`deu`) bleibt als
+automatischer Fallback in `js/bonscan.js` — schlägt diese Function fehl
+(Secret nicht gesetzt, offline, Kontingent leer), läuft der Scan wie bisher.
+Bewusst öffentlich/ohne Admin-Check (jeder Spieler scannt Bons), siehe
+Kommentar in `receipt-ocr/index.ts`.
+
+### 1. Kostenlosen OCR.space-API-Key holen
+
+- Auf <https://ocr.space/ocrapi/freekey> die E-Mail-Adresse eintragen — der
+  Key kommt sofort per Mail. **Keine Kreditkarte, kein Abo.**
+- Free-Tier: 25.000 Anfragen/Monat, max. 1 MB pro Bild (der Client
+  komprimiert das Foto vorher automatisch darunter), zusätzlich ein
+  Tageslimit von 500 Anfragen pro ausgehender IP. Für den Prototyp/Demo
+  reicht das; bei echtem Traffic ggf. auf den kostenpflichtigen PRO-Plan
+  wechseln (dann nur den Secret-Wert austauschen, kein Code-Change nötig).
+
+### 2. Deploy + Secret setzen
+
+Mit Node/`npx` (wie die anderen Functions):
+
+```bash
+npx supabase functions deploy receipt-ocr --project-ref oztsymfskxaeonxqggfb
+npx supabase secrets set OCR_SPACE_API_KEY=<dein Key aus Schritt 1> --project-ref oztsymfskxaeonxqggfb
+```
+
+Ohne lokales Node — alles über das Supabase-Dashboard:
+
+- **Function-Code:** Dashboard → Edge Functions → „Deploy a new function" →
+  Name `receipt-ocr`, dann den kompletten Inhalt von
+  `supabase/functions/receipt-ocr/index.ts` in den Code-Editor einfügen und
+  deployen. (Die Datei importiert `../_shared/cors.ts` — falls das
+  Dashboard das nicht mitzieht, den Inhalt von
+  `supabase/functions/_shared/cors.ts` oben in die Datei kopieren und die
+  `import { corsHeaders } …`-Zeile entfernen.)
+- **Secret:** Dashboard → Project Settings → Edge Functions → „Add new
+  secret": Name `OCR_SPACE_API_KEY`, Wert = der Key aus Schritt 1.
+
+`verify_jwt = false` ist für diese Function bereits in
+`supabase/config.toml` hinterlegt (nötig, damit der Client sie ohne
+Login aufrufen kann — wie bei `mapbox-token`).
+
+### 3. Verifizieren
+
+```bash
+curl -s -X POST "https://oztsymfskxaeonxqggfb.supabase.co/functions/v1/receipt-ocr" \
+  -H "Content-Type: application/json" \
+  -d '{"base64Image":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="}'
+```
+
+- Key gesetzt → `{"text":""}` (das Testbild ist 1 leeres Pixel, also kein
+  Text — aber HTTP 200, kein Fehler).
+- Key noch nicht gesetzt → `{"error":"OCR_SPACE_API_KEY ist noch nicht als
+  Secret gesetzt."}` mit Status 500; der Bon-Scan im Spiel funktioniert dann
+  weiterhin über den Tesseract-Fallback.
+
+Danach im Spiel einen echten Bon scannen und in der Browser-Konsole prüfen,
+ob die Zeile `Bon-OCR (Cloud / OCR.space): …` erscheint (statt
+`Bon-OCR (Tesseract / deu): …`).
