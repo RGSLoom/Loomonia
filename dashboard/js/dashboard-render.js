@@ -505,14 +505,14 @@ function renderTopArticles(selector, data, emptyText) {
   });
 }
 
-// Rundet einen Rohwert auf eine "glatte" Obergrenze (1/2/5 * 10^n) -- damit
-// die Y-Achse lesbare Schritte bekommt statt eines krummen Maximums.
-function niceCeil(v) {
+// Rundet auf einen "glatten" Achsen-Schritt (1/2/5 * 10^n) auf -- damit die
+// Y-Achse lesbare, ganzzahlige Schritte bekommt. Wichtig bei kleinen
+// Wertebereichen (Max=1): fuenftel davon zu runden ergab sonst "0,0,0,1,1,1".
+function niceStep(v) {
   if (!(v > 0)) return 1;
   const mag = Math.pow(10, Math.floor(Math.log10(v)));
-  const norm = v / mag;
-  const step = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
-  return step * mag;
+  for (const m of [1, 2, 5]) if (v <= m * mag) return m * mag;
+  return 10 * mag;
 }
 
 // series: [{ key, color }, ...] — welche Tages-Felder als Linien gezeichnet
@@ -535,7 +535,15 @@ function renderChart(svg, days, series, opts) {
     return;
   }
 
-  const maxVal = niceCeil(rawMax);
+  // Achsen-Schritt auf einen glatten Wert aufrunden (Ziel ~5 Schritte) und
+  // das Maximum daran ausrichten -- inkl. etwas Kopfraum ("+1"), damit die
+  // Linie nie exakt am oberen Rand klebt. Ergibt bei ganzzahligen Daten
+  // (Spieler/Items) auch ganzzahlige Achsen-Beschriftungen.
+  // Math.max(1, Math.round(...)): alle Chart-Daten sind ganzzahlig (Anzahl
+  // bzw. Cent), ein Bruch-Schritt wie 0,5 wuerde sonst "0,0,1,1,..."-Labels
+  // erzeugen.
+  const step = Math.max(1, Math.round(niceStep((rawMax + 1) / 5)));
+  const maxVal = Math.max(step, Math.ceil((rawMax + 1) / step) * step);
   const xStep = days.length > 1 ? innerW / (days.length - 1) : 0;
   const toXY = (value, i) => {
     const x = padL + i * xStep;
@@ -543,13 +551,10 @@ function renderChart(svg, days, series, opts) {
     return [x, y];
   };
 
-  // Y-Achse: 5 Schritte mit Wert-Beschriftung links (bisher fehlte die
-  // Y-Achse komplett -- man konnte die Groessenordnung des Charts nicht ablesen).
-  const TICKS = 5;
+  // Y-Achse: Gitterlinien + Wert-Beschriftung links an jedem Schritt.
   let grid = "";
   let yLabels = "";
-  for (let t = 0; t <= TICKS; t++) {
-    const val = (maxVal / TICKS) * t;
+  for (let val = 0; val <= maxVal + 1e-9; val += step) {
     const y = padT + innerH - (val / maxVal) * innerH;
     grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="#E1E6EE" stroke-width="1" />`;
     yLabels += `<text x="${padL - 8}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#85898f">${formatY(val)}</text>`;
