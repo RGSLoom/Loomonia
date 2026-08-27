@@ -93,6 +93,20 @@ function defaultState() {
     // Mann_icon.png oder Frau_icon.png als Profil-Hero-Bild angezeigt wird.
     avatarGender: null,
     playerName: null,
+    // Account-weiter Sprachfortschritt (siehe Spracherwerb-Briefing +
+    // LANGUAGE_MODULES in js/data.js). EIN Fortschritt pro Spielstand, nicht
+    // pro Looma. totalPoints ist der Lebenszeit-Gesamtzaehler, die drei
+    // current*-Felder der laufende Stand (Modul 0..6, Kapitel 0..7, Punkte
+    // 0..pointsPerChapter-1). lastSeenModuleIndex steuert nur den
+    // "Neu"-Glow am Habitat-Sprachblock nach einem Stufenaufstieg (siehe
+    // markLanguageMilestoneSeen()).
+    languageProgress: {
+      totalPoints: 0,
+      currentModuleIndex: 0,
+      currentChapterIndex: 0,
+      pointsInCurrentChapter: 0,
+      lastSeenModuleIndex: 0,
+    },
   };
 }
 
@@ -133,6 +147,17 @@ if (gameState.activeCompanion && !gameState.activeCompanionInstanceId) {
 // Level 1 (xpToLevel(0) === 1).
 if (gameState.lastRewardedLevel === undefined) {
   gameState.lastRewardedLevel = xpToLevel(gameState.xp);
+}
+
+// Sprachfortschritt (siehe Spracherwerb-Briefing): Bestandsspielstaende von
+// vor diesem Feature haben das Feld noch nicht -> mit dem Startwert anlegen.
+// Auch defensiv gegen einen teilweise gespeicherten Stand (fehlende
+// Einzelfelder), damit addLanguagePoints()/getLanguageProgressView() nie auf
+// undefined stossen.
+if (!gameState.languageProgress || typeof gameState.languageProgress !== "object") {
+  gameState.languageProgress = defaultState().languageProgress;
+} else {
+  gameState.languageProgress = Object.assign(defaultState().languageProgress, gameState.languageProgress);
 }
 
 // Einmalige Entschaedigung fuer den naechsten Live-Deploy (User-Wunsch): 1x
@@ -310,6 +335,160 @@ function applyBoostItem(key) {
   removeItem(key);
   saveState();
   return { itemKey: key, text: resultText };
+}
+
+// ============ Sprachsystem der Loomas (Spracherwerb-Briefing) ============
+
+// Gibt das aktuell "hoechste" Modul zurueck (Index geklemmt auf die letzte
+// LANGUAGE_MODULES-Stufe), damit ein evtl. ueberlaufener Index nie ins Leere
+// greift.
+function currentLanguageModule() {
+  const idx = Math.min(
+    Math.max(gameState.languageProgress.currentModuleIndex, 0),
+    LANGUAGE_MODULES.length - 1
+  );
+  return LANGUAGE_MODULES[idx];
+}
+
+// True, sobald "Meisterhaft" (letztes Modul, letztes Kapitel, Kapitel voll)
+// erreicht ist -- ab dann nimmt der Fortschritt keine weiteren Punkte mehr
+// an (Punkt 7 der Akzeptanzkriterien: bleibt stabil, laeuft nicht ueber).
+function isLanguageMaxed() {
+  const lp = gameState.languageProgress;
+  const last = LANGUAGE_MODULES[LANGUAGE_MODULES.length - 1];
+  return (
+    lp.currentModuleIndex >= LANGUAGE_MODULES.length - 1 &&
+    lp.currentChapterIndex >= last.chaptersRequired - 1 &&
+    lp.pointsInCurrentChapter >= last.pointsPerChapter - 1
+  );
+}
+
+// Schreibt `points` Sprachpunkte auf den account-weiten Fortschritt gut
+// (siehe Pseudocode im Briefing). Ueberschusspunkte, die ein Kapitel voll
+// machen, fliessen ins naechste Kapitel (kein Verlust). 8 volle Kapitel
+// schliessen ein Modul ab und schalten das naechste frei; nach dem letzten
+// Modul wird sauber gekappt. Gibt ein Ereignis-Objekt fuer die UI zurueck:
+//   { chaptersCompleted, moduleUps: [neuerModulIndex, ...], maxedNow,
+//     alreadyMaxed, from, to }
+function addLanguagePoints(points) {
+  const lp = gameState.languageProgress;
+  const events = {
+    chaptersCompleted: 0,
+    moduleUps: [],
+    maxedNow: false,
+    alreadyMaxed: false,
+    from: { module: lp.currentModuleIndex, chapter: lp.currentChapterIndex },
+    to: null,
+  };
+
+  if (!points || points <= 0) {
+    events.to = { module: lp.currentModuleIndex, chapter: lp.currentChapterIndex };
+    return events;
+  }
+
+  if (isLanguageMaxed()) {
+    // Weiterhin auf den Lebenszeit-Zaehler, aber keine Stand-Aenderung mehr.
+    lp.totalPoints += points;
+    saveState();
+    events.alreadyMaxed = true;
+    events.to = { module: lp.currentModuleIndex, chapter: lp.currentChapterIndex };
+    return events;
+  }
+
+  lp.totalPoints += points;
+  lp.pointsInCurrentChapter += points;
+
+  // Solange das aktuelle Kapitel voll ist: Kapitel (und ggf. Modul)
+  // weiterschalten. Modul-Konfig wird pro Iteration frisch gelesen, damit
+  // je Modul unterschiedliche pointsPerChapter/chaptersRequired greifen.
+  while (lp.pointsInCurrentChapter >= currentLanguageModule().pointsPerChapter) {
+    const mod = currentLanguageModule();
+    lp.pointsInCurrentChapter -= mod.pointsPerChapter;
+    lp.currentChapterIndex += 1;
+    events.chaptersCompleted += 1;
+
+    if (lp.currentChapterIndex >= mod.chaptersRequired) {
+      lp.currentChapterIndex = 0;
+      lp.currentModuleIndex += 1;
+
+      if (lp.currentModuleIndex >= LANGUAGE_MODULES.length) {
+        // "Meisterhaft" erreicht -> auf letztes Modul / letztes Kapitel /
+        // Kapitel voll klemmen und abbrechen (kein Overflow).
+        const lastIdx = LANGUAGE_MODULES.length - 1;
+        const last = LANGUAGE_MODULES[lastIdx];
+        lp.currentModuleIndex = lastIdx;
+        lp.currentChapterIndex = last.chaptersRequired - 1;
+        lp.pointsInCurrentChapter = last.pointsPerChapter - 1;
+        events.maxedNow = true;
+        break;
+      }
+
+      events.moduleUps.push(lp.currentModuleIndex);
+    }
+  }
+
+  saveState();
+  events.to = { module: lp.currentModuleIndex, chapter: lp.currentChapterIndex };
+  return events;
+}
+
+// Setzt ein Sprachbuch aus dem Inventar ein: schreibt seine languagePoints
+// sofort gut und verbraucht das Item. Gibt bei Erfolg das Ereignis-Objekt
+// von addLanguagePoints() ergaenzt um { itemKey, book } zurueck, bei bereits
+// voll gemeistertem Fortschritt ein { blocked: true, text } (Item bleibt
+// dann erhalten -- verschenken bringt nichts), sonst null.
+function applyLanguageBook(key) {
+  const item = ITEMS[key];
+  if (!item || item.type !== "Verbrauchbar" || item.usage_context !== "sprachbuch") return null;
+  if (!item.languagePoints || item.languagePoints <= 0) return null;
+  if ((gameState.inventory[key] || 0) < 1) return null;
+
+  if (isLanguageMaxed()) {
+    return {
+      itemKey: key,
+      blocked: true,
+      text: `Sprachfortschritt bereits gemeistert — ${item.name} nicht verbraucht`,
+    };
+  }
+
+  const events = addLanguagePoints(item.languagePoints);
+  removeItem(key);
+  saveState();
+  return Object.assign(events, { itemKey: key, book: item });
+}
+
+// Aufbereiteter Stand fuer die Habitat-Anzeige (siehe renderHabitatContent()
+// in js/profile.js). "Kapitel X von 8" ist 1-basiert fuer die Anzeige, der
+// gespeicherte Index bleibt 0-basiert.
+function getLanguageProgressView() {
+  const lp = gameState.languageProgress;
+  const mod = currentLanguageModule();
+  const maxed = isLanguageMaxed();
+  const pointsInChapter = maxed ? mod.pointsPerChapter : lp.pointsInCurrentChapter;
+  const pct = Math.max(0, Math.min(100, Math.round((pointsInChapter / mod.pointsPerChapter) * 100)));
+  return {
+    moduleIndex: lp.currentModuleIndex,
+    cefrKey: mod.cefrKey,
+    displayName: mod.displayName,
+    chapterHuman: Math.min(lp.currentChapterIndex + 1, mod.chaptersRequired),
+    chaptersRequired: mod.chaptersRequired,
+    pointsInChapter,
+    pointsPerChapter: mod.pointsPerChapter,
+    pct,
+    isMax: maxed,
+    // Stufenaufstieg seit dem letzten Habitat-Besuch -> "Neu"-Glow.
+    isNew: lp.currentModuleIndex > (lp.lastSeenModuleIndex || 0),
+  };
+}
+
+// Merkt den aktuellen Modul-Index als "gesehen" -> loescht den "Neu"-Glow
+// am Habitat-Sprachblock. Wird beim Oeffnen des Habitat-Screens aufgerufen.
+function markLanguageMilestoneSeen() {
+  const lp = gameState.languageProgress;
+  if ((lp.lastSeenModuleIndex || 0) !== lp.currentModuleIndex) {
+    lp.lastSeenModuleIndex = lp.currentModuleIndex;
+    saveState();
+  }
 }
 
 // Vergibt die garantierten Level-Belohnungen (siehe LEVEL_REWARDS-Kommentar

@@ -316,6 +316,10 @@ function showItemDetail(key) {
   if (item.type === "Verbrauchbar" && owned > 0) {
     if (item.usage_context === "jederzeit") {
       useBtnHtml = `<button id="btn-item-use" class="primary-btn" style="margin-top:14px;">Verwenden</button>`;
+    } else if (item.usage_context === "sprachbuch") {
+      // Sprachbuch einsetzen -> Punkte sofort auf den account-weiten
+      // Sprachfortschritt (siehe applyLanguageBook() in js/state.js).
+      useBtnHtml = `<button id="btn-item-use-language" class="primary-btn" style="margin-top:14px;">Verwenden</button>`;
     } else if (item.usage_context === "fangsystem_only") {
       useBtnHtml = `<div class="item-detail-usage-hint">Nur während eines aktiven Fangversuchs nutzbar</div>`;
     }
@@ -358,6 +362,30 @@ function showItemDetail(key) {
       const result = applyBoostItem(key);
       if (!result) return;
       showToast(`${result.blocked ? "⚠️" : "✅"} ${result.text}`);
+      updateCaughtCounter();
+      if ((gameState.inventory[key] || 0) > 0) {
+        showItemDetail(key);
+      } else {
+        content.innerHTML = renderItemsGrid();
+        attachItemGridHandlers();
+      }
+    });
+  }
+  const useLangBtn = document.getElementById("btn-item-use-language");
+  if (useLangBtn) {
+    useLangBtn.addEventListener("click", () => {
+      const result = applyLanguageBook(key);
+      if (!result) return;
+      if (result.blocked) {
+        showToast(`⚠️ ${result.text}`);
+      } else {
+        const lang = getLanguageProgressView();
+        showToast(`✅ +${result.book.languagePoints} Sprachpunkte · ${lang.displayName}, Kapitel ${lang.chapterHuman}/${lang.chaptersRequired} (${lang.pointsInChapter}/${lang.pointsPerChapter})`);
+        // Stufenaufstieg = sichtbarer Meilenstein -> groesseres Feedback.
+        if (result.moduleUps.length > 0) {
+          showLanguageModuleUp(result.moduleUps[result.moduleUps.length - 1]);
+        }
+      }
       updateCaughtCounter();
       if ((gameState.inventory[key] || 0) > 0) {
         showItemDetail(key);
@@ -635,6 +663,29 @@ function renderHabitatContent() {
   const habitatElement = habitatElementForCreature(companion);
   const habitatInfo = HABITATS.find((h) => h.element === habitatElement);
 
+  // Account-weiter Sprachfortschritt (siehe Spracherwerb-Briefing) -- laut
+  // User direkt im Habitat-Fenster bei den Kampfwerten, ueber dem
+  // Ausgeruht-Status. Zeigt den Klartext-Namen der Stufe (nie "A1"/"B2"),
+  // "Kapitel X von 8" und den Punktebalken des aktuellen Kapitels. Nach
+  // einem Stufenaufstieg kurz per .habitat-language--new hervorgehoben, bis
+  // der Habitat-Screen einmal geoeffnet wurde (markLanguageMilestoneSeen()).
+  const lang = getLanguageProgressView();
+  // "Neu"-Glow gilt fuer diesen einen Aufbau des Habitat-Fensters -- danach
+  // als gesehen markieren, damit ein Re-Render / der naechste Besuch ihn
+  // nur nach einem WEITEREN Stufenaufstieg wieder zeigt.
+  markLanguageMilestoneSeen();
+  const langBlock = `
+        <div class="habitat-language${lang.isNew ? " habitat-language--new" : ""}">
+          <div class="habitat-language-top">
+            <span class="habitat-language-name">🗣️ ${lang.displayName}${lang.isMax ? " · MAX" : ""}${lang.isNew ? ' <span class="habitat-language-badge">Neu</span>' : ""}</span>
+            <span class="habitat-language-chapter">Kapitel ${lang.chapterHuman} von ${lang.chaptersRequired}</span>
+          </div>
+          <div class="habitat-language-barrow">
+            <div class="habitat-language-bar"><div class="habitat-language-fill" style="width:${lang.pct}%"></div></div>
+            <span class="habitat-language-count">${lang.pointsInChapter} / ${lang.pointsPerChapter}</span>
+          </div>
+        </div>`;
+
   return `
     <div class="habitat-window glass" data-habitat-element="${habitatElement}">
       <span class="habitat-window-element-badge">${habitatInfo.icon} ${habitatInfo.element}</span>
@@ -650,12 +701,32 @@ function renderHabitatContent() {
           <span>🛡️ ${formatNumber(stats.verteidigung)}</span>
           <span>❤️ ${formatNumber(stats.gesundheit)}</span>
         </div>
+        ${langBlock}
         <div class="habitat-stats-rested">
           <span class="habitat-stats-rested-label">${isResting ? "😴 Ausgeruht" : "🌤️ Wach"}</span>
           <div class="habitat-rested-bar"><div class="habitat-rested-fill" style="width:${pct}%"></div></div>
         </div>
       </div>
     </div>`;
+}
+
+// Groesseres Feedback bei einem Sprach-Stufenaufstieg (Modul abgeschlossen,
+// siehe Spracherwerb-Briefing "vergleichbar mit einem Level-Up"). Nutzt das
+// bestehende .quest-modal-Overlay-System (siehe #language-levelup-modal in
+// index.html). Kapitelabschluesse bekommen nur den Toast in der
+// Einsetzen-Aktion, nicht dieses Modal.
+function showLanguageModuleUp(moduleIndex) {
+  const modal = document.getElementById("language-levelup-modal");
+  if (!modal) return;
+  const mod = LANGUAGE_MODULES[Math.min(Math.max(moduleIndex, 0), LANGUAGE_MODULES.length - 1)];
+  const isFinal = moduleIndex >= LANGUAGE_MODULES.length - 1;
+  document.getElementById("language-levelup-title").textContent = isFinal
+    ? "🗣️ Sprach-Meisterschaft erreicht!"
+    : "🗣️ Sprach-Stufenaufstieg!";
+  document.getElementById("language-levelup-text").textContent = isFinal
+    ? `Deine Loomas verstehen dich jetzt vollständig — Stufe „${mod.displayName}" ist gemeistert.`
+    : `Neue Stufe freigeschaltet: „${mod.displayName}". Deine Loomas verstehen dich ein Stück besser.`;
+  modal.classList.remove("hidden");
 }
 
 // Checkmark fuer erledigte Zeilen -- eigenes kleines Icon statt TROPHY_ICON_PATH

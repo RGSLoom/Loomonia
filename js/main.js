@@ -159,6 +159,7 @@ function initDevTools() {
   // Testitem wieder "hidden" im Markup bekommen, hier den Selector auf
   // ".dev-btn" zurueckstellen, um wieder alle drei gemeinsam zu steuern.
   document.getElementById("btn-test-bonscan").classList.toggle("hidden", !enabled);
+  document.getElementById("btn-test-sprachbuch").classList.toggle("hidden", !enabled);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -239,6 +240,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("btn-quest-modal-close").addEventListener("click", () => {
     document.getElementById("quest-modal").classList.add("hidden");
+  });
+  document.getElementById("btn-language-levelup-close").addEventListener("click", () => {
+    document.getElementById("language-levelup-modal").classList.add("hidden");
   });
 
   // Fangszene — Druecken/Loslassen ist ueberall in der Szene erlaubt (nicht
@@ -391,5 +395,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // Tutorial-Quest/Trophaee ohne echten Papierbon testen.
   document.getElementById("btn-test-bonscan").addEventListener("click", () => {
     matchReceiptText("STOREWALK DEV TESTBON");
+  });
+  // Dev: je 1 Sprachbuch pro Farbe ins Inventar (Debug-Weg laut
+  // Spracherwerb-Briefing) -- danach im Items-Screen ueber "Verwenden"
+  // testbar.
+  document.getElementById("btn-test-sprachbuch").addEventListener("click", () => {
+    ["sprachbuch", "sprachbuch_gruen", "sprachbuch_blau"].forEach((key) => addItem(key));
+    showToast("✅ Dev: je 1 Sprachbuch (Weiß/Grün/Blau) erhalten");
+    updateCaughtCounter();
   });
 });

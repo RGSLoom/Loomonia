@@ -309,6 +309,33 @@ const RARITY_COLORS = {
 // Array statt als Lookup, weil hier die Reihenfolge selbst die Nutzlast ist.
 const RARITY_ORDER = ["Gewöhnlich", "Ungewöhnlich", "Selten", "Episch", "Legendär"];
 
+// ============ Sprachsystem der Loomas (Spracherwerb-Briefing) ============
+// EIN account-weiter Fortschrittsbalken (kein Fortschritt pro Looma), gefuellt
+// ueber Sprachbuch-Items (siehe ITEMS.sprachbuch* + applyLanguageBook() in
+// js/state.js). 7 Module (angelehnt an CEFR A1..C2), je 8 Kapitel a 100
+// Sprachpunkte -> 5600 Punkte bis "Meisterhaft". Diese Liste ist die
+// Konfiguration aus dem Briefing (dort als Supabase-Tabelle language_modules
+// gedacht) -- da dieser Prototyp keinen Account-/Backend-Sync fuer den
+// Spielerzustand hat (alles laeuft ueber localStorage/gameState), liegt sie
+// hier als datengetriebene Liste wie CREATURES/ITEMS/TROPHIES: Kapitelanzahl,
+// Punktebedarf und Klartext-Namen lassen sich hier aendern, ohne sonstigen
+// Code anzufassen. `cefrKey` ist NUR interner Schluessel und darf nie als
+// sichtbarer Text im Spiel erscheinen -- angezeigt wird ausschliesslich
+// `displayName`.
+const LANGUAGE_MODULES = [
+  { moduleIndex: 0, cefrKey: "a1",      displayName: "Anfänger",                     chaptersRequired: 8, pointsPerChapter: 100 },
+  { moduleIndex: 1, cefrKey: "a2",      displayName: "Fortgeschrittener Anfänger",   chaptersRequired: 8, pointsPerChapter: 100 },
+  { moduleIndex: 2, cefrKey: "b1",      displayName: "Mittelstufe",                  chaptersRequired: 8, pointsPerChapter: 100 },
+  { moduleIndex: 3, cefrKey: "b2",      displayName: "Fortgeschrittene Mittelstufe", chaptersRequired: 8, pointsPerChapter: 100 },
+  { moduleIndex: 4, cefrKey: "b2_plus", displayName: "Obere Mittelstufe",            chaptersRequired: 8, pointsPerChapter: 100 },
+  { moduleIndex: 5, cefrKey: "c1",      displayName: "Fortgeschritten",              chaptersRequired: 8, pointsPerChapter: 100 },
+  { moduleIndex: 6, cefrKey: "c2",      displayName: "Meisterhaft",                  chaptersRequired: 8, pointsPerChapter: 100 },
+];
+
+// Farbskala der Sprachbuecher (eigene, kleinere Skala als die allgemeine
+// Item-Seltenheit) -> Sprachpunkte pro Buch. Siehe ITEMS.sprachbuch* unten.
+const LANGUAGE_BOOK_POINTS = { "Weiß": 5, "Grün": 10, "Blau": 20 };
+
 // ============ Looma-Level-System ============
 // Siehe Level-System-Briefing. Baut auf dem Habitat-Briefing auf (Rested-XP
 // wirkt NICHT auf den Levelaufstieg selbst, siehe isActiveCompanionMaxLevel()
@@ -734,19 +761,56 @@ const ITEMS = {
     effectValue: 0.1,
     effectDurationMs: 10 * 60 * 1000,
   },
+  // ============ Sprachbuecher (Spracherwerb-Briefing) ============
+  // Verbrauchsitems, die beim Einsetzen sofort Sprachpunkte auf den
+  // account-weiten Sprachfortschritt gutschreiben (siehe applyLanguageBook()
+  // in js/state.js + LANGUAGE_MODULES in data.js). Eigene kleine Farbskala
+  // (Weiss 5 / Gruen 10 / Blau 20 Punkte) ueber `bookColor`/`languagePoints`
+  // -- unabhaengig von der allgemeinen Item-Seltenheit `rarity` (die nur die
+  // Sortierung im Items-Screen steuert). `usage_context: "sprachbuch"` gibt
+  // ihnen in profile.js einen echten "Verwenden"-Button.
+  // `sprachbuch` ist die bestehende Weiss-Stufe (Key unveraendert, damit
+  // Bestandsinventare + Drop-/Trophaeen-Pools weiter passen), die beiden
+  // anderen Farben kommen neu dazu. Alle drei teilen sich vorerst dasselbe
+  // Platzhalter-Icon -- finale Grafik pro Farbe einfach ins `icon`-Feld.
   sprachbuch: {
     key: "sprachbuch",
-    name: "Sprachbuch",
+    name: "Sprachbuch (Weiß)",
     rarity: "Gewöhnlich",
     xp: 15,
     icon: "assets/items/sprachbuch_icon.png",
     type: "Verbrauchbar",
-    effect: "+5 % Punkte in menschlicher Sprache",
+    effect: "+5 Sprachpunkte für den Spracherwerb deiner Loomas",
     unlockText: "Kostenloser Drop an Standorten",
-    // Bewusst OHNE usage_context/effectType: laut User fuer eine kuenftige
-    // Story-Mechanik gedacht (Loomas verstehen koennen), noch nicht
-    // umgesetzt -- daher aktuell kein Verwenden-Button und kein
-    // "nur im Fangsystem"-Hinweis, einfach ein passives Sammel-/Lore-Item.
+    usage_context: "sprachbuch",
+    bookColor: "Weiß",
+    languagePoints: 5,
+  },
+  sprachbuch_gruen: {
+    key: "sprachbuch_gruen",
+    name: "Sprachbuch (Grün)",
+    rarity: "Ungewöhnlich",
+    xp: 20,
+    icon: "assets/items/sprachbuch_icon.png",
+    type: "Verbrauchbar",
+    effect: "+10 Sprachpunkte für den Spracherwerb deiner Loomas",
+    unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "sprachbuch",
+    bookColor: "Grün",
+    languagePoints: 10,
+  },
+  sprachbuch_blau: {
+    key: "sprachbuch_blau",
+    name: "Sprachbuch (Blau)",
+    rarity: "Selten",
+    xp: 30,
+    icon: "assets/items/sprachbuch_icon.png",
+    type: "Verbrauchbar",
+    effect: "+20 Sprachpunkte für den Spracherwerb deiner Loomas",
+    unlockText: "Kostenloser Drop an Standorten",
+    usage_context: "sprachbuch",
+    bookColor: "Blau",
+    languagePoints: 20,
   },
   energiesnack: {
     key: "energiesnack",
