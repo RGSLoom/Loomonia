@@ -279,6 +279,10 @@ function aggregateEvents(events, daysWindow) {
       realItemsReceived: receiptEvents.filter((e) => e.item_key).length,
       revenueCents,
       unmatchedRevenueCents,
+      // Erfasster Warenkorb = kompletter ueber Loomonia gemessener Bon-Wert
+      // (Treffer + nicht zugeordnet). Entspricht pro Bon der gedruckten
+      // Bon-Summe (siehe Umsatz-Anker in js/bonscan.js).
+      basketCents: revenueCents + unmatchedRevenueCents,
       provisionCents,
     };
   });
@@ -562,7 +566,9 @@ function renderChart(svg, days, series, opts) {
   days.forEach((d, i) => {
     if (i % labelEvery !== 0 && i !== days.length - 1) return;
     const [x] = toXY(0, i);
-    const label = d.date.slice(5).replace("-", ".");
+    // d.date ist YYYY-MM-DD -> Label als TT.MM. (deutsche Schreibweise).
+    const [, mm, dd] = d.date.split("-");
+    const label = `${dd}.${mm}.`;
     xLabels += `<text x="${x.toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="10" fill="#85898f">${label}</text>`;
   });
 
@@ -594,6 +600,9 @@ function renderStats(data) {
   setKpiText("buyers", kpis.buyersToday ?? 0);
   setKpiText("purchase-items", kpis.purchaseItemsToday ?? 0);
   setKpiText("revenue", formatEuro(kpis.revenueCentsToday));
+  const basketToday = (kpis.revenueCentsToday || 0) + (kpis.unmatchedRevenueCentsToday || 0);
+  setKpiText("basket", formatEuro(basketToday));
+  // Bestand halten, falls irgendwo noch eine "nicht zugeordnet"-Kachel steht.
   setKpiText("unmatched-revenue", formatEuro(kpis.unmatchedRevenueCentsToday));
   setKpiText("provision", formatEuro(kpis.provisionCentsToday));
   setKpiText("last-receipt", formatAgo(kpis.lastReceiptTs));
@@ -604,13 +613,15 @@ function renderStats(data) {
       { key: "freeItemsReceived", color: "#00354E" },
     ])
   );
+  // Umsatz-Chart: erfasster Warenkorb (gesamter Bon-Wert) und der davon auf
+  // hinterlegte Artikel entfallende Treffer-Anteil.
   document.querySelectorAll('[data-chart="revenue"]').forEach((svg) =>
     renderChart(
       svg,
       data.days || [],
       [
+        { key: "basketCents", color: "#00354E" },
         { key: "revenueCents", color: "#2656A3" },
-        { key: "unmatchedRevenueCents", color: "#00354E" },
       ],
       { formatY: (v) => formatEuro(v) }
     )
@@ -627,6 +638,10 @@ function renderStats(data) {
 
 function renderAllTimeStats(totals) {
   setKpiText("revenue-total", formatEuro(totals.revenueCents));
+  setKpiText(
+    "basket-total",
+    formatEuro((totals.revenueCents || 0) + (totals.unmatchedRevenueCents || 0))
+  );
   setKpiText("unmatched-revenue-total", formatEuro(totals.unmatchedRevenueCents));
   setKpiText("buyers-total", totals.buyers ?? 0);
   setKpiText("provision-total", formatEuro(totals.provisionCents));

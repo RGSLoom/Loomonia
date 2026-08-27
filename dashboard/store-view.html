@@ -83,22 +83,22 @@
       <div class="kpi-group-label">Umsatz heute</div>
       <div class="kpi-row">
         <div class="kpi-card">
+          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16l-1.4 11a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8L4 8Z"/><path d="M8 8 12 3l4 5"/><path d="M9.5 12v4M14.5 12v4"/></svg></div>
+          <div class="kpi-value" data-kpi="basket">–</div>
+          <div class="kpi-label">Erfasster Warenkorb heute (alle Bon-Positionen)</div>
+        </div>
+        <div class="kpi-card">
           <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7a7.5 7.5 0 1 0 0 10"/><path d="M6 10h9M6 14h7"/></svg></div>
           <div class="kpi-value" data-kpi="revenue">–</div>
-          <div class="kpi-label">Umsatz heute (Treffer)</div>
+          <div class="kpi-label">Davon Treffer heute (hinterlegte Artikel)</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M7 8h7a3 3 0 0 1 0 6H7"/></svg></div>
+          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div>
           <div class="kpi-value" data-kpi="provision">–</div>
-          <div class="kpi-label">Provision heute (1 % vom Treffer-Umsatz)</div>
+          <div class="kpi-label">Provision heute (1 % der Treffer)</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7a7.5 7.5 0 1 0 0 10"/><path d="M6 10h9M6 14h7"/><path d="M4 4l16 16"/></svg></div>
-          <div class="kpi-value" data-kpi="unmatched-revenue">–</div>
-          <div class="kpi-label">Nicht zugeordneter Umsatz heute</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg></div>
+          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg></div>
           <div class="kpi-value" data-kpi="buyers">–</div>
           <div class="kpi-label">Käufer heute (Bon gescannt)</div>
         </div>
@@ -109,8 +109,8 @@
           <div class="card-title">Umsatzverlauf <span class="card-title-sub">Letzte 14 Tage · € pro Tag</span></div>
           <svg data-chart="revenue" viewBox="0 0 640 260" class="chart-svg"></svg>
           <div class="chart-legend">
-            <span><i class="dot dot-primary"></i> Umsatz (Treffer, €)</span>
-            <span><i class="dot dot-secondary"></i> Nicht zugeordnet (€)</span>
+            <span><i class="dot dot-secondary"></i> Erfasster Warenkorb (€)</span>
+            <span><i class="dot dot-primary"></i> Davon Treffer (€)</span>
           </div>
         </div>
 
@@ -246,7 +246,7 @@
       <header class="content-header">
         <div>
           <h1>Umsatz</h1>
-          <p class="content-sub">Verifizierte Käufe per Kassenbon-Foto. "Umsatz (Treffer)" zählt Bon-Zeilen, die per OCR unscharf gegen deine hinterlegte Artikelliste (siehe Artikel-Tab) erkannt wurden — nur diese fließen in die Provision ein. "Nicht zugeordneter Umsatz" sind zusätzlich erkannte Positionen ohne passenden hinterlegten Artikel: zählt zum vollständigen erfassten Umsatz, aber ohne Provision und ohne Item-Vergabe.</p>
+          <p class="content-sub">Verifizierte Käufe per Kassenbon-Foto. "Erfasster Warenkorb" ist der komplette über Loomonia gemessene Bon-Wert (entspricht pro Bon der gedruckten Gesamtsumme). "Umsatz (Treffer)" ist der Anteil davon, der auf per OCR erkannte, in deiner Artikelliste (siehe Artikel-Tab) hinterlegte Artikel entfällt — nur daraus wird die Provision (1 %) berechnet und ein Item vergeben.</p>
         </div>
         <div id="today-date-umsatz" class="today-date">–</div>
       </header>
@@ -264,19 +264,19 @@
           <div class="kpi-label">Items aus echten Käufen heute</div>
         </div>
         <div class="kpi-card">
+          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16l-1.4 11a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8L4 8Z"/><path d="M8 8 12 3l4 5"/><path d="M9.5 12v4M14.5 12v4"/></svg></div>
+          <div class="kpi-value" data-kpi="basket">–</div>
+          <div class="kpi-label">Erfasster Warenkorb heute (alle Bon-Positionen)</div>
+        </div>
+        <div class="kpi-card">
           <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7a7.5 7.5 0 1 0 0 10"/><path d="M6 10h9M6 14h7"/></svg></div>
           <div class="kpi-value" data-kpi="revenue">–</div>
-          <div class="kpi-label">Umsatz heute (Treffer)</div>
+          <div class="kpi-label">Davon Treffer heute (hinterlegte Artikel)</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7a7.5 7.5 0 1 0 0 10"/><path d="M6 10h9M6 14h7"/></svg></div>
-          <div class="kpi-value" data-kpi="unmatched-revenue">–</div>
-          <div class="kpi-label">Nicht zugeordneter Umsatz heute</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div>
+          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div>
           <div class="kpi-value" data-kpi="provision">–</div>
-          <div class="kpi-label">Provision heute (1 % vom Treffer-Umsatz)</div>
+          <div class="kpi-label">Provision heute (1 % der Treffer)</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
@@ -288,22 +288,22 @@
       <div class="kpi-group-label">Gesamt seit Erfassungsbeginn</div>
       <div class="kpi-row">
         <div class="kpi-card">
+          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16l-1.4 11a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8L4 8Z"/><path d="M8 8 12 3l4 5"/><path d="M9.5 12v4M14.5 12v4"/></svg></div>
+          <div class="kpi-value" data-kpi="basket-total">–</div>
+          <div class="kpi-label">Erfasster Warenkorb gesamt</div>
+        </div>
+        <div class="kpi-card">
           <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7a7.5 7.5 0 1 0 0 10"/><path d="M6 10h9M6 14h7"/></svg></div>
           <div class="kpi-value" data-kpi="revenue-total">–</div>
-          <div class="kpi-label">Umsatz gesamt (Treffer)</div>
+          <div class="kpi-label">Davon Treffer gesamt</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7a7.5 7.5 0 1 0 0 10"/><path d="M6 10h9M6 14h7"/></svg></div>
-          <div class="kpi-value" data-kpi="unmatched-revenue-total">–</div>
-          <div class="kpi-label">Nicht zugeordneter Umsatz gesamt</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg></div>
+          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg></div>
           <div class="kpi-value" data-kpi="buyers-total">–</div>
           <div class="kpi-label">Käufer gesamt</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></div>
+          <div class="kpi-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div>
           <div class="kpi-value" data-kpi="provision-total">–</div>
           <div class="kpi-label">Provision gesamt</div>
         </div>
@@ -314,8 +314,8 @@
           <div class="card-title">Umsatzverlauf <span class="card-title-sub">Letzte 14 Tage · € pro Tag</span></div>
           <svg data-chart="revenue" viewBox="0 0 640 260" class="chart-svg"></svg>
           <div class="chart-legend">
-            <span><i class="dot dot-primary"></i> Umsatz (Treffer, €)</span>
-            <span><i class="dot dot-secondary"></i> Nicht zugeordnet (€)</span>
+            <span><i class="dot dot-secondary"></i> Erfasster Warenkorb (€)</span>
+            <span><i class="dot dot-primary"></i> Davon Treffer (€)</span>
           </div>
         </div>
 
@@ -334,7 +334,7 @@
 
 <script src="../js/supabase-config.js?v=1"></script>
 <script src="js/stores-config.js?v=7"></script>
-<script src="js/dashboard-render.js?v=8"></script>
+<script src="js/dashboard-render.js?v=9"></script>
 <script src="js/store-view.js?v=5"></script>
 </body>
 </html>
