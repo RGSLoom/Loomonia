@@ -401,7 +401,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // testbar.
   document.getElementById("btn-test-sprachbuch").addEventListener("click", () => {
     ["sprachbuch", "sprachbuch_gruen", "sprachbuch_blau"].forEach((key) => addItem(key));
-    showToast("✅ Dev: je 1 Sprachbuch (Weiß/Grün/Blau) erhalten");
+    showToast("✅ Dev: je 1 Sprachbuch (Rookie/Skilled/Pro) erhalten");
     updateCaughtCounter();
   });
 });

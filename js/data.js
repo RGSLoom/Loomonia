@@ -338,9 +338,9 @@ const LANGUAGE_MODULES = [
   { moduleIndex: 6, cefrKey: "c2",      displayName: "Meisterhaft",                  chaptersRequired: 8, pointsPerChapter: 100 },
 ];
 
-// Farbskala der Sprachbuecher (eigene, kleinere Skala als die allgemeine
+// Stufenskala der Sprachbuecher (eigene, kleinere Skala als die allgemeine
 // Item-Seltenheit) -> Sprachpunkte pro Buch. Siehe ITEMS.sprachbuch* unten.
-const LANGUAGE_BOOK_POINTS = { "Weiß": 5, "Grün": 10, "Blau": 20 };
+const LANGUAGE_BOOK_POINTS = { "Rookie": 5, "Skilled": 10, "Pro": 20 };
 
 // ============ Looma-Level-System ============
 // Siehe Level-System-Briefing. Baut auf dem Habitat-Briefing auf (Rested-XP
@@ -770,18 +770,20 @@ const ITEMS = {
   // ============ Sprachbuecher (Spracherwerb-Briefing) ============
   // Verbrauchsitems, die beim Einsetzen sofort Sprachpunkte auf den
   // account-weiten Sprachfortschritt gutschreiben (siehe applyLanguageBook()
-  // in js/state.js + LANGUAGE_MODULES in data.js). Eigene kleine Farbskala
-  // (Weiss 5 / Gruen 10 / Blau 20 Punkte) ueber `bookColor`/`languagePoints`
+  // in js/state.js + LANGUAGE_MODULES in data.js). Eigene kleine Stufenskala
+  // (Rookie 5 / Skilled 10 / Pro 20 Punkte) ueber `bookTier`/`languagePoints`
   // -- unabhaengig von der allgemeinen Item-Seltenheit `rarity` (die nur die
   // Sortierung im Items-Screen steuert). `usage_context: "sprachbuch"` gibt
   // ihnen in profile.js einen echten "Verwenden"-Button.
-  // `sprachbuch` ist die bestehende Weiss-Stufe (Key unveraendert, damit
+  // `sprachbuch` ist die bestehende Rookie-Stufe (Key unveraendert, damit
   // Bestandsinventare + Drop-/Trophaeen-Pools weiter passen), die beiden
-  // anderen Farben kommen neu dazu. Alle drei teilen sich vorerst dasselbe
-  // Platzhalter-Icon -- finale Grafik pro Farbe einfach ins `icon`-Feld.
+  // hoeheren Stufen kommen neu dazu -- Keys bleiben bewusst historisch
+  // (_gruen/_blau), das ist nur der interne Bezeichner, sichtbar ist `name`.
+  // Alle drei teilen sich vorerst dasselbe Platzhalter-Icon -- finale Grafik
+  // pro Stufe einfach ins `icon`-Feld.
   sprachbuch: {
     key: "sprachbuch",
-    name: "Sprachbuch (Weiß)",
+    name: "Sprachbuch (Rookie)",
     rarity: "Gewöhnlich",
     xp: 15,
     icon: "assets/items/sprachbuch_icon.png",
@@ -789,12 +791,12 @@ const ITEMS = {
     effect: "+5 Sprachpunkte für den Spracherwerb deiner Loomas",
     unlockText: "Kostenloser Drop an Standorten",
     usage_context: "sprachbuch",
-    bookColor: "Weiß",
+    bookTier: "Rookie",
     languagePoints: 5,
   },
   sprachbuch_gruen: {
     key: "sprachbuch_gruen",
-    name: "Sprachbuch (Grün)",
+    name: "Sprachbuch (Skilled)",
     rarity: "Ungewöhnlich",
     xp: 20,
     icon: "assets/items/sprachbuch_icon.png",
@@ -802,12 +804,12 @@ const ITEMS = {
     effect: "+10 Sprachpunkte für den Spracherwerb deiner Loomas",
     unlockText: "Kostenloser Drop an Standorten",
     usage_context: "sprachbuch",
-    bookColor: "Grün",
+    bookTier: "Skilled",
     languagePoints: 10,
   },
   sprachbuch_blau: {
     key: "sprachbuch_blau",
-    name: "Sprachbuch (Blau)",
+    name: "Sprachbuch (Pro)",
     rarity: "Selten",
     xp: 30,
     icon: "assets/items/sprachbuch_icon.png",
@@ -815,7 +817,7 @@ const ITEMS = {
     effect: "+20 Sprachpunkte für den Spracherwerb deiner Loomas",
     unlockText: "Kostenloser Drop an Standorten",
     usage_context: "sprachbuch",
-    bookColor: "Blau",
+    bookTier: "Pro",
     languagePoints: 20,
   },
   energiesnack: {
