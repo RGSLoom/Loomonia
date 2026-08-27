@@ -403,18 +403,22 @@ function capToReceiptTotal(cents, maxCents) {
   return cents > maxCents ? null : cents;
 }
 
-// Schneidet den Preis (und alles danach, z.B. eine folgende MwSt-Kennung
-// wie "A"/"B") vom Zeilenende ab, bevor eine Zeile als "Produktname" fuers
-// Dashboard gespeichert wird — der Preis steht dort schon separat als
-// Umsatzanteil, im Artikelnamen selbst waere er nur Rauschen (z.B. "Red
-// Bull 250ml 1,99 A" -> "Red Bull 250ml"). Steht der Preis ganz am
-// Zeilenanfang (nichts zum Abschneiden uebrig), bleibt die Zeile
-// unveraendert statt eines leeren Strings.
+// Schneidet ab dem ERSTEN Preis-Token alles bis zum Zeilenende ab, bevor
+// eine Zeile als "Produktname" fuers Dashboard/den Fuzzy-Abgleich verwendet
+// wird — alles ab dort ist Preis-Spalte (ggf. mehrere: Einzel-/Gesamtpreis,
+// MwSt-Kennung "A"/"B", Mengenrabatt), im Artikelnamen nur Rauschen. Bewusst
+// der ERSTE Preis, nicht der letzte: OCR im Tabellenmodus haengt an eine
+// Zeile oft ZWEI Betraege ("ABTEI VIT.B FORTE  2,95  2,99 B") — mit dem
+// letzten Preis als Schnittkante bliebe "ABTEI VIT.B FORTE 2,95" stehen und
+// verhinderte real den Fuzzy-Treffer gegen den hinterlegten Artikelnamen.
+// Steht schon der erste Preis ganz am Zeilenanfang (nichts davor), bleibt
+// die Zeile unveraendert statt eines leeren Strings.
+// extractLineAmountCents() nimmt weiterhin den LETZTEN Betrag der Zeile
+// (i.d.R. der Zeilen-Gesamtpreis) — das ist eine unabhaengige Entscheidung.
 function cleanProductNameText(line) {
   const priceMatches = line.match(RECEIPT_AMOUNT_PATTERN);
   if (!priceMatches || priceMatches.length === 0) return line;
-  const lastPrice = priceMatches[priceMatches.length - 1];
-  const idx = line.lastIndexOf(lastPrice);
+  const idx = line.indexOf(priceMatches[0]);
   if (idx === -1) return line;
   const before = line.slice(0, idx).trim();
   return before || line;
