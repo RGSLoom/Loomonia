@@ -226,10 +226,16 @@ function xpToLevel(xp) {
 const RESTED_MIN_OFFLINE_MS = 10 * 60 * 1000;
 // Nach 12h durchgehend geschlossener Zeit ist der Pool voll ("ueber Nacht
 // ausgeruht"). Die Obergrenze selbst ist bewusst NICHT fix, sondern
-// levelabhaengig (100% der XP-Spanne bis zum naechsten Level, siehe
-// restedXpCap() in js/state.js) -- waechst so automatisch mit dem
-// Spielfortschritt statt spaeter manuell nachjustiert werden zu muessen.
+// levelabhaengig (siehe RESTED_XP_CAP_FRACTION + restedXpCap() in
+// js/state.js) -- waechst so automatisch mit dem Spielfortschritt statt
+// spaeter manuell nachjustiert werden zu muessen.
 const RESTED_FULL_MS = 12 * 60 * 60 * 1000;
+// Anteil der XP-Spanne bis zum naechsten Level, den der volle Rested-Pool
+// ausmacht. War 1.0 (ganze Levelspanne) -- auf 0.5 halbiert (User-Feedback
+// 2026-08-27: der angesammelte Bonus nach 6-12h offline war zu hoch). Gilt
+// linear fuer jede Offline-Dauer, also z.B. 6h -> 25%, 12h -> 50% der
+// Levelspanne statt vorher 50% / 100%.
+const RESTED_XP_CAP_FRACTION = 0.5;
 
 // Die sechs Habitate + ihr Element (siehe Habitat-Briefing). Ein Looma ruht
 // nur im Habitat seines EIGENEN Elements.

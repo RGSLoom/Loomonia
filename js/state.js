@@ -1113,15 +1113,17 @@ function levelUpActiveCompanion() {
   return instance.level;
 }
 
-// Obergrenze des spielerweiten Rested-XP-Pools: 100% der XP-Spanne vom
-// aktuellen zum naechsten Level (relativ zur Levelgroesse statt eines fixen
-// Werts, siehe RESTED_FULL_MS-Kommentar in data.js) -- waechst so
-// automatisch mit dem Spielfortschritt. Am Levelcap (kein "naechstes Level"
-// mehr) faellt sie auf die Spanne des letzten Levels zurueck.
+// Obergrenze des spielerweiten Rested-XP-Pools: RESTED_XP_CAP_FRACTION (0.5,
+// siehe data.js) der XP-Spanne vom aktuellen zum naechsten Level (relativ
+// zur Levelgroesse statt eines fixen Werts) -- waechst so automatisch mit
+// dem Spielfortschritt. Am Levelcap (kein "naechstes Level" mehr) faellt sie
+// auf die Spanne des letzten Levels zurueck.
 function restedXpCap() {
   const level = xpToLevel(gameState.xp);
-  if (level >= LEVEL_CAP) return xpForLevel(LEVEL_CAP) - xpForLevel(LEVEL_CAP - 1);
-  return xpForLevel(level + 1) - xpForLevel(level);
+  const span = level >= LEVEL_CAP
+    ? xpForLevel(LEVEL_CAP) - xpForLevel(LEVEL_CAP - 1)
+    : xpForLevel(level + 1) - xpForLevel(level);
+  return span * RESTED_XP_CAP_FRACTION;
 }
 
 // Siehe Habitat-Briefing Punkt 7: kein Rested-Bonus mehr, wenn das aktive
