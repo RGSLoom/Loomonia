@@ -68,7 +68,22 @@ function sampleAlongSegments(verts, outPoints, closedAlready) {
   }
 }
 
-function openDrawSceneForStore(locationId) {
+// Async wegen der serverseitigen Cooldown-Pruefung (Abklingzeit-Briefing,
+// siehe claimLocationInteraction() in js/location-cooldown.js) -- beide
+// Aufrufstellen (onStoreMarkerClick() in js/map.js, Dev-Testitem-Button in
+// js/main.js) rufen das weiterhin unawaited auf, das ist hier ok, die
+// Funktion kuemmert sich selbst um Anzeige/Abbruch bei aktivem Cooldown.
+async function openDrawSceneForStore(locationId) {
+  const cooldown = await claimLocationInteraction();
+  if (!cooldown.allowed) {
+    showToast(
+      cooldown.remainingMs != null
+        ? `Noch ${formatRemainingTime(cooldown.remainingMs)} bis zur nächsten Standort-Interaktion.`
+        : "Standort-Interaktion gerade nicht möglich — bitte kurz erneut versuchen."
+    );
+    return;
+  }
+
   const trackedLocation = STORE_LOCATIONS.find((l) => l.id === locationId);
   trackEvent("store_selected", { storeId: locationId, category: trackedLocation.categoryKey });
 

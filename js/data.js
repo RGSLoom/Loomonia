@@ -157,9 +157,29 @@ const STARTER_CREATURE_KEYS = ["fauli", "fifu", "enari"];
 const DRAW_CONFIG = {
   viewBox: 220,
   toleranceRadius: 32,
-  successThreshold: 0.42,
+  // War 0.42 -- auf Wunsch (Abklingzeit-Briefing 2026-09-07, Zusatzpunkt
+  // "hoehere Trefferquote beim manuellen Durchfuehren") deutlich verschaerft:
+  // 95% Abdeckung der Referenzform noetig, damit ein Standort-Drop nicht
+  // mehr mit einer nur grob aehnlichen Geste durchgewunken wird. Betrifft nur
+  // das manuelle Nachzeichnen -- "Minigame ueberspringen" (siehe
+  // gameState.settings.skipMinigame) umgeht diese Pruefung weiterhin
+  // komplett und ist davon unberuehrt.
+  successThreshold: 0.95,
   shapes: ["kreis", "welle", "zickzack", "dreieck", "quadrat"],
 };
+
+// ============ Standort-Interaktions-Cooldown ============
+// Abklingzeit-Briefing (2026-09-07): nach JEDER Standort-Interaktion
+// (Nachmal-Minigame ODER "Minigame ueberspringen"-Sofortvergabe, siehe
+// openDrawSceneForStore() in js/drawgame.js) darf derselbe Spieler 3 Minuten
+// lang KEINEN weiteren Standort mehr antippen -- spielerweit, nicht pro
+// Standort (ein anderer Standort waehrend des Cooldowns ist ebenfalls
+// gesperrt). Die eigentliche Durchsetzung passiert serverseitig (siehe
+// supabase/functions/location-cooldown/index.ts + claimLocationInteraction()
+// in js/location-cooldown.js) -- ein rein lokaler Zeitstempel liesse sich
+// durch Loeschen/Bearbeiten des Spielstands umgehen. Dieser Wert hier MUSS
+// mit COOLDOWN_MS in der Edge Function uebereinstimmen.
+const LOCATION_INTERACTION_COOLDOWN_MS = 3 * 60 * 1000;
 
 // ============ Energie ============
 // Kostet einmal pro Fang-Begegnung Energie (beim Oeffnen der Fangszene,
