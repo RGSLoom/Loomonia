@@ -74,11 +74,11 @@ function sampleAlongSegments(verts, outPoints, closedAlready) {
 // js/main.js) rufen das weiterhin unawaited auf, das ist hier ok, die
 // Funktion kuemmert sich selbst um Anzeige/Abbruch bei aktivem Cooldown.
 async function openDrawSceneForStore(locationId) {
-  const cooldown = await claimLocationInteraction();
+  const cooldown = await claimLocationInteraction(locationId);
   if (!cooldown.allowed) {
     showToast(
       cooldown.remainingMs != null
-        ? `Noch ${formatRemainingTime(cooldown.remainingMs)} bis zur nächsten Standort-Interaktion.`
+        ? `Noch ${formatRemainingTime(cooldown.remainingMs)} bis zur nächsten Interaktion an diesem Standort.`
         : "Standort-Interaktion gerade nicht möglich — bitte kurz erneut versuchen."
     );
     return;

@@ -169,12 +169,13 @@ const DRAW_CONFIG = {
 };
 
 // ============ Standort-Interaktions-Cooldown ============
-// Abklingzeit-Briefing (2026-09-07): nach JEDER Standort-Interaktion
-// (Nachmal-Minigame ODER "Minigame ueberspringen"-Sofortvergabe, siehe
-// openDrawSceneForStore() in js/drawgame.js) darf derselbe Spieler 3 Minuten
-// lang KEINEN weiteren Standort mehr antippen -- spielerweit, nicht pro
-// Standort (ein anderer Standort waehrend des Cooldowns ist ebenfalls
-// gesperrt). Die eigentliche Durchsetzung passiert serverseitig (siehe
+// Abklingzeit-Briefing (2026-09-07, nach User-Korrektur "jeder Standort muss
+// unabhaengig sein"): nach JEDER Standort-Interaktion (Nachmal-Minigame ODER
+// "Minigame ueberspringen"-Sofortvergabe, siehe openDrawSceneForStore() in
+// js/drawgame.js) darf derselbe Spieler 3 Minuten lang GENAU DIESEN Standort
+// nicht erneut antippen -- pro Spieler UND pro Standort unabhaengig
+// voneinander (ein anderer Standort ist waehrend des Cooldowns weiterhin
+// nutzbar). Die eigentliche Durchsetzung passiert serverseitig (siehe
 // supabase/functions/location-cooldown/index.ts + claimLocationInteraction()
 // in js/location-cooldown.js) -- ein rein lokaler Zeitstempel liesse sich
 // durch Loeschen/Bearbeiten des Spielstands umgehen. Dieser Wert hier MUSS
