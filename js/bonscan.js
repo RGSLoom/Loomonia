@@ -52,6 +52,21 @@ async function normalizeImageForOcr(source) {
 // scheitern.
 const RECEIPT_OCR_URL = `${SUPABASE_URL}/functions/v1/receipt-ocr`;
 
+// Tesseract.js-Assets (Worker, WASM-Core, deutsches Sprachmodell) werden seit
+// 09.2026 selbst mit ausgeliefert statt zur Laufzeit von einem CDN (jsdelivr)
+// nachgeladen -- siehe js/vendor/tesseract/. Damit entsteht beim Bon-Scan
+// kein Abruf mehr an einen Drittanbieter (Datenschutz: kein US-CDN sieht die
+// Nutzer-IP). Die Pfade MUESSEN absolut sein: Tesseract reicht corePath/
+// langPath in den (per Default als Blob erzeugten) Worker weiter, wo relative
+// Pfade nicht gegen die Seite, sondern gegen die Worker-/Blob-URL aufgeloest
+// werden und damit ins Leere laufen.
+const TESSERACT_ASSET_BASE = new URL("js/vendor/tesseract/", document.baseURI).href;
+const TESSERACT_OPTIONS = {
+  workerPath: `${TESSERACT_ASSET_BASE}worker.min.js`,
+  corePath: TESSERACT_ASSET_BASE,
+  langPath: TESSERACT_ASSET_BASE,
+};
+
 // OCR.space Free-Tier akzeptiert nur Bilddateien bis 1 MB. Wir komprimieren
 // das (bereits per normalizeImageForOcr vereinheitlichte) Foto vorher gezielt
 // darunter -- mit Sicherheitsabstand, sonst weist die API es ab.
@@ -138,7 +153,11 @@ async function recognizeReceiptText(imageBlob) {
   // gleichzeitig verschlechtert die Erkennung auf einem rein deutschen Bon
   // spuerbar. Timeout als Absicherung, falls die OCR haengt (z.B.
   // Sprachpaket-Download beim allerersten Scan bricht ab).
-  const result = await withTimeout(Tesseract.recognize(imageBlob, "deu"), 45000, "OCR");
+  const result = await withTimeout(
+    Tesseract.recognize(imageBlob, "deu", TESSERACT_OPTIONS),
+    45000,
+    "OCR",
+  );
   console.log("Bon-OCR (Tesseract / deu):", result.data.text);
   return {
     text: result.data.text || "",

@@ -1,0 +1,3 @@
+# Vendored third-party assets (Tesseract.js OCR): keep byte-for-byte, no
+# line-ending conversion, no diffs. These are downloaded build artifacts.
+js/vendor/** binary
