@@ -2258,17 +2258,18 @@ html, body {
 }
 .toggle-switch.on::after { left: 23px; }
 
-/* Verweis-"Button" in den Einstellungen (z.B. Datenschutz) -- optisch an die
-   Umschalter angelehnt, aber ein echter Link statt eines Toggles. */
-.settings-link {
-  flex-shrink: 0;
-  padding: 6px 14px;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.16);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
+/* Datenschutz-Verweis als schlichter Fuss-Link unter den Einstellungen --
+   bewusst KEINE settings-row, damit er auch bei weiteren Menuepunkten immer
+   am Ende steht und nicht wie eine Einstellung aussieht. */
+.settings-legal {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  text-align: center;
 }
-.settings-link:hover { background: rgba(255,255,255,0.28); }
+.settings-legal a {
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  text-decoration: underline;
+}
+.settings-legal a:hover { color: #fff; }

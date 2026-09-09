@@ -1109,12 +1109,8 @@ function renderSettings() {
       </div>
       <button id="settings-item-deletion-toggle" class="toggle-switch ${gameState.settings.allowItemDeletion ? "on" : ""}"></button>
     </div>
-    <div class="settings-row">
-      <div>
-        <div style="font-weight:600;">Datenschutz</div>
-        <div style="font-size:12px; opacity:0.75;">Datenschutzhinweise zur Loomonia-App (öffnet in einem neuen Tab).</div>
-      </div>
-      <a href="/datenschutz/" target="_blank" rel="noopener" class="settings-link">Öffnen</a>
+    <div class="settings-legal">
+      <a href="/datenschutz/" target="_blank" rel="noopener">Datenschutzhinweise</a>
     </div>`;
 }
 
