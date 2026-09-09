@@ -419,4 +419,22 @@ h1, h2, h3 { font-family: var(--font-heading); color: var(--heading); }
   .sidebar-nav { flex-direction: row; flex-wrap: wrap; }
   .main-row { grid-template-columns: 1fr; }
   .content { padding: 20px; }
+  /* im schmalen Layout ist die Sidebar eine horizontale Leiste -- den
+     Datenschutz-Link auf eine eigene volle Zeile ohne Trennlinie legen. */
+  .sidebar .dash-legal { width: 100%; border-top: none; padding-top: 4px; text-align: left; }
 }
+
+/* Datenschutz-Link -- Footer der Sidebar (entsperrtes Dashboard) und der
+   Lock-Karte (vor dem Login), analog zum Datenschutz-Link im Website-Footer. */
+.dash-legal {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  font-size: 12px;
+  text-align: center;
+}
+.dash-legal a { color: rgba(228,236,245,0.7); text-decoration: none; }
+.dash-legal a:hover { color: #fff; text-decoration: underline; }
+.lock-card .dash-legal { border-top-color: rgba(0,0,0,0.08); }
+.lock-card .dash-legal a { color: #6b7686; }
+.lock-card .dash-legal a:hover { color: #2f4b7c; }
